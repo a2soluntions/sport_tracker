@@ -209,8 +209,8 @@ export default function CalculatorPage() {
   const [selectedGameId, setSelectedGameId] = useState("");
   const [selectedLeague, setSelectedLeague] = useState("71");
   
-  const [homeXG, setHomeXG] = useState(1.50);
-  const [awayXG, setAwayXG] = useState(1.10);
+  const [homeXG, setHomeXG] = useState("");
+  const [awayXG, setAwayXG] = useState("");
 
   const [selectedRefIndex, setSelectedRefIndex] = useState(0);
   const [games, setGames] = useState([]);
@@ -309,11 +309,13 @@ export default function CalculatorPage() {
     let probBtts = 0;
 
     const scoreMatrix = [];
+    const homeVal = homeXG === "" ? 0 : Number(homeXG);
+    const awayVal = awayXG === "" ? 0 : Number(awayXG);
 
     for (let h = 0; h <= 6; h++) {
       scoreMatrix[h] = [];
       for (let a = 0; a <= 6; a++) {
-        const prob = getPoissonProbability(homeXG, h) * getPoissonProbability(awayXG, a);
+        const prob = getPoissonProbability(homeVal, h) * getPoissonProbability(awayVal, a);
         scoreMatrix[h][a] = prob;
 
         if (h > a) probHome += prob;
@@ -349,8 +351,9 @@ export default function CalculatorPage() {
 
   // Estimar Probabilidade dos Marcadores
   const calculatePlayerGoalProb = (xg, weight) => {
+    const xgVal = xg === "" ? 0 : Number(xg);
     // P(Golo do jogador a qualquer momento) = 1 - e^(-xg * weight)
-    const anytime = 1 - Math.exp(-xg * weight);
+    const anytime = 1 - Math.exp(-xgVal * weight);
     const first = anytime * 0.38; // Primeiro golo estimado
     return {
       anytime: getPct(anytime),
@@ -583,9 +586,9 @@ export default function CalculatorPage() {
           {/* COLUNA 4: Heatmap Placar Exato */}
           <div className="glass-panel" style={{ borderTop: '4px solid #b339ff', padding: '14px' }}>
             <h2 style={{ fontSize: '1rem', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-              <Activity size={16} color="#b339ff" /> Heatmap (Top 9)
+              <Activity size={16} color="#b339ff" /> Heatmap (Top 15)
             </h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
               {(() => {
                 let flatScores = [];
                 for (let h = 0; h <= 4; h++) {
@@ -595,13 +598,13 @@ export default function CalculatorPage() {
                 }
                 flatScores.sort((a, b) => b.prob - a.prob);
                 
-                return flatScores.slice(0, 9).map((item, i) => {
+                return flatScores.slice(0, 15).map((item, i) => {
                   const intensity = Math.min(1, item.prob * 5); 
                   const bg = `rgba(0, 255, 170, ${intensity * 0.45})`;
                   return (
-                    <div key={i} style={{ background: bg, border: '1px solid #333', borderRadius: '6px', padding: '4px 2px', textAlign: 'center' }}>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>{item.score}</div>
-                      <div style={{ fontSize: '0.7rem', color: '#aaa' }}>{getPct(item.prob)}%</div>
+                    <div key={i} style={{ background: bg, border: '1px solid #333', borderRadius: '6px', padding: '4px 1px', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{item.score}</div>
+                      <div style={{ fontSize: '0.62rem', color: '#aaa' }}>{getPct(item.prob)}%</div>
                     </div>
                   )
                 });

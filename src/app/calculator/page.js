@@ -586,19 +586,19 @@ export default function CalculatorPage() {
           {/* COLUNA 4: Heatmap Placar Exato */}
           <div className="glass-panel" style={{ borderTop: '4px solid #b339ff', padding: '14px' }}>
             <h2 style={{ fontSize: '1rem', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-              <Activity size={16} color="#b339ff" /> Heatmap (Top 15)
+              <Activity size={16} color="#b339ff" /> Resultados Exatos (Top 30)
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '6px' }}>
               {(() => {
                 let flatScores = [];
-                for (let h = 0; h <= 4; h++) {
-                  for (let a = 0; a <= 4; a++) {
+                for (let h = 0; h <= 5; h++) {
+                  for (let a = 0; a <= 5; a++) {
                     flatScores.push({ score: `${h}x${a}`, prob: stats.scoreMatrix[h][a] });
                   }
                 }
                 flatScores.sort((a, b) => b.prob - a.prob);
                 
-                return flatScores.slice(0, 15).map((item, i) => {
+                return flatScores.slice(0, 30).map((item, i) => {
                   const intensity = Math.min(1, item.prob * 5); 
                   const bg = `rgba(0, 255, 170, ${intensity * 0.45})`;
                   return (

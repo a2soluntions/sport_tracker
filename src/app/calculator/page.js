@@ -303,10 +303,19 @@ export default function CalculatorPage() {
     let probHome = 0;
     let probDraw = 0;
     let probAway = 0;
+    let probOver05 = 0;
     let probOver15 = 0;
     let probOver25 = 0;
     let probOver35 = 0;
+    let probOver45 = 0;
     let probBtts = 0;
+
+    let probHomeOver05 = 0;
+    let probHomeOver15 = 0;
+    let probHomeOver25 = 0;
+    let probAwayOver05 = 0;
+    let probAwayOver15 = 0;
+    let probAwayOver25 = 0;
 
     const scoreMatrix = [];
     const homeVal = homeXG === "" ? 0 : Number(homeXG);
@@ -323,17 +332,29 @@ export default function CalculatorPage() {
         else probAway += prob;
 
         const totalGoals = h + a;
+        if (totalGoals > 0.5) probOver05 += prob;
         if (totalGoals > 1.5) probOver15 += prob;
         if (totalGoals > 2.5) probOver25 += prob;
         if (totalGoals > 3.5) probOver35 += prob;
+        if (totalGoals > 4.5) probOver45 += prob;
         if (h > 0 && a > 0) probBtts += prob;
+
+        if (h > 0.5) probHomeOver05 += prob;
+        if (h > 1.5) probHomeOver15 += prob;
+        if (h > 2.5) probHomeOver25 += prob;
+
+        if (a > 0.5) probAwayOver05 += prob;
+        if (a > 1.5) probAwayOver15 += prob;
+        if (a > 2.5) probAwayOver25 += prob;
       }
     }
 
     return {
       probHome, probDraw, probAway,
-      probOver15, probOver25, probOver35,
+      probOver05, probOver15, probOver25, probOver35, probOver45,
       probBtts,
+      probHomeOver05, probHomeOver15, probHomeOver25,
+      probAwayOver05, probAwayOver15, probAwayOver25,
       scoreMatrix
     };
   }, [homeXG, awayXG]);
@@ -530,21 +551,21 @@ export default function CalculatorPage() {
               <Activity size={16} color="var(--brand-neon)" /> Mercado 1X2
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#1c1c1c', borderRadius: '8px', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'transparent', border: '1px solid #333', borderRadius: '8px', gap: '8px' }}>
                 <span style={{ fontWeight: 600, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} title={homeTeam || "Casa"}>{homeTeam || "Casa"}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                   <strong style={{ color: 'var(--brand-neon)', fontSize: '0.85rem' }}>{getPct(stats.probHome)}%</strong>
                   <span style={{ color: '#888', fontSize: '0.85rem' }}>@{getOdd(stats.probHome)}</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#1c1c1c', borderRadius: '8px', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'transparent', border: '1px solid #333', borderRadius: '8px', gap: '8px' }}>
                 <span style={{ fontWeight: 600, fontSize: '0.85rem', flex: 1 }}>Empate</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                   <strong style={{ color: '#ffeb3b', fontSize: '0.85rem' }}>{getPct(stats.probDraw)}%</strong>
                   <span style={{ color: '#888', fontSize: '0.85rem' }}>@{getOdd(stats.probDraw)}</span>
                 </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: '#1c1c1c', borderRadius: '8px', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'transparent', border: '1px solid #333', borderRadius: '8px', gap: '8px' }}>
                 <span style={{ fontWeight: 600, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} title={awayTeam || "Visit."}>{awayTeam || "Visit."}</span>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                   <strong style={{ color: '#ff4b4b', fontSize: '0.85rem' }}>{getPct(stats.probAway)}%</strong>
@@ -557,29 +578,48 @@ export default function CalculatorPage() {
           {/* COLUNA 3: Mercado de Gols */}
           <div className="glass-panel" style={{ borderTop: '4px solid #ff9800', padding: '14px' }}>
             <h2 style={{ fontSize: '1rem', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-              <Info size={16} color="#ff9800" /> Gols (O/U)
+              <Info size={16} color="#ff9800" /> Mercado de Gols (Top 24)
             </h2>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px' }}>
-              <div style={{ background: '#1c1c1c', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ color: '#aaa', fontSize: '0.75rem', marginBottom: '2px' }}>Over 1.5</div>
-                <strong style={{ fontSize: '0.9rem' }}>{getPct(stats.probOver15)}%</strong>
-                <div style={{ fontSize: '0.75rem', color: '#ff9800' }}>@{getOdd(stats.probOver15)}</div>
-              </div>
-              <div style={{ background: '#1c1c1c', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ color: '#aaa', fontSize: '0.75rem', marginBottom: '2px' }}>Over 2.5</div>
-                <strong style={{ fontSize: '0.9rem' }}>{getPct(stats.probOver25)}%</strong>
-                <div style={{ fontSize: '0.75rem', color: '#ff9800' }}>@{getOdd(stats.probOver25)}</div>
-              </div>
-              <div style={{ background: '#1c1c1c', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ color: '#aaa', fontSize: '0.75rem', marginBottom: '2px' }}>Over 3.5</div>
-                <strong style={{ fontSize: '0.9rem' }}>{getPct(stats.probOver35)}%</strong>
-                <div style={{ fontSize: '0.75rem', color: '#ff9800' }}>@{getOdd(stats.probOver35)}</div>
-              </div>
-              <div style={{ background: '#1c1c1c', padding: '8px', borderRadius: '8px', textAlign: 'center' }}>
-                <div style={{ color: '#aaa', fontSize: '0.75rem', marginBottom: '2px' }}>BTTS</div>
-                <strong style={{ fontSize: '0.9rem' }}>{getPct(stats.probBtts)}%</strong>
-                <div style={{ fontSize: '0.75rem', color: '#ff9800' }}>@{getOdd(stats.probBtts)}</div>
-              </div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+              {[
+                { label: 'Over 0.5', prob: stats.probOver05 },
+                { label: 'Under 0.5', prob: 1 - stats.probOver05 },
+                { label: 'Casa Over 0.5', prob: stats.probHomeOver05 },
+                { label: 'Casa Under 0.5', prob: 1 - stats.probHomeOver05 },
+
+                { label: 'Over 1.5', prob: stats.probOver15 },
+                { label: 'Under 1.5', prob: 1 - stats.probOver15 },
+                { label: 'Casa Over 1.5', prob: stats.probHomeOver15 },
+                { label: 'Casa Under 1.5', prob: 1 - stats.probHomeOver15 },
+
+                { label: 'Over 2.5', prob: stats.probOver25 },
+                { label: 'Under 2.5', prob: 1 - stats.probOver25 },
+                { label: 'Casa Over 2.5', prob: stats.probHomeOver25 },
+                { label: 'Casa Under 2.5', prob: 1 - stats.probHomeOver25 },
+
+                { label: 'Over 3.5', prob: stats.probOver35 },
+                { label: 'Under 3.5', prob: 1 - stats.probOver35 },
+                { label: 'Fora Over 0.5', prob: stats.probAwayOver05 },
+                { label: 'Fora Under 0.5', prob: 1 - stats.probAwayOver05 },
+
+                { label: 'Over 4.5', prob: stats.probOver45 },
+                { label: 'Under 4.5', prob: 1 - stats.probOver45 },
+                { label: 'Fora Over 1.5', prob: stats.probAwayOver15 },
+                { label: 'Fora Under 1.5', prob: 1 - stats.probAwayOver15 },
+
+                { label: 'BTTS (Sim)', prob: stats.probBtts },
+                { label: 'BTTS (Não)', prob: 1 - stats.probBtts },
+                { label: 'Fora Over 2.5', prob: stats.probAwayOver25 },
+                { label: 'Fora Under 2.5', prob: 1 - stats.probAwayOver25 }
+              ].map((item, idx) => (
+                <div key={idx} style={{ background: 'transparent', border: '1px solid #333', padding: '6px 2px', borderRadius: '6px', textAlign: 'center' }}>
+                  <div style={{ color: '#aaa', fontSize: '0.66rem', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.label}>
+                    {item.label}
+                  </div>
+                  <strong style={{ fontSize: '0.82rem', display: 'block' }}>{getPct(item.prob)}%</strong>
+                  <div style={{ fontSize: '0.66rem', color: '#ff9800' }}>@{getOdd(item.prob)}</div>
+                </div>
+              ))}
             </div>
           </div>
 

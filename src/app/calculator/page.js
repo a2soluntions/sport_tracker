@@ -464,37 +464,59 @@ export default function CalculatorPage() {
             </div>
 
             <div style={{ 
-              background: selectedGameId ? '#1c1c24' : 'transparent', 
-              border: selectedGameId ? '1px solid #333' : '1px solid transparent', 
-              padding: '8px', 
-              borderRadius: '6px', 
-              fontSize: '0.8rem', 
-              color: selectedGameId ? '#fff' : 'transparent', 
+              fontSize: '0.75rem', 
+              color: selectedGameId ? '#888' : 'transparent', 
               textAlign: 'center', 
               marginTop: '4px',
-              minHeight: '34px',
+              minHeight: '20px',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center'
             }}>
               {selectedGameId ? (
-                <>
-                  <span style={{ color: '#888', marginRight: '4px' }}>Data do Jogo:</span> {new Date(matchDate).toLocaleDateString('pt-BR')}
-                </>
+                <span>Data do Jogo: {new Date(matchDate).toLocaleDateString('pt-BR')}</span>
               ) : (
                 <span>&nbsp;</span>
               )}
             </div>
 
-            <div style={{ background: '#111', padding: '8px 12px', borderRadius: '8px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', border: '1px solid #222', marginTop: 'auto' }}>
-              <div style={{ textAlign: 'center' }}>
-                <label style={{ display: 'block', marginBottom: '2px', color: '#aaa', fontSize: '0.7rem' }}>xG {homeTeam || "Casa"}</label>
-                <input type="number" step="0.1" min="0" value={homeXG} onChange={(e) => setHomeXG(Number(e.target.value))} style={{ width: '65px', background: '#222', border: '1px solid #444', color: '#fff', padding: '4px 6px', borderRadius: '6px', fontSize: '1rem', textAlign: 'center', fontWeight: 'bold' }} />
+            {/* Nome dos Times (Editável) e xG */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input 
+                  type="text" 
+                  placeholder="Time Casa" 
+                  value={homeTeam} 
+                  onChange={(e) => setHomeTeam(e.target.value)} 
+                  style={{ flex: 1, background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '6px 10px', borderRadius: '6px', fontSize: '0.8rem', outline: 'none' }}
+                />
+                <input 
+                  type="number" 
+                  step="0.1" 
+                  min="0" 
+                  value={homeXG} 
+                  onChange={(e) => setHomeXG(Number(e.target.value))} 
+                  style={{ width: '55px', background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '6px', borderRadius: '6px', fontSize: '0.9rem', textAlign: 'center', fontWeight: 'bold', outline: 'none' }} 
+                  title="xG Mandante"
+                />
               </div>
-              <span style={{ fontSize: '1rem', color: '#444' }}>X</span>
-              <div style={{ textAlign: 'center' }}>
-                <label style={{ display: 'block', marginBottom: '2px', color: '#aaa', fontSize: '0.7rem' }}>xG {awayTeam || "Visit."}</label>
-                <input type="number" step="0.1" min="0" value={awayXG} onChange={(e) => setAwayXG(Number(e.target.value))} style={{ width: '65px', background: '#222', border: '1px solid #444', color: '#fff', padding: '4px 6px', borderRadius: '6px', fontSize: '1rem', textAlign: 'center', fontWeight: 'bold' }} />
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <input 
+                  type="text" 
+                  placeholder="Time Visitante" 
+                  value={awayTeam} 
+                  onChange={(e) => setAwayTeam(e.target.value)} 
+                  style={{ flex: 1, background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '6px 10px', borderRadius: '6px', fontSize: '0.8rem', outline: 'none' }}
+                />
+                <input 
+                  type="number" 
+                  step="0.1" 
+                  min="0" 
+                  value={awayXG} 
+                  onChange={(e) => setAwayXG(Number(e.target.value))} 
+                  style={{ width: '55px', background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '6px', borderRadius: '6px', fontSize: '0.9rem', textAlign: 'center', fontWeight: 'bold', outline: 'none' }} 
+                  title="xG Visitante"
+                />
               </div>
             </div>
           </div>

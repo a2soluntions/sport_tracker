@@ -207,6 +207,7 @@ export default function CalculatorPage() {
   const [awayTeamId, setAwayTeamId] = useState(null);
   const [matchDate, setMatchDate] = useState("");
   const [selectedGameId, setSelectedGameId] = useState("");
+  const [selectedLeague, setSelectedLeague] = useState("71");
   
   const [homeXG, setHomeXG] = useState(1.50);
   const [awayXG, setAwayXG] = useState(1.10);
@@ -265,19 +266,23 @@ export default function CalculatorPage() {
 
   useEffect(() => {
     // Carregar jogos da rodada
-    fetch('/api/football/fixtures?all=true')
+    setLoadingGames(true);
+    fetch(`/api/football/fixtures?league=${selectedLeague}&all=true`)
       .then(res => res.json())
       .then(data => {
         if (data && data.fixtures) {
           setGames(data.fixtures);
+        } else {
+          setGames([]);
         }
         setLoadingGames(false);
       })
       .catch(err => {
         console.error("Erro ao buscar jogos da rodada:", err);
+        setGames([]);
         setLoadingGames(false);
       });
-  }, []);
+  }, [selectedLeague]);
 
   const handleSelectGame = (game) => {
     setHomeTeam(game.home);
@@ -404,13 +409,40 @@ export default function CalculatorPage() {
               <Target size={16} color="#00d2ff" /> Setup do Jogo
             </h2>
             
+            {/* Seletor de Liga */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <label style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                Selecionar Liga:
+              </label>
+              <select
+                value={selectedLeague}
+                onChange={(e) => {
+                  setSelectedLeague(e.target.value);
+                  setSelectedGameId("");
+                  setHomeTeam("");
+                  setAwayTeam("");
+                }}
+                style={{ width: '100%', background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', appearance: 'auto' }}
+              >
+                <option value="71">🇧🇷 Brasileirão Série A</option>
+                <option value="72">🇧🇷 Brasileirão Série B</option>
+                <option value="13">🌎 Copa Libertadores</option>
+                <option value="39">🇬🇧 Premier League</option>
+                <option value="140">🇪🇸 La Liga</option>
+                <option value="135">🇮🇹 Serie A (Itália)</option>
+                <option value="78">🇩🇪 Bundesliga</option>
+              </select>
+            </div>
+
             {/* Seletor rápido de jogos */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
               <label style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Selecionar Jogo do Brasileirão:
+                Selecionar Partida:
               </label>
               {loadingGames ? (
-                <div style={{ fontSize: '0.75rem', color: '#555', fontStyle: 'italic' }}>Buscando rodada...</div>
+                <div style={{ fontSize: '0.75rem', color: '#555', fontStyle: 'italic' }}>Buscando partidas...</div>
+              ) : games.length === 0 ? (
+                <div style={{ fontSize: '0.75rem', color: '#888', fontStyle: 'italic' }}>Nenhum jogo nesta rodada.</div>
               ) : (
                 <select 
                   onChange={(e) => {
@@ -421,7 +453,7 @@ export default function CalculatorPage() {
                     }
                   }}
                   value={selectedGameId}
-                  style={{ width: '100%', background: '#1c1c1c', border: '1px solid #333', color: 'var(--brand-neon)', padding: '8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', appearance: 'auto' }}
+                  style={{ width: '100%', background: '#1c1c24', border: '1px solid #333', color: 'var(--brand-neon)', padding: '8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', appearance: 'auto' }}
                 >
                   <option value="" disabled>-- Selecione uma Partida --</option>
                   {games.map(g => (

@@ -265,7 +265,7 @@ export default function CalculatorPage() {
 
   useEffect(() => {
     // Carregar jogos da rodada
-    fetch('/api/football/fixtures')
+    fetch('/api/football/fixtures?all=true')
       .then(res => res.json())
       .then(data => {
         if (data && data.fixtures) {

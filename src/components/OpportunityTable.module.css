@@ -1,0 +1,391 @@
+.tableContainer {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 12px;
+}
+
+.tableHeader {
+  color: var(--text-secondary);
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  text-align: left;
+}
+
+.tableHeader th {
+  padding: 16px 24px;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+  background-color: var(--bg-surface); /* Corrigindo cor de fundo */
+  z-index: 5;
+  border-bottom: 1px solid #333;
+}
+
+.tableHeader th:first-child {
+  border-top-left-radius: 11px;
+}
+
+.tableHeader th:last-child {
+  border-top-right-radius: 11px;
+}
+
+.tableRow {
+  background-color: var(--bg-surface);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.tableRow:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(204, 255, 0, 0.05);
+  background-color: var(--bg-surface-light);
+}
+
+.tableRow td {
+  padding: 20px 24px;
+}
+
+.tableRow td:first-child {
+  border-top-left-radius: 12px;
+  border-bottom-left-radius: 12px;
+}
+
+.tableRow td:last-child {
+  border-top-right-radius: 12px;
+  border-bottom-right-radius: 12px;
+}
+
+.teamName {
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+
+.leagueName {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+
+.oddValue {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.oddFair {
+  color: var(--text-secondary);
+  text-decoration: line-through;
+  font-size: 0.9rem;
+  margin-right: 8px;
+}
+
+.evPositive {
+  color: var(--brand-neon);
+  font-weight: 700;
+}
+
+.stakeBadge {
+  background: var(--brand-neon);
+  color: var(--bg-main);
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-weight: 800;
+  font-size: 1.1rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 0 15px var(--brand-neon-dim);
+}
+
+.stakeBadge:hover {
+  box-shadow: 0 0 25px rgba(204, 255, 0, 0.3);
+  transform: scale(1.05);
+}
+
+/* Responsividade - Ocultar Tabela no Mobile e Mostrar Cards */
+.desktopTableContainer {
+  display: block;
+}
+
+.mobileCardsContainer {
+  display: none;
+}
+
+.noOpportunities {
+  text-align: center;
+  padding: 40px;
+  color: var(--text-secondary);
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+}
+
+@media (max-width: 768px) {
+  .desktopTableContainer {
+    display: none;
+  }
+  
+  .mobileCardsContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-top: 8px;
+  }
+
+  .mobileCardTime {
+    display: none !important;
+  }
+}
+
+/* Estilo do Card Mobile */
+.mobileCard {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.25);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.mobileCard:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(204, 255, 0, 0.04);
+}
+
+.liveCard {
+  border: 1px solid rgba(242, 63, 66, 0.4);
+  box-shadow: 0 4px 15px rgba(242, 63, 66, 0.08);
+}
+
+/* Cabeçalho do Card */
+.mobileCardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  padding-bottom: 8px;
+}
+
+.mobileCardLeague {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.leagueIcon {
+  color: #ff9800;
+}
+
+.mobileCardTime {
+  font-size: 0.75rem;
+}
+
+.timeText {
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+}
+
+.liveIndicator {
+  background: var(--alert-red-dim);
+  color: var(--alert-red);
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.7rem;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid rgba(242, 63, 66, 0.2);
+  text-transform: uppercase;
+}
+
+.liveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--alert-red);
+  display: inline-block;
+  animation: pulseMobile 1.5s infinite ease-in-out;
+}
+
+@keyframes pulseMobile {
+  0% { transform: scale(0.9); opacity: 0.4; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.4; }
+}
+
+/* Corpo do Card */
+.mobileCardBody {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mobileCardLeft {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mobileCardTeams {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mobileTeamRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.teamNameContainer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.teamBadgeSymbol {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background-color: var(--bg-surface-light);
+  border: 1px solid var(--border-color);
+  color: var(--text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.65rem;
+  font-weight: 800;
+}
+
+.mobileTeamName {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.mobileTeamScore {
+  font-size: 0.9rem;
+  font-weight: 800;
+  background-color: rgba(255, 255, 255, 0.08);
+  padding: 2px 8px;
+  border-radius: 4px;
+  color: var(--brand-neon);
+}
+
+.mobileMarketInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.marketLabel {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.marketValue {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.mobileCardRight {
+  width: 115px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.evBadgeMobile {
+  background: var(--brand-neon-dim);
+  color: var(--brand-neon);
+  border: 1px solid var(--brand-neon);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  text-align: center;
+  width: 100%;
+}
+
+.mobileOddBox {
+  background-color: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 8px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.oddLabel {
+  font-size: 0.6rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  margin-bottom: 2px;
+  letter-spacing: 0.3px;
+}
+
+.oddValueMobile {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--brand-neon);
+}
+
+.oddFairMobile {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-decoration: line-through;
+  margin-top: 1px;
+}
+
+/* Rodapé do Card: Aposta sugerida */
+.mobileCardFooter {
+  margin-top: 4px;
+}
+
+.mobileStakeBadge {
+  background: var(--brand-neon);
+  color: var(--bg-main);
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 0 10px var(--brand-neon-dim);
+  width: 100%;
+}
+
+.mobileStakeBadge span {
+  font-weight: 500;
+  opacity: 0.85;
+}
+
+.mobileStakeBadge strong {
+  font-weight: 800;
+}

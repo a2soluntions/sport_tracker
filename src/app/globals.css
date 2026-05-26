@@ -1,34 +1,23 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
-html {
-  height: 100%;
-}
-
-html,
-body {
-  max-width: 100vw;
-  overflow-x: hidden;
-}
-
-body {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
+  /* Design System - CRM Dark Mode / Neon */
+  --bg-main: #0B0B0E;        /* Fundo escuro profundo */
+  --bg-surface: #141419;     /* Fundo de cards/sidebar */
+  --bg-surface-light: #1E1E24; /* Fundo de botões e hovers */
+  
+  --brand-neon: #CCFF00;     /* Verde Lima Neon */
+  --brand-neon-dim: rgba(204, 255, 0, 0.15); 
+  
+  --text-primary: #FFFFFF;
+  --text-secondary: #A1A1AA;
+  
+  --border-color: #27272A;
+  
+  --alert-red: #F23F42;
+  --alert-red-dim: rgba(242, 63, 66, 0.15);
+  
+  --font-family: 'Inter', sans-serif;
 }
 
 * {
@@ -37,13 +26,752 @@ body {
   margin: 0;
 }
 
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  height: 100%;
+}
+
+body {
+  display: flex;
+  color: var(--text-primary);
+  background: var(--bg-main);
+  font-family: var(--font-family);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
 a {
   color: inherit;
   text-decoration: none;
 }
 
-@media (prefers-color-scheme: dark) {
-  html {
-    color-scheme: dark;
+/* Utilitários globais de botões e tags neon */
+.badge-neon {
+  background: var(--brand-neon-dim);
+  color: var(--brand-neon);
+  border: 1px solid var(--brand-neon);
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.badge-alert {
+  background: var(--alert-red-dim);
+  color: var(--alert-red);
+  border: 1px solid var(--alert-red);
+  padding: 4px 12px;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Layout Principal */
+.app-container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  min-width: 0;
+}
+
+.main-content {
+  flex: 1;
+  padding: 32px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
+}
+
+.responsive-chart-wrapper {
+  width: 100%;
+  height: 280px;
+}
+
+.main-content > div {
+  padding: 0 20px !important;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.calculator-players-row {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  width: 100%;
+}
+
+/* Efeitos premium */
+.glass-panel {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 16px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5);
+  padding: 24px;
+}
+
+/* Global table text weight reduction */
+table th,
+table td,
+table td span,
+table td div,
+table td strong {
+  font-weight: 500 !important;
+}
+table thead tr {
+  font-weight: 600 !important;
+}
+table thead th {
+  font-weight: 600 !important;
+}
+
+@keyframes pulse {
+  0% { opacity: 0.4; }
+  50% { opacity: 1; }
+  100% { opacity: 0.4; }
+}
+
+.sync-pulse {
+  animation: pulse 1.5s infinite ease-in-out;
+}
+
+/* Responsividade Mobile */
+@media (max-width: 950px) {
+  .app-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 100vw;
+    height: auto;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  .main-content {
+    padding: 80px 12px 90px 12px; /* Space for the top branding header and bottom nav, with 12px sides */
+    height: auto;
+    min-height: calc(100vh - 170px);
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+  
+  .main-content h1 {
+    font-size: 1.45rem !important;
+  }
+  
+  .main-content p {
+    font-size: 0.85rem !important;
+    line-height: 1.3 !important;
+  }
+  
+  .calculator-players-row {
+    flex-direction: column !important;
+    gap: 12px !important;
   }
 }
+
+/* Typography & Brutalist Styles */
+.font-mono {
+  font-family: 'Roboto Mono', monospace, Consolas;
+}
+
+.card-brutalist {
+  background: #0D0D11;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  transition: all 0.2s ease;
+}
+
+.card-brutalist-header {
+  background: #16161C;
+  padding: 12px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.card-brutalist-body {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.btn-brutalist-neon {
+  background: var(--brand-neon);
+  color: #000;
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 12px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  width: 100%;
+  text-align: center;
+  font-size: 0.9rem;
+  transition: opacity 0.2s;
+}
+
+.btn-brutalist-neon:active {
+  opacity: 0.7;
+}
+
+.btn-brutalist-danger {
+  background: rgba(242, 63, 66, 0.15);
+  color: var(--status-red);
+  border: 1px solid rgba(242, 63, 66, 0.3);
+  font-weight: 800;
+  text-transform: uppercase;
+  padding: 12px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  width: 100%;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+/* Hide spinners globally for number inputs */
+input[type=number]::-webkit-outer-spin-button,
+input[type=number]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type=number] {
+  -moz-appearance: textfield;
+}
+
+/* --- DESIGN SYSTEM - RESPONSIVE UTILITIES --- */
+
+.page-title {
+  font-size: 2.2rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0;
+}
+
+@media (max-width: 950px) {
+  .page-title {
+    font-size: 1.6rem;
+    flex-wrap: wrap;
+  }
+}
+
+.grid-responsive-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 950px) {
+  .grid-responsive-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+.flex-responsive-row {
+  display: flex;
+  flex-direction: row;
+  gap: 20px;
+  align-items: stretch;
+}
+
+@media (max-width: 950px) {
+  .flex-responsive-row {
+    flex-direction: column;
+  }
+}
+
+.grid-two-columns {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 950px) {
+  .grid-two-columns {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.form-row-responsive {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  align-items: flex-end;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 950px) {
+  .form-row-responsive {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+.table-responsive-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom Calculator Responsive Grids */
+.calculator-container {
+  padding: 0 20px;
+  max-width: 100%;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 40px);
+}
+
+@media (max-width: 950px) {
+  .calculator-container {
+    height: auto;
+    padding: 0 10px;
+  }
+}
+
+.calculator-top-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (max-width: 1200px) {
+  .calculator-top-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 950px) {
+  .calculator-top-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.calculator-bottom-grid {
+  display: grid;
+  grid-template-columns: 1fr 1.8fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+@media (max-width: 950px) {
+  .calculator-bottom-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.calculator-cards-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 950px) {
+  .calculator-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Custom Relatório Responsive Grids */
+.backtest-charts-grid {
+  display: grid;
+  grid-template-columns: 2.5fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 950px) {
+  .backtest-charts-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Custom Opportunities Toolbar responsive */
+.opportunities-toolbar {
+  position: sticky;
+  top: 70px;
+  z-index: 10;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 24px;
+  margin-bottom: 24px;
+  padding: 24px;
+  background-color: #121212;
+  border-radius: 12px;
+  border: 1px solid #333;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+}
+
+@media (max-width: 950px) {
+  .opportunities-toolbar {
+    position: relative;
+    top: 0;
+    padding: 16px;
+    gap: 16px;
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Custom Palpites Page Container */
+.palpites-container {
+  padding: 0 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 80px);
+  overflow: hidden;
+}
+
+@media (max-width: 950px) {
+  .palpites-container {
+    height: auto;
+    overflow: visible;
+    padding: 0 10px;
+  }
+}
+
+/* Responsive Game Card layouts */
+.game-card-main-row {
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 24px;
+}
+
+@media (max-width: 768px) {
+  .game-card-main-row {
+    flex-direction: column;
+    align-items: stretch;
+    padding: 16px;
+    gap: 16px;
+  }
+}
+
+.game-card-info {
+  flex: 2 1 350px;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .game-card-info {
+    flex: 1 1 auto;
+  }
+}
+
+.game-card-highlight {
+  background: #1a1a1a;
+  padding: 16px 24px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex: 2 1 300px;
+  border: 1px solid #222;
+  width: 100%;
+}
+
+@media (max-width: 768px) {
+  .game-card-highlight {
+    flex: 1 1 auto;
+    padding: 12px 16px;
+    gap: 16px;
+  }
+}
+
+.game-card-1x2 {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 60px;
+}
+
+@media (max-width: 768px) {
+  .game-card-1x2 {
+    flex-direction: row;
+    width: 100%;
+    height: auto;
+  }
+  .game-card-1x2 > div {
+    flex: 1;
+    padding: 10px 0 !important;
+  }
+}
+
+.game-card-teams-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 1rem;
+  font-weight: 600;
+  width: 100%;
+  margin-top: 12px;
+}
+
+@media (max-width: 600px) {
+  .game-card-teams-row {
+    flex-direction: column;
+    gap: 12px;
+    font-size: 0.95rem;
+    align-items: stretch;
+  }
+  .game-card-teams-row > div {
+    justify-content: center !important;
+    text-align: center !important;
+  }
+}
+
+/* --- DESIGN SYSTEM - DASHBOARD & TERMINAL --- */
+.dashboard-layout {
+  display: flex;
+  flex-direction: row;
+  gap: 24px;
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  align-items: flex-start;
+}
+
+.dashboard-feed-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.dashboard-sidebar-panel {
+  width: 360px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 24px;
+}
+
+.dashboard-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 16px;
+}
+
+/* Custom terminal design */
+.brutalist-terminal {
+  background: #060608;
+  border: 1px solid #1f1f2e;
+  border-radius: 8px;
+  padding: 16px;
+  font-family: 'Roboto Mono', monospace, Consolas, Courier New;
+  color: #a1a1aa;
+  font-size: 0.75rem;
+  box-shadow: inset 0 2px 8px rgba(0,0,0,0.8);
+  height: 250px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+.brutalist-terminal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #1f1f2e;
+  padding-bottom: 8px;
+  margin-bottom: 4px;
+  color: #fff;
+  font-weight: bold;
+}
+
+.brutalist-terminal-content {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  scroll-behavior: smooth;
+}
+
+.brutalist-terminal-line {
+  line-height: 1.4;
+  word-break: break-all;
+}
+
+.brutalist-terminal-time {
+  color: var(--brand-neon);
+  margin-right: 6px;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-layout {
+    flex-direction: column-reverse;
+  }
+  .dashboard-sidebar-panel {
+    width: 100%;
+    position: static;
+  }
+  .dashboard-cards-grid {
+    grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  }
+}
+
+@media (max-width: 600px) {
+  .dashboard-cards-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* --- RESPONSIVE KPI CARDS COMPRESSION --- */
+@media (max-width: 600px) {
+  .grid-responsive-cards {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 10px !important;
+  }
+  .grid-responsive-cards > div {
+    padding: 10px 12px !important;
+    min-height: 80px !important;
+    border-radius: 8px !important;
+  }
+  .grid-responsive-cards > div > div:first-child {
+    font-size: 0.62rem !important;
+    letter-spacing: 0.5px !important;
+  }
+  .grid-responsive-cards > div > div:nth-child(2) {
+    font-size: 1.15rem !important;
+    margin-top: 2px !important;
+  }
+  .grid-responsive-cards > div > div:nth-child(3) {
+    font-size: 0.62rem !important;
+    margin-top: 2px !important;
+  }
+}
+
+/* --- BANCA FORM LAYOUT --- */
+.banca-form-row {
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  align-items: flex-end;
+  width: 100%;
+}
+
+/* --- MOBILE COMPACT BUTTONS & LABELS --- */
+@media (max-width: 600px) {
+  .btn-text-mobile-hide {
+    display: none !important;
+  }
+  .btn-responsive-compact {
+    padding: 10px 12px !important;
+    gap: 0 !important;
+    min-width: 42px !important;
+    justify-content: center !important;
+  }
+  .mobile-hide {
+    display: none !important;
+  }
+  .team-name-text-mobile-hide {
+    display: none !important;
+  }
+
+  /* Compact Banca Grid */
+  .grid-responsive-cards-banca {
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+  }
+  .grid-responsive-cards-banca > div {
+    padding: 6px 8px !important;
+    min-height: 50px !important;
+    border-radius: 6px !important;
+  }
+  .grid-responsive-cards-banca > div > div:first-child {
+    font-size: 0.58rem !important;
+    letter-spacing: 0px !important;
+  }
+  .grid-responsive-cards-banca > div > div:nth-child(2) {
+    font-size: 0.85rem !important; /* Smaller values (e.g. R$ 10.00) */
+    margin-top: 1px !important;
+  }
+  .mobile-edit-btn {
+    font-size: 0.55rem !important;
+    padding: 0 !important;
+  }
+
+  /* Compact Form Row */
+  .banca-form-row {
+    flex-direction: row !important;
+    align-items: flex-end !important;
+    gap: 8px !important;
+    margin-top: 8px !important;
+  }
+  .responsive-banca-form {
+    padding: 12px !important;
+    gap: 8px !important;
+  }
+  .responsive-banca-form h2 {
+    font-size: 0.95rem !important;
+    padding-bottom: 8px !important;
+  }
+  .banca-form-row label {
+    font-size: 0.65rem !important;
+  }
+  .banca-form-row select,
+  .banca-form-row input,
+  .banca-form-row span {
+    height: 36px !important;
+    font-size: 0.8rem !important;
+    padding: 6px 10px !important;
+  }
+  .banca-form-row .btn-responsive-compact {
+    height: 36px !important;
+    width: 36px !important;
+    padding: 0 !important;
+  }
+
+  /* Compact Charts */
+  .responsive-chart-wrapper {
+    height: 110px !important;
+  }
+  .responsive-chart-panel {
+    gap: 8px !important;
+    padding: 12px !important;
+  }
+  .responsive-chart-panel h2 {
+    font-size: 0.9rem !important;
+    padding-bottom: 6px !important;
+  }
+  .main-content > div {
+    padding: 0 4px !important;
+    gap: 16px !important;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+  }
+}
+
+
+
+
+

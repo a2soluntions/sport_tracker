@@ -393,7 +393,7 @@ export default function CalculatorPage() {
         <header style={{ marginBottom: '12px', paddingTop: '12px' }}>
           <h1 className="page-title">
             <Calculator color="var(--brand-neon)" size={28} />
-            Laboratório Poisson & Análise Profissional
+            Análise Profissional
           </h1>
           <p style={{ color: '#888', margin: '4px 0 0 0', fontSize: '0.9rem' }}>
             Simule dados de gols, marcadores, cartões e arbitragem para obter prognósticos avançados e estatísticas de EV+.
@@ -463,11 +463,28 @@ export default function CalculatorPage() {
               )}
             </div>
 
-            {selectedGameId && (
-              <div style={{ background: '#1c1c1c', border: '1px solid #333', padding: '8px', borderRadius: '6px', fontSize: '0.8rem', color: '#fff', textAlign: 'center', marginTop: '4px' }}>
-                <span style={{ color: '#888' }}>Data do Jogo:</span> {new Date(matchDate).toLocaleDateString('pt-BR')}
-              </div>
-            )}
+            <div style={{ 
+              background: selectedGameId ? '#1c1c24' : 'transparent', 
+              border: selectedGameId ? '1px solid #333' : '1px solid transparent', 
+              padding: '8px', 
+              borderRadius: '6px', 
+              fontSize: '0.8rem', 
+              color: selectedGameId ? '#fff' : 'transparent', 
+              textAlign: 'center', 
+              marginTop: '4px',
+              minHeight: '34px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}>
+              {selectedGameId ? (
+                <>
+                  <span style={{ color: '#888', marginRight: '4px' }}>Data do Jogo:</span> {new Date(matchDate).toLocaleDateString('pt-BR')}
+                </>
+              ) : (
+                <span>&nbsp;</span>
+              )}
+            </div>
 
             <div style={{ background: '#111', padding: '8px 12px', borderRadius: '8px', display: 'flex', justifyContent: 'space-around', alignItems: 'center', border: '1px solid #222', marginTop: 'auto' }}>
               <div style={{ textAlign: 'center' }}>
@@ -572,16 +589,8 @@ export default function CalculatorPage() {
 
         </div>
 
-        {/* Separador e título de Prognósticos Avançados */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '16px', borderBottom: '1px solid #222', paddingBottom: '8px', flexWrap: 'wrap' }}>
-          <TrendingUp color="var(--brand-neon)" size={20} />
-          <h2 style={{ fontSize: '1.1rem', fontWeight: 'bold', margin: 0, color: '#ccc' }}>
-            Prognósticos Avançados de Mercado (Scouts & Arbitragem)
-          </h2>
-          <span style={{ fontSize: '0.75rem', background: 'rgba(204, 255, 0, 0.1)', color: 'var(--brand-neon)', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold' }}>
-            MÓDULO PROFISSIONAL ACTIVE
-          </span>
-        </div>
+        {/* Espaçador entre grids */}
+        <div style={{ height: '16px' }}></div>
       </div>
 
       {/* SEÇÃO COM SCROLL: ANÁLISE PRO */}

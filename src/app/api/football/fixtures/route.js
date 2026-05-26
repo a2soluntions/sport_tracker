@@ -109,13 +109,19 @@ export async function GET(request) {
     // OUTRAS LIGAS - TENTA USAR API-SPORTS (Pode vir vazio devido ao plano Free)
     // ==========================================
     const season = '2024'; // Forçado 2024 pois a API key Free só aceita até 2024.
-    const fixturesRes = await fetch(`${API_HOST}/fixtures?league=${leagueId}&season=${season}&date=${targetDate}`, {
+    const returnAll = searchParams.get('all') === 'true';
+
+    const url = returnAll
+      ? `${API_HOST}/fixtures?league=${leagueId}&season=${season}`
+      : `${API_HOST}/fixtures?league=${leagueId}&season=${season}&date=${targetDate}`;
+
+    const fixturesRes = await fetch(url, {
       headers: { 'x-apisports-key': API_KEY }
     });
     const fixturesData = await fixturesRes.json();
     const matches = fixturesData.response || [];
 
-    const formattedFixtures = matches.map((m) => {
+    let formattedFixtures = matches.map((m) => {
       const isFinished = ['FT', 'AET', 'PEN'].includes(m.fixture.status.short);
       const isLive = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT'].includes(m.fixture.status.short);
       let statusLabel = isLive ? `Em Andamento ⚽ ${m.fixture.status.elapsed}'` : isFinished ? 'Finalizado' : 'Não Iniciado';
@@ -127,7 +133,7 @@ export async function GET(request) {
         date: `${new Date(m.fixture.date).toLocaleDateString('pt-BR', {day:'2-digit', month:'short'})} • ${new Date(m.fixture.date).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'})}`,
         rawDate: m.fixture.date.split('T')[0],
         dayCategory: 'TODOS',
-        round: m.league.round.replace('Regular Season - ', ''),
+        round: m.league.round.replace('Regular Season - ', '') || '?',
         home: m.teams.home.name,
         away: m.teams.away.name,
         homeLogo: m.teams.home.logo,
@@ -140,11 +146,17 @@ export async function GET(request) {
         isLive,
         isFinished,
         minute: m.fixture.status.elapsed || 0,
-        venue: m.fixture.venue.name || '',
+        venue: m.fixture.venue?.name || '',
         homePosition: '-',
         awayPosition: '-'
       };
     });
+
+    if (returnAll) {
+      // Ordena por data decrescente e pega as 40 partidas mais recentes
+      formattedFixtures.sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate));
+      formattedFixtures = formattedFixtures.slice(0, 40);
+    }
 
     return NextResponse.json({ 
       fixtures: formattedFixtures, 

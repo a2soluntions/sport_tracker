@@ -216,6 +216,7 @@ export default function CalculatorPage() {
 
   const [selectedSelections, setSelectedSelections] = useState([]);
   const [betStake, setBetStake] = useState("100");
+  const [marcadoresTab, setMarcadoresTab] = useState('home');
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
 
@@ -557,7 +558,7 @@ export default function CalculatorPage() {
     <div className="calculator-container">
       
       {/* PAINEL FIXO NO TOPO */}
-      <div style={{ flex: '0 0 auto', background: '#000', paddingBottom: '12px', zIndex: 10 }}>
+      <div style={{ flex: '0 0 auto', paddingBottom: '12px', zIndex: 10 }}>
         
         <header style={{ marginBottom: '12px', paddingTop: '12px' }}>
           <h1 className="page-title">
@@ -572,127 +573,149 @@ export default function CalculatorPage() {
         {/* 4 COLUNAS: CONFIG, 1X2, GOLS, HEATMAP */}
         <div className="calculator-top-grid">
           
-          {/* COLUNA 1: Setup do Jogo */}
-          <div className="glass-panel" style={{ borderTop: '4px solid #00d2ff', display: 'flex', flexDirection: 'column', gap: '10px', padding: '14px' }}>
+          {/* COLUNA 1: Setup do Jogo + Marcadores */}
+          <div className="glass-panel" style={{ borderTop: '4px solid #00d2ff', display: 'flex', flexDirection: 'column', gap: '8px', padding: '14px' }}>
             <h2 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontWeight: 'bold' }}>
               <Target size={16} color="#00d2ff" /> Setup do Jogo
             </h2>
             
-            {/* Seletor de Liga */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Selecionar Liga:
-              </label>
-              <select
-                value={selectedLeague}
-                onChange={(e) => {
-                  setSelectedLeague(e.target.value);
-                  setSelectedGameId("");
-                  setHomeTeam("");
-                  setAwayTeam("");
-                }}
-                style={{ width: '100%', background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', appearance: 'auto' }}
-              >
-                <option value="71">🇧🇷 Brasileirão Série A</option>
-                <option value="72">🇧🇷 Brasileirão Série B</option>
-                <option value="13">🌎 Copa Libertadores</option>
-                <option value="39">🇬🇧 Premier League</option>
-                <option value="140">🇪🇸 La Liga</option>
-                <option value="135">🇮🇹 Serie A (Itália)</option>
-                <option value="78">🇩🇪 Bundesliga</option>
-              </select>
-            </div>
-
-            {/* Seletor rápido de jogos */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <label style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                Selecionar Partida:
-              </label>
-              {loadingGames ? (
-                <div style={{ fontSize: '0.75rem', color: '#555', fontStyle: 'italic' }}>Buscando partidas...</div>
-              ) : games.length === 0 ? (
-                <div style={{ fontSize: '0.75rem', color: '#888', fontStyle: 'italic' }}>Nenhum jogo nesta rodada.</div>
-              ) : (
-                <select 
-                  onChange={(e) => {
-                    const selectedId = Number(e.target.value);
-                    const game = games.find(g => g.id === selectedId);
-                    if (game) {
-                      handleSelectGame(game);
-                    }
-                  }}
-                  value={selectedGameId}
-                  style={{ width: '100%', background: '#1c1c24', border: '1px solid #333', color: 'var(--brand-neon)', padding: '8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', cursor: 'pointer', appearance: 'auto' }}
+            {/* Seletor de Liga e Partida - Lado a Lado */}
+            <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: 0 }}>
+                <label style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Selecionar Liga:</label>
+                <select
+                  value={selectedLeague}
+                  onChange={(e) => { setSelectedLeague(e.target.value); setSelectedGameId(""); setHomeTeam(""); setAwayTeam(""); }}
+                  style={{ width: '100%', background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '7px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', appearance: 'auto' }}
                 >
-                  <option value="" disabled>-- Selecione uma Partida --</option>
-                  {games.map(g => (
-                    <option key={g.id} value={g.id}>{g.home} x {g.away} ({g.date.split(' • ')[0]})</option>
-                  ))}
+                  <option value="71">🇧🇷 Brasileirão Série A</option>
+                  <option value="72">🇧🇷 Brasileirão Série B</option>
+                  <option value="13">🌎 Copa Libertadores</option>
+                  <option value="39">🇬🇧 Premier League</option>
+                  <option value="140">🇪🇸 La Liga</option>
+                  <option value="135">🇮🇹 Serie A (Itália)</option>
+                  <option value="78">🇩🇪 Bundesliga</option>
                 </select>
-              )}
-            </div>
-
-            <div style={{ 
-              fontSize: '0.75rem', 
-              color: selectedGameId ? '#888' : 'transparent', 
-              textAlign: 'center', 
-              marginTop: '4px',
-              minHeight: '20px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center'
-            }}>
-              {selectedGameId ? (
-                <span>Data do Jogo: {new Date(matchDate).toLocaleDateString('pt-BR')}</span>
-              ) : (
-                <span>&nbsp;</span>
-              )}
-            </div>
-
-            {/* Nome dos Times (Editável) e xG */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: 'auto' }}>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input 
-                  type="text" 
-                  placeholder="Time Casa" 
-                  value={homeTeam} 
-                  onChange={(e) => setHomeTeam(e.target.value)} 
-                  style={{ flex: 1, background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '6px 10px', borderRadius: '6px', fontSize: '0.8rem', outline: 'none' }}
-                />
-                <input 
-                  type="number" 
-                  step="0.1" 
-                  min="0" 
-                  value={homeXG} 
-                  onChange={(e) => setHomeXG(Number(e.target.value))} 
-                  style={{ width: '55px', background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '6px', borderRadius: '6px', fontSize: '0.9rem', textAlign: 'center', fontWeight: 'bold', outline: 'none' }} 
-                  title="xG Mandante"
-                />
               </div>
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <input 
-                  type="text" 
-                  placeholder="Time Visitante" 
-                  value={awayTeam} 
-                  onChange={(e) => setAwayTeam(e.target.value)} 
-                  style={{ flex: 1, background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '6px 10px', borderRadius: '6px', fontSize: '0.8rem', outline: 'none' }}
-                />
-                <input 
-                  type="number" 
-                  step="0.1" 
-                  min="0" 
-                  value={awayXG} 
-                  onChange={(e) => setAwayXG(Number(e.target.value))} 
-                  style={{ width: '55px', background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '6px', borderRadius: '6px', fontSize: '0.9rem', textAlign: 'center', fontWeight: 'bold', outline: 'none' }} 
-                  title="xG Visitante"
-                />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: 0 }}>
+                <label style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Selecionar Partida:</label>
+                {loadingGames ? (
+                  <div style={{ fontSize: '0.75rem', color: '#555', fontStyle: 'italic', padding: '7px' }}>Buscando...</div>
+                ) : games.length === 0 ? (
+                  <div style={{ fontSize: '0.75rem', color: '#888', fontStyle: 'italic', padding: '7px' }}>Nenhum jogo.</div>
+                ) : (
+                  <select 
+                    onChange={(e) => { const selectedId = Number(e.target.value); const game = games.find(g => g.id === selectedId); if (game) handleSelectGame(game); }}
+                    value={selectedGameId}
+                    style={{ width: '100%', background: '#1c1c24', border: '1px solid #333', color: 'var(--brand-neon)', padding: '7px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', appearance: 'auto' }}
+                  >
+                    <option value="" disabled>-- Selecione --</option>
+                    {games.map(g => (<option key={g.id} value={g.id}>{g.home} x {g.away}</option>))}
+                  </select>
+                )}
+              </div>
+            </div>
+
+            {/* Times lado a lado abaixo */}
+            <div style={{ display: 'flex', gap: '6px', width: '100%' }}>
+              <div style={{ flex: 1, display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <input type="text" placeholder="Time Casa" value={homeTeam} onChange={(e) => setHomeTeam(e.target.value)} 
+                  style={{ flex: 1, background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '6px 8px', borderRadius: '6px', fontSize: '0.78rem', outline: 'none', minWidth: 0 }} />
+                <input type="number" step="0.1" min="0" value={homeXG} onChange={(e) => setHomeXG(Number(e.target.value))} 
+                  style={{ width: '48px', background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '6px', borderRadius: '6px', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold', outline: 'none' }} title="xG Casa" />
+              </div>
+              <div style={{ flex: 1, display: 'flex', gap: '6px', alignItems: 'center' }}>
+                <input type="text" placeholder="Time Visitante" value={awayTeam} onChange={(e) => setAwayTeam(e.target.value)} 
+                  style={{ flex: 1, background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '6px 8px', borderRadius: '6px', fontSize: '0.78rem', outline: 'none', minWidth: 0 }} />
+                <input type="number" step="0.1" min="0" value={awayXG} onChange={(e) => setAwayXG(Number(e.target.value))} 
+                  style={{ width: '48px', background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '6px', borderRadius: '6px', fontSize: '0.85rem', textAlign: 'center', fontWeight: 'bold', outline: 'none' }} title="xG Visitante" />
+              </div>
+            </div>
+
+            {/* Análise de Marcadores integrada */}
+            <div style={{ borderTop: '1px solid #333', paddingTop: '8px', marginTop: '2px', flex: 1, display: 'flex', flexDirection: 'column', gap: '6px', overflow: 'hidden' }}>
+              <h3 style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', margin: 0, fontWeight: 'bold', color: '#ffeb3b' }}>
+                <User size={14} color="#ffeb3b" /> Marcadores
+              </h3>
+              {/* TABS */}
+              <div style={{ display: 'flex', gap: '0', borderRadius: '6px', overflow: 'hidden', border: '1px solid #333' }}>
+                <button onClick={() => setMarcadoresTab('home')} style={{ flex: 1, padding: '5px 8px', background: marcadoresTab === 'home' ? 'var(--brand-neon)' : 'transparent', color: marcadoresTab === 'home' ? '#000' : '#aaa', border: 'none', fontSize: '0.72rem', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s', borderRight: '1px solid #333' }}>
+                  🏠 {homeTeam || 'Casa'}
+                </button>
+                <button onClick={() => setMarcadoresTab('away')} style={{ flex: 1, padding: '5px 8px', background: marcadoresTab === 'away' ? '#ff4b4b' : 'transparent', color: marcadoresTab === 'away' ? '#fff' : '#aaa', border: 'none', fontSize: '0.72rem', fontWeight: 'bold', cursor: 'pointer', transition: 'all 0.2s' }}>
+                  ✈️ {awayTeam || 'Visitante'}
+                </button>
+              </div>
+              <select
+                value=""
+                onChange={(e) => {
+                  const selectedName = e.target.value;
+                  if (marcadoresTab === 'home') {
+                    const playerInfo = homeSquad.find(sq => sq.name === selectedName);
+                    if (playerInfo && !homePlayersList.some(p => p.name === selectedName)) {
+                      let w = playerInfo.position === 'Attacker' ? 0.35 : playerInfo.position === 'Midfielder' ? 0.22 : playerInfo.position === 'Defender' ? 0.08 : 0.15;
+                      setHomePlayersList([...homePlayersList, { name: selectedName, weight: w, role: playerInfo.position }]);
+                    }
+                  } else {
+                    const playerInfo = awaySquad.find(sq => sq.name === selectedName);
+                    if (playerInfo && !awayPlayersList.some(p => p.name === selectedName)) {
+                      let w = playerInfo.position === 'Attacker' ? 0.35 : playerInfo.position === 'Midfielder' ? 0.22 : playerInfo.position === 'Defender' ? 0.08 : 0.15;
+                      setAwayPlayersList([...awayPlayersList, { name: selectedName, weight: w, role: playerInfo.position }]);
+                    }
+                  }
+                }}
+                style={{ background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '6px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', width: '100%', outline: 'none', appearance: 'auto', cursor: 'pointer' }}
+              >
+                <option value="" disabled>+ Selecionar Jogador</option>
+                {(marcadoresTab === 'home' ? homeSquad : awaySquad).map(sq => (
+                  <option key={sq.id} value={sq.name}>{sq.name} ({sq.position === 'Attacker' ? 'ATA' : sq.position === 'Midfielder' ? 'MEI' : sq.position === 'Defender' ? 'DEF' : 'GOL'})</option>
+                ))}
+              </select>
+              <div className="no-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto', flex: 1, paddingRight: '2px' }}>
+                {(() => {
+                  const playersList = marcadoresTab === 'home' ? homePlayersList : awayPlayersList;
+                  const xgVal = marcadoresTab === 'home' ? homeXG : awayXG;
+                  const teamLabel = marcadoresTab === 'home' ? (homeTeam || 'Casa') : (awayTeam || 'Visitante');
+                  const teamKey = marcadoresTab === 'home' ? 'home' : 'away';
+                  const setPlayersList = marcadoresTab === 'home' ? setHomePlayersList : setAwayPlayersList;
+                  if (playersList.length === 0) return <div style={{ textAlign: 'center', color: '#555', padding: '10px', fontStyle: 'italic', fontSize: '0.7rem' }}>Nenhum jogador do {teamLabel} selecionado.</div>;
+                  return playersList.map((p, idx) => {
+                    const prob = calculatePlayerGoalProb(xgVal, p.weight);
+                    const isAnytimeSelected = selectedSelections.some(s => s.market === 'Marcadores' && s.label === `${p.name} (Qualquer Momento)`);
+                    const isFirstSelected = selectedSelections.some(s => s.market === 'Marcadores' && s.label === `${p.name} (Primeiro Gol)`);
+                    const isHottestAnytime = hottestPlayerGoal && hottestPlayerGoal.name === p.name && hottestPlayerGoal.type === 'anytime' && hottestPlayerGoal.team === teamKey;
+                    return (
+                      <div key={`${teamKey}-${idx}`} style={{ background: '#141419', padding: '6px 10px', borderRadius: '6px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ minWidth: 0, flex: '1 1 80px' }}>
+                          <div style={{ color: '#fff', fontSize: '0.78rem', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.name}</div>
+                          <span style={{ fontSize: '0.6rem', background: '#222', padding: '1px 4px', borderRadius: '3px', color: '#aaa' }}>{p.role === 'Attacker' ? 'ATA' : p.role === 'Midfielder' ? 'MEI' : p.role === 'Defender' ? 'DEF' : 'GOL'}</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '6px', flexShrink: 0, alignItems: 'center' }}>
+                          <div onClick={() => handleToggleSelection('Marcadores', `${p.name} (Qualquer Momento)`, Number(prob.anytime)/100, prob.anytimeOdd)}
+                            style={{ padding: '3px 5px', borderRadius: '5px', cursor: 'pointer', background: isAnytimeSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent', border: isAnytimeSelected ? '1.5px solid var(--brand-neon)' : isHottestAnytime ? '1.5px solid #00ffaa' : '1px solid transparent', transition: 'all 0.2s', boxShadow: isHottestAnytime ? '0 0 6px rgba(0, 255, 170, 0.3)' : 'none', textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.58rem', color: '#888' }}>Anytime</div>
+                            <strong style={{ color: '#fff', fontSize: '0.72rem' }}>{prob.anytime}%</strong>
+                            <div style={{ color: '#ff9800', fontSize: '0.6rem' }}>@{prob.anytimeOdd}</div>
+                          </div>
+                          <div onClick={() => handleToggleSelection('Marcadores', `${p.name} (Primeiro Gol)`, Number(prob.first)/100, prob.firstOdd)}
+                            style={{ padding: '3px 5px', borderRadius: '5px', cursor: 'pointer', background: isFirstSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent', border: isFirstSelected ? '1.5px solid var(--brand-neon)' : '1px solid transparent', transition: 'all 0.2s', textAlign: 'center' }}>
+                            <div style={{ fontSize: '0.58rem', color: '#888' }}>1º Gol</div>
+                            <strong style={{ color: '#aaa', fontSize: '0.72rem' }}>{prob.first}%</strong>
+                            <div style={{ color: '#ff9800', fontSize: '0.6rem' }}>@{prob.firstOdd}</div>
+                          </div>
+                          <button onClick={() => setPlayersList(playersList.filter((_, i) => i !== idx))} style={{ background: 'transparent', border: 'none', color: '#ff4b4b', cursor: 'pointer', padding: '2px', fontSize: '0.85rem' }} title="Remover">✕</button>
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
           </div>
 
           {/* COLUNA 2: Mercado 1X2 */}
-          <div className="glass-panel" style={{ borderTop: '4px solid var(--brand-neon)', padding: '14px' }}>
-            <h2 style={{ fontSize: '1rem', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+          <div className="glass-panel" style={{ borderTop: '4px solid var(--brand-neon)', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <h2 style={{ fontSize: '1rem', marginBottom: '0', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
               <Activity size={16} color="var(--brand-neon)" /> Mercado 1X2
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -733,6 +756,127 @@ export default function CalculatorPage() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Previsão de Cartões - integrada ao card 1X2 */}
+            <div style={{ borderTop: '1px solid #333', paddingTop: '12px', marginTop: '4px' }}>
+              <h3 style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 0 8px 0', fontWeight: 'bold', color: '#ff5722' }}>
+                <ShieldAlert size={14} color="#ff5722" /> Previsão de Cartões
+              </h3>
+              {(() => {
+                const cardMarkets = [
+                  { label: 'Total Amarelos Over 3.5', prob: cardsPrediction.probYellowOver35 },
+                  { label: 'Total Amarelos Over 4.5', prob: cardsPrediction.probYellowOver45 },
+                  { label: 'Total Amarelos Over 5.5', prob: cardsPrediction.probYellowOver55 },
+                  { label: 'Cartão Vermelho (Sim)', prob: Number(cardsPrediction.redCardProb) / 100 }
+                ];
+                cardMarkets.sort((a, b) => b.prob - a.prob);
+                const hottestCardMarket = cardMarkets[0]?.label;
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {/* Amarelos compactos */}
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <div style={{ 
+                        background: '#ffd600', 
+                        width: '28px', 
+                        height: '38px', 
+                        borderRadius: '4px', 
+                        boxShadow: '0 0 8px rgba(255, 214, 0, 0.2)', 
+                        display: 'flex', 
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.75rem',
+                        flexShrink: 0
+                      }}>🟨</div>
+                      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+                        {[
+                          { label: 'Over 3.5', prob: cardsPrediction.probYellowOver35 },
+                          { label: 'Over 4.5', prob: cardsPrediction.probYellowOver45 },
+                          { label: 'Over 5.5', prob: cardsPrediction.probYellowOver55 }
+                        ].map((line, idx) => {
+                          const marketLabel = `Total Amarelos ${line.label}`;
+                          const isSelected = selectedSelections.some(s => s.market === 'Cartões' && s.label === marketLabel);
+                          const isHottest = hottestCardMarket === marketLabel;
+                          return (
+                            <div 
+                              key={idx}
+                              onClick={() => handleToggleSelection('Cartões', marketLabel, line.prob, getOdd(line.prob))}
+                              style={{
+                                background: isSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
+                                border: isSelected 
+                                  ? '1.5px solid var(--brand-neon)' 
+                                  : isHottest 
+                                    ? '1.5px solid #00ffaa' 
+                                    : '1px solid #333',
+                                borderRadius: '6px',
+                                padding: '3px 2px',
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                boxShadow: isHottest ? '0 0 6px rgba(0, 255, 170, 0.3)' : 'none'
+                              }}
+                            >
+                              <div style={{ fontSize: '0.58rem', color: '#aaa' }}>{line.label}</div>
+                              <div style={{ fontSize: '0.72rem', fontWeight: 'bold' }}>{getPct(line.prob)}%</div>
+                              <div style={{ fontSize: '0.58rem', color: '#ff9800' }}>@{getOdd(line.prob)}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                    {/* Vermelho - mesmo modelo do amarelo */}
+                    <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                      <div style={{ 
+                        background: '#ff3f3f', 
+                        width: '28px', 
+                        height: '38px', 
+                        borderRadius: '4px', 
+                        boxShadow: '0 0 8px rgba(255, 63, 63, 0.3)', 
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '0.75rem',
+                        flexShrink: 0
+                      }}>🟥</div>
+                      <div style={{ flex: 1, display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '4px' }}>
+                        {[
+                          { label: 'Vermelho (Sim)', prob: Number(cardsPrediction.redCardProb) / 100, marketLabel: 'Cartão Vermelho (Sim)' },
+                          { label: 'Vermelho (Não)', prob: 1 - Number(cardsPrediction.redCardProb) / 100, marketLabel: 'Cartão Vermelho (Não)' },
+                          { label: `Risco: ${Number(cardsPrediction.redCardProb) > 25 ? 'Alto' : 'Mod.'}`, prob: null, marketLabel: null }
+                        ].map((line, idx) => {
+                          if (line.prob === null) {
+                            return (
+                              <div key={idx} style={{ borderRadius: '6px', padding: '3px 2px', textAlign: 'center', border: '1px solid #333', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                                <div style={{ fontSize: '0.58rem', color: Number(cardsPrediction.redCardProb) > 25 ? '#ff4b4b' : '#aaa', fontWeight: 'bold' }}>{line.label}</div>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 'bold', color: Number(cardsPrediction.redCardProb) > 25 ? '#ff4b4b' : '#aaa' }}>{Number(cardsPrediction.redCardProb) > 25 ? '⚠️' : '✔️'}</div>
+                              </div>
+                            );
+                          }
+                          const isSelected = selectedSelections.some(s => s.market === 'Cartões' && s.label === line.marketLabel);
+                          const isHottest = hottestCardMarket === line.marketLabel;
+                          return (
+                            <div 
+                              key={idx}
+                              onClick={() => handleToggleSelection('Cartões', line.marketLabel, line.prob, getOdd(line.prob))}
+                              style={{
+                                background: isSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
+                                border: isSelected ? '1.5px solid var(--brand-neon)' : isHottest ? '1.5px solid #00ffaa' : '1px solid #333',
+                                borderRadius: '6px', padding: '3px 2px', textAlign: 'center', cursor: 'pointer', transition: 'all 0.2s',
+                                boxShadow: isHottest ? '0 0 6px rgba(0, 255, 170, 0.3)' : 'none'
+                              }}
+                            >
+                              <div style={{ fontSize: '0.58rem', color: '#aaa' }}>{line.label}</div>
+                              <div style={{ fontSize: '0.72rem', fontWeight: 'bold' }}>{getPct(line.prob)}%</div>
+                              <div style={{ fontSize: '0.58rem', color: '#ff9800' }}>@{getOdd(line.prob)}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
@@ -866,352 +1010,9 @@ export default function CalculatorPage() {
       <div style={{ flex: 1, overflowY: 'auto', paddingTop: '4px', paddingBottom: '30px' }} className="no-scrollbar">
         <div className="calculator-bottom-grid">
           
-          {/* COLUNA ESQUERDA: ANÁLISE DE JOGADORES */}
-          <div className="glass-panel" style={{ borderLeft: '4px solid #ffeb3b', display: 'flex', flexDirection: 'column', gap: '16px', padding: '16px', overflow: 'hidden' }}>
-            <h3 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontWeight: 'bold', color: '#fff' }}>
-              <User size={18} color="#ffeb3b" /> Análise de Marcadores
-            </h3>
-            
-            {/* COLUNAS DE JOGADORES LADO A LADO */}
-            <div className="calculator-players-row" style={{ flex: 1, overflow: 'hidden' }}>
-              
-              {/* COLUNA CASA */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
-                <div style={{ background: '#141419', padding: '12px', borderRadius: '8px', border: '1px solid #222' }}>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--brand-neon)', fontWeight: 'bold', marginBottom: '6px', textTransform: 'uppercase' }}>
-                    {homeTeam || 'Time Casa'}
-                  </div>
-                  <select
-                    value=""
-                    onChange={(e) => {
-                      const selectedName = e.target.value;
-                      const playerInfo = homeSquad.find(sq => sq.name === selectedName);
-                      if (playerInfo && !homePlayersList.some(p => p.name === selectedName)) {
-                        let newWeight = 0.15;
-                        if (playerInfo.position === 'Attacker') newWeight = 0.35;
-                        else if (playerInfo.position === 'Midfielder') newWeight = 0.22;
-                        else if (playerInfo.position === 'Defender') newWeight = 0.08;
-                        
-                        setHomePlayersList([...homePlayersList, { name: selectedName, weight: newWeight, role: playerInfo.position }]);
-                      }
-                    }}
-                    style={{ background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', width: '100%', outline: 'none', appearance: 'auto', cursor: 'pointer' }}
-                  >
-                    <option value="" disabled>+ Selecionar Jogador</option>
-                    {homeSquad.map(sq => (
-                      <option key={sq.id} value={sq.name}>{sq.name} ({sq.position === 'Attacker' ? 'ATA' : sq.position === 'Midfielder' ? 'MEI' : sq.position === 'Defender' ? 'DEF' : 'GOL'})</option>
-                    ))}
-                  </select>
-                </div>
+          {/* Seção de Árbitro ocupa toda a largura */}
 
-                {/* Lista Casa (Scrollável após 4) */}
-                <div className="no-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', maxHeight: '250px', paddingRight: '4px' }}>
-                  {homePlayersList.length === 0 && (
-                    <div style={{ textAlign: 'center', color: '#555', padding: '20px 10px', fontStyle: 'italic', fontSize: '0.75rem' }}>
-                      Nenhum jogador do {homeTeam || 'Casa'} selecionado.
-                    </div>
-                  )}
-                    {homePlayersList.map((p, idx) => {
-                      const prob = calculatePlayerGoalProb(homeXG, p.weight);
-                      const isAnytimeSelected = selectedSelections.some(s => s.market === 'Marcadores' && s.label === `${p.name} (Qualquer Momento)`);
-                      const isFirstSelected = selectedSelections.some(s => s.market === 'Marcadores' && s.label === `${p.name} (Primeiro Gol)`);
-                      const isHottestAnytime = hottestPlayerGoal && hottestPlayerGoal.name === p.name && hottestPlayerGoal.type === 'anytime' && hottestPlayerGoal.team === 'home';
-                      return (
-                        <div key={`h-${idx}`} style={{ background: '#141419', padding: '8px 12px', borderRadius: '8px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 120px' }}>
-                            <div style={{ color: '#fff', fontSize: '0.85rem', fontWeight: 'bold' }}>{p.name}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
-                              <span style={{ fontSize: '0.65rem', background: '#222', padding: '2px 6px', borderRadius: '4px', color: '#aaa', fontWeight: 'bold' }}>{p.role === 'Attacker' ? 'ATA' : p.role === 'Midfielder' ? 'MEI' : p.role === 'Defender' ? 'DEF' : p.role || 'GOL'}</span>
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', gap: '8px', textAlign: 'right', flexShrink: 0, alignItems: 'center' }}>
-                            <div 
-                              onClick={() => handleToggleSelection('Marcadores', `${p.name} (Qualquer Momento)`, Number(prob.anytime)/100, prob.anytimeOdd)}
-                              style={{ 
-                                padding: '4px 6px', 
-                                borderRadius: '6px', 
-                                cursor: 'pointer', 
-                                background: isAnytimeSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
-                                border: isAnytimeSelected 
-                                  ? '1.5px solid var(--brand-neon)' 
-                                  : isHottestAnytime 
-                                    ? '1.5px solid #00ffaa' 
-                                    : '1px solid transparent',
-                                transition: 'all 0.2s',
-                                boxShadow: isHottestAnytime ? '0 0 6px rgba(0, 255, 170, 0.3)' : 'none'
-                              }}
-                            >
-                              <div style={{ fontSize: '0.65rem', color: '#888' }}>Anytime</div>
-                              <strong style={{ color: '#fff', fontSize: '0.8rem' }}>{prob.anytime}% <span style={{ color: '#ff9800', fontSize: '0.75rem', display: 'block' }}>@{prob.anytimeOdd}</span></strong>
-                            </div>
-                            <div 
-                              onClick={() => handleToggleSelection('Marcadores', `${p.name} (Primeiro Gol)`, Number(prob.first)/100, prob.firstOdd)}
-                              style={{ 
-                                padding: '4px 6px', 
-                                borderRadius: '6px', 
-                                cursor: 'pointer', 
-                                background: isFirstSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
-                                border: isFirstSelected 
-                                  ? '1.5px solid var(--brand-neon)' 
-                                  : '1px solid transparent',
-                                transition: 'all 0.2s'
-                              }}
-                            >
-                              <div style={{ fontSize: '0.65rem', color: '#888' }}>Primeiro</div>
-                              <strong style={{ color: '#aaa', fontSize: '0.8rem' }}>{prob.first}% <span style={{ color: '#ff9800', fontSize: '0.75rem', display: 'block' }}>@{prob.firstOdd}</span></strong>
-                            </div>
-                            <button 
-                              onClick={() => setHomePlayersList(homePlayersList.filter((_, i) => i !== idx))}
-                              style={{ background: 'transparent', border: 'none', color: '#ff4b4b', cursor: 'pointer', padding: '4px', fontSize: '1rem', marginLeft: '4px' }}
-                              title="Remover"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-
-              {/* COLUNA VISITANTE */}
-              <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: '12px', overflow: 'hidden' }}>
-                <div style={{ background: '#141419', padding: '12px', borderRadius: '8px', border: '1px solid #222' }}>
-                  <div style={{ fontSize: '0.75rem', color: '#ff4b4b', fontWeight: 'bold', marginBottom: '6px', textTransform: 'uppercase' }}>
-                    {awayTeam || 'Time Visitante'}
-                  </div>
-                  <select
-                    value=""
-                    onChange={(e) => {
-                      const selectedName = e.target.value;
-                      const playerInfo = awaySquad.find(sq => sq.name === selectedName);
-                      if (playerInfo && !awayPlayersList.some(p => p.name === selectedName)) {
-                        let newWeight = 0.15;
-                        if (playerInfo.position === 'Attacker') newWeight = 0.35;
-                        else if (playerInfo.position === 'Midfielder') newWeight = 0.22;
-                        else if (playerInfo.position === 'Defender') newWeight = 0.08;
-                        
-                        setAwayPlayersList([...awayPlayersList, { name: selectedName, weight: newWeight, role: playerInfo.position }]);
-                      }
-                    }}
-                    style={{ background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '0.8rem', fontWeight: 'bold', width: '100%', outline: 'none', appearance: 'auto', cursor: 'pointer' }}
-                  >
-                    <option value="" disabled>+ Selecionar Jogador</option>
-                    {awaySquad.map(sq => (
-                      <option key={sq.id} value={sq.name}>{sq.name} ({sq.position === 'Attacker' ? 'ATA' : sq.position === 'Midfielder' ? 'MEI' : sq.position === 'Defender' ? 'DEF' : 'GOL'})</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Lista Visitante (Scrollável após 4) */}
-                <div className="no-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '6px', overflowY: 'auto', maxHeight: '250px', paddingRight: '4px' }}>
-                  {awayPlayersList.length === 0 && (
-                    <div style={{ textAlign: 'center', color: '#555', padding: '20px 10px', fontStyle: 'italic', fontSize: '0.75rem' }}>
-                      Nenhum jogador do {awayTeam || 'Visitante'} selecionado.
-                    </div>
-                  )}
-                    {awayPlayersList.map((p, idx) => {
-                      const prob = calculatePlayerGoalProb(awayXG, p.weight);
-                      const isAnytimeSelected = selectedSelections.some(s => s.market === 'Marcadores' && s.label === `${p.name} (Qualquer Momento)`);
-                      const isFirstSelected = selectedSelections.some(s => s.market === 'Marcadores' && s.label === `${p.name} (Primeiro Gol)`);
-                      const isHottestAnytime = hottestPlayerGoal && hottestPlayerGoal.name === p.name && hottestPlayerGoal.type === 'anytime' && hottestPlayerGoal.team === 'away';
-                      return (
-                        <div key={`a-${idx}`} style={{ background: '#141419', padding: '8px 12px', borderRadius: '8px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 120px' }}>
-                            <div style={{ color: '#fff', fontSize: '0.85rem', fontWeight: 'bold' }}>{p.name}</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '2px' }}>
-                              <span style={{ fontSize: '0.65rem', background: '#222', padding: '2px 6px', borderRadius: '4px', color: '#aaa', fontWeight: 'bold' }}>{p.role === 'Attacker' ? 'ATA' : p.role === 'Midfielder' ? 'MEI' : p.role === 'Defender' ? 'DEF' : p.role || 'GOL'}</span>
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', gap: '8px', textAlign: 'right', flexShrink: 0, alignItems: 'center' }}>
-                            <div 
-                              onClick={() => handleToggleSelection('Marcadores', `${p.name} (Qualquer Momento)`, Number(prob.anytime)/100, prob.anytimeOdd)}
-                              style={{ 
-                                padding: '4px 6px', 
-                                borderRadius: '6px', 
-                                cursor: 'pointer', 
-                                background: isAnytimeSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
-                                border: isAnytimeSelected 
-                                  ? '1.5px solid var(--brand-neon)' 
-                                  : isHottestAnytime 
-                                    ? '1.5px solid #00ffaa' 
-                                    : '1px solid transparent',
-                                transition: 'all 0.2s',
-                                boxShadow: isHottestAnytime ? '0 0 6px rgba(0, 255, 170, 0.3)' : 'none'
-                              }}
-                            >
-                              <div style={{ fontSize: '0.65rem', color: '#888' }}>Anytime</div>
-                              <strong style={{ color: '#fff', fontSize: '0.8rem' }}>{prob.anytime}% <span style={{ color: '#ff9800', fontSize: '0.75rem', display: 'block' }}>@{prob.anytimeOdd}</span></strong>
-                            </div>
-                            <div 
-                              onClick={() => handleToggleSelection('Marcadores', `${p.name} (Primeiro Gol)`, Number(prob.first)/100, prob.firstOdd)}
-                              style={{ 
-                                padding: '4px 6px', 
-                                borderRadius: '6px', 
-                                cursor: 'pointer', 
-                                background: isFirstSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
-                                border: isFirstSelected 
-                                  ? '1.5px solid var(--brand-neon)' 
-                                  : '1px solid transparent',
-                                transition: 'all 0.2s'
-                              }}
-                            >
-                              <div style={{ fontSize: '0.65rem', color: '#888' }}>Primeiro</div>
-                              <strong style={{ color: '#aaa', fontSize: '0.8rem' }}>{prob.first}% <span style={{ color: '#ff9800', fontSize: '0.75rem', display: 'block' }}>@{prob.firstOdd}</span></strong>
-                            </div>
-                            <button 
-                              onClick={() => setAwayPlayersList(awayPlayersList.filter((_, i) => i !== idx))}
-                              style={{ background: 'transparent', border: 'none', color: '#ff4b4b', cursor: 'pointer', padding: '4px', fontSize: '1rem', marginLeft: '4px' }}
-                              title="Remover"
-                            >
-                              ✕
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          <div className="calculator-cards-grid">
-
-          {/* COLUNA 2: MERCADO DE CARTÕES */}
-          <div className="glass-panel" style={{ borderLeft: '4px solid #ff5722', display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>
-            <h3 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontWeight: 'bold', color: '#fff' }}>
-              <ShieldAlert size={18} color="#ff5722" /> Previsão de Cartões & Disciplina
-            </h3>
-
-            {(() => {
-              const cardMarkets = [
-                { label: 'Total Amarelos Over 3.5', prob: cardsPrediction.probYellowOver35 },
-                { label: 'Total Amarelos Over 4.5', prob: cardsPrediction.probYellowOver45 },
-                { label: 'Total Amarelos Over 5.5', prob: cardsPrediction.probYellowOver55 },
-                { label: 'Cartão Vermelho (Sim)', prob: Number(cardsPrediction.redCardProb) / 100 }
-              ];
-              cardMarkets.sort((a, b) => b.prob - a.prob);
-              const hottestCardMarket = cardMarkets[0]?.label;
-
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, justifyContent: 'center' }}>
-                  
-                  {/* Seção Cartões Amarelos */}
-                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: 'transparent', border: '1px solid #333', padding: '10px', borderRadius: '12px' }}>
-                    <div style={{ 
-                      background: '#ffd600', 
-                      width: '42px', 
-                      height: '58px', 
-                      borderRadius: '6px', 
-                      boxShadow: '0 0 12px rgba(255, 214, 0, 0.3)', 
-                      display: 'flex', 
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#000',
-                      fontWeight: 'bold',
-                      fontSize: '1rem',
-                      flexShrink: 0
-                    }}>
-                      🟨
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '0.75rem', color: '#aaa', marginBottom: '4px' }}>
-                        Amarelos Esperados: <strong style={{ color: '#fff' }}>{cardsPrediction.totalYellows}</strong> (Casa: {cardsPrediction.homeYellows} | Fora: {cardsPrediction.awayYellows})
-                      </div>
-                      {/* Linhas Clicáveis de Amarelos */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
-                        {[
-                          { label: 'Over 3.5', prob: cardsPrediction.probYellowOver35 },
-                          { label: 'Over 4.5', prob: cardsPrediction.probYellowOver45 },
-                          { label: 'Over 5.5', prob: cardsPrediction.probYellowOver55 }
-                        ].map((line, idx) => {
-                          const marketLabel = `Total Amarelos ${line.label}`;
-                          const isSelected = selectedSelections.some(s => s.market === 'Cartões' && s.label === marketLabel);
-                          const isHottest = hottestCardMarket === marketLabel;
-                          return (
-                            <div 
-                              key={idx}
-                              onClick={() => handleToggleSelection('Cartões', marketLabel, line.prob, getOdd(line.prob))}
-                              style={{
-                                background: isSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
-                                border: isSelected 
-                                  ? '1.5px solid var(--brand-neon)' 
-                                  : isHottest 
-                                    ? '1.5px solid #00ffaa' 
-                                    : '1px solid #333',
-                                borderRadius: '6px',
-                                padding: '4px',
-                                textAlign: 'center',
-                                cursor: 'pointer',
-                                transition: 'all 0.2s',
-                                boxShadow: isHottest ? '0 0 6px rgba(0, 255, 170, 0.3)' : 'none'
-                              }}
-                            >
-                              <div style={{ fontSize: '0.62rem', color: '#aaa' }}>{line.label}</div>
-                              <div style={{ fontSize: '0.72rem', fontWeight: 'bold' }}>{getPct(line.prob)}%</div>
-                              <div style={{ fontSize: '0.62rem', color: '#ff9800' }}>@{getOdd(line.prob)}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Seção Cartão Vermelho */}
-                  <div 
-                    onClick={() => handleToggleSelection('Cartões', 'Cartão Vermelho (Sim)', Number(cardsPrediction.redCardProb)/100, cardsPrediction.redCardOdd)}
-                    style={{ 
-                      display: 'flex', 
-                      gap: '12px', 
-                      alignItems: 'center', 
-                      background: selectedSelections.some(s => s.market === 'Cartões' && s.label === 'Cartão Vermelho (Sim)') ? 'rgba(204, 255, 0, 0.15)' : 'linear-gradient(135deg, #1f0808, #110404)', 
-                      border: selectedSelections.some(s => s.market === 'Cartões' && s.label === 'Cartão Vermelho (Sim)') 
-                        ? '1.5px solid var(--brand-neon)' 
-                        : hottestCardMarket === 'Cartão Vermelho (Sim)' 
-                          ? '1.5px solid #00ffaa' 
-                          : '1px solid #ff444433', 
-                      padding: '10px', 
-                      borderRadius: '12px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      boxShadow: hottestCardMarket === 'Cartão Vermelho (Sim)' ? '0 0 8px rgba(0, 255, 170, 0.3)' : 'none'
-                    }}
-                  >
-                    <div style={{ 
-                      background: '#ff3f3f', 
-                      width: '42px', 
-                      height: '58px', 
-                      borderRadius: '6px', 
-                      boxShadow: '0 0 12px rgba(255, 63, 63, 0.4)', 
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      color: '#fff',
-                      fontWeight: 'bold',
-                      fontSize: '1rem',
-                      flexShrink: 0
-                    }}>
-                      🟥
-                    </div>
-                    <div>
-                      <div style={{ fontSize: '0.75rem', color: '#ff6b6b', fontWeight: 'bold' }}>Chance de Expulsão (Vermelho)</div>
-                      <div style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#fff', marginTop: '2px' }}>
-                        {cardsPrediction.redCardProb}% <span style={{ color: '#ff9800', fontSize: '0.85rem' }}>@{cardsPrediction.redCardOdd}</span>
-                      </div>
-                      <span style={{ fontSize: '0.62rem', color: Number(cardsPrediction.redCardProb) > 25 ? '#ff4b4b' : '#aaa', fontWeight: 'bold' }}>
-                        {Number(cardsPrediction.redCardProb) > 25 ? '⚠️ Risco de Vermelho Alto' : 'Risco de Expulsão Moderado'}
-                      </span>
-                    </div>
-                  </div>
-
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* COLUNA 3: ANÁLISE DO ÁRBITRO */}
+          {/* ANÁLISE DO ÁRBITRO */}
           <div className="glass-panel" style={{ borderLeft: '4px solid #00d2ff', display: 'flex', flexDirection: 'column', gap: '12px', padding: '16px' }}>
             <h3 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontWeight: 'bold', color: '#fff' }}>
               <Award size={18} color="#00d2ff" /> Escala e Rigor do Árbitro
@@ -1281,7 +1082,6 @@ export default function CalculatorPage() {
               </div>
 
             </div>
-          </div>
           </div>
         </div>
       </div>

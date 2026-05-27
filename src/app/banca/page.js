@@ -343,6 +343,33 @@ export default function GestaoBancaPage() {
     }
   };
 
+  const handleUpdateTransactionStatus = async (id, newStatus) => {
+    const updatedList = transactions.map(t => {
+      if (t.id === id) {
+        return { ...t, type: newStatus };
+      }
+      return t;
+    });
+    setTransactions(updatedList);
+
+    if (syncStatus === 'cloud' && supabase) {
+      try {
+        const { error } = await supabase
+          .from('banca_transactions')
+          .update({ type: newStatus })
+          .eq('id', id);
+        if (error) throw error;
+        showToast(`Transação definida como ${newStatus === 'ganho' ? 'GANHO 🟢' : 'PERDA 🔴'}!`, 'success');
+      } catch (err) {
+        console.warn("Erro ao atualizar no Supabase:", err);
+        showToast("Erro ao salvar alteração: " + err.message, 'error');
+      }
+    } else {
+      saveTransactionsLocal(updatedList);
+      showToast(`Transação definida como ${newStatus === 'ganho' ? 'GANHO 🟢' : 'PERDA 🔴'}!`, 'success');
+    }
+  };
+
   // Cálculos de métricas da Banca
   const stats = useMemo(() => {
     let totalDeposits = initialValue;
@@ -604,7 +631,7 @@ export default function GestaoBancaPage() {
                   <th style={{ padding: '12px', textAlign: 'center' }}>Tipo</th>
                   <th style={{ padding: '12px', textAlign: 'center' }}>Odd</th>
                   <th style={{ padding: '12px', textAlign: 'right' }}>Valor</th>
-                  <th style={{ padding: '12px', width: '50px' }}></th>
+                  <th style={{ padding: '12px', width: '150px', textAlign: 'center' }}>Ações</th>
                 </tr>
               </thead>
               <tbody>
@@ -673,14 +700,40 @@ export default function GestaoBancaPage() {
                             : tx.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                         }
                       </td>
-                      <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <button 
-                          onClick={() => handleDeleteTransaction(tx.id)}
-                          style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
-                          className="mobile-edit-btn"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                      <td style={{ padding: '12px' }}>
+                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
+                          {isPending && (
+                            <>
+                              <button 
+                                onClick={() => handleUpdateTransactionStatus(tx.id, 'ganho')}
+                                style={{ background: '#4CAF50', border: 'none', borderRadius: '4px', color: '#fff', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', transition: 'opacity 0.2s' }}
+                                onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+                                onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                                title="Definir Ganho"
+                              >
+                                Green 🟢
+                              </button>
+                              <button 
+                                onClick={() => handleUpdateTransactionStatus(tx.id, 'perda')}
+                                style={{ background: '#ff4d4d', border: 'none', borderRadius: '4px', color: '#fff', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', transition: 'opacity 0.2s' }}
+                                onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+                                onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                                title="Definir Perda"
+                              >
+                                Red 🔴
+                              </button>
+                            </>
+                          )}
+                          <button 
+                            onClick={() => handleDeleteTransaction(tx.id)}
+                            style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px', transition: 'opacity 0.2s' }}
+                            onMouseOver={(e) => e.currentTarget.style.opacity = '0.7'}
+                            onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                            title="Excluir Transação"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

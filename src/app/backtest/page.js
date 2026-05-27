@@ -25,7 +25,9 @@ import {
   Target, 
   DollarSign, 
   Calendar, 
-  AlertCircle 
+  AlertCircle,
+  Trash2,
+  CheckCircle2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -232,6 +234,56 @@ export default function RelatorioApostasPage() {
 
     loadTransactions();
   }, []);
+
+  const handleUpdateTransactionStatus = async (id, newStatus) => {
+    const updatedList = transactions.map(t => {
+      if (t.id === id) {
+        return { ...t, type: newStatus };
+      }
+      return t;
+    });
+    setTransactions(updatedList);
+
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('banca_transactions')
+          .update({ type: newStatus })
+          .eq('id', id);
+        if (error) throw error;
+        showToast(`Aposta definida como ${newStatus === 'ganho' ? 'GREEN 🟢' : 'RED 🔴'}!`, 'success');
+      } catch (err) {
+        console.warn("Erro ao atualizar transação no Supabase:", err);
+        showToast("Erro ao salvar alteração: " + err.message, 'error');
+      }
+    } else {
+      localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(updatedList));
+      showToast(`Aposta definida como ${newStatus === 'ganho' ? 'GREEN 🟢' : 'RED 🔴'}!`, 'success');
+    }
+  };
+
+  const handleDeleteTransaction = async (id) => {
+    if (!window.confirm("Deseja realmente excluir este palpite seguido da sua banca?")) return;
+    const updated = transactions.filter(t => t.id !== id);
+    setTransactions(updated);
+
+    if (supabase) {
+      try {
+        const { error } = await supabase
+          .from('banca_transactions')
+          .delete()
+          .eq('id', id);
+        if (error) throw error;
+        showToast('Aposta excluída da banca!', 'success');
+      } catch (err) {
+        console.warn("Erro ao deletar no Supabase:", err);
+        showToast("Erro ao excluir registro: " + err.message, 'error');
+      }
+    } else {
+      localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(updated));
+      showToast('Aposta excluída da banca!', 'success');
+    }
+  };
 
   // Filter only betting transactions (exclude deposit/withdrawal)
   const bets = useMemo(() => {
@@ -680,6 +732,7 @@ export default function RelatorioApostasPage() {
                     <th style={{ padding: '12px', textAlign: 'center' }}>Odd</th>
                     <th style={{ padding: '12px', textAlign: 'right' }}>Stake (Apostado)</th>
                     <th style={{ padding: '12px', textAlign: 'right' }}>Retorno Líquido</th>
+                    <th style={{ padding: '12px', width: '150px', textAlign: 'center' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -750,6 +803,41 @@ export default function RelatorioApostasPage() {
                               ? (tx.amount * (tx.odd - 1)).toFixed(2)
                               : tx.amount.toFixed(2)
                           }
+                        </td>
+                        <td style={{ padding: '12px' }}>
+                          <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
+                            {isPending && (
+                              <>
+                                <button 
+                                  onClick={() => handleUpdateTransactionStatus(tx.id, 'ganho')}
+                                  style={{ background: '#4CAF50', border: 'none', borderRadius: '4px', color: '#fff', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', transition: 'opacity 0.2s' }}
+                                  onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+                                  onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                                  title="Definir Green"
+                                >
+                                  Green 🟢
+                                </button>
+                                <button 
+                                  onClick={() => handleUpdateTransactionStatus(tx.id, 'perda')}
+                                  style={{ background: '#ff4d4d', border: 'none', borderRadius: '4px', color: '#fff', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', transition: 'opacity 0.2s' }}
+                                  onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+                                  onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                                  title="Definir Red"
+                                >
+                                  Red 🔴
+                                </button>
+                              </>
+                            )}
+                            <button 
+                              onClick={() => handleDeleteTransaction(tx.id)}
+                              style={{ background: 'transparent', border: '1px solid #444', borderRadius: '4px', color: '#aaa', padding: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                              onMouseOver={(e) => { e.currentTarget.style.color = '#ff4d4d'; e.currentTarget.style.borderColor = '#ff4d4d'; }}
+                              onMouseOut={(e) => { e.currentTarget.style.color = '#aaa'; e.currentTarget.style.borderColor = '#444'; }}
+                              title="Excluir da Banca"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );

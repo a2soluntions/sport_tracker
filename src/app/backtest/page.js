@@ -52,7 +52,7 @@ const getTeamLogoUrl = (teamName) => {
 };
 
 const parseMatchTeams = (description) => {
-  const clean = description.replace('[Palpite] ', '');
+  const clean = description.replace('[Palpite] ', '').replace('[Aposta Criada] ', '');
   const matchPart = clean.split(' (')[0];
   let parts = [];
   if (matchPart.includes(' x ')) parts = matchPart.split(' x ');
@@ -714,11 +714,10 @@ export default function RelatorioApostasPage() {
                                     onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${teams.away}&background=222&color=fff&rounded=true&bold=true&size=20`; }}
                                   />
                                   <span className="team-name-text-mobile-hide">{teams.away}</span>
-                                  {teams.rest && <span style={{ color: '#888', fontSize: '0.8rem' }}>{teams.rest}</span>}
                                 </div>
                               );
                             }
-                            return tx.description.replace('[Palpite] ', '');
+                            return tx.description.replace('[Palpite] ', '').replace('[Aposta Criada] ', '');
                           })()}
                         </td>
                         <td style={{ padding: '12px', textAlign: 'center' }}>

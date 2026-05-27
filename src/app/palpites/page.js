@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Send, CheckCircle2, Trophy, Loader2 } from 'lucide-react';
+import { Send, CheckCircle2, Trophy, Loader2, Trash2, PiggyBank, AlertTriangle } from 'lucide-react';
 import { calculatePoissonMatchStats, formatPct, formatOdd } from '../../utils/poisson';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -27,12 +27,129 @@ export default function PalpitesPage() {
   const [activeFollowId, setActiveFollowId] = useState(null);
   const [sendingSummary, setSendingSummary] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [activeTab, setActiveTab] = useState('model'); // 'model' ou 'custom'
+  const [customBets, setCustomBets] = useState([]);
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
     setTimeout(() => {
       setToast({ show: false, message: '', type: 'success' });
     }, 4000);
+  };
+
+  useEffect(() => {
+    const saved = localStorage.getItem('ev_tracker_custom_bets');
+    if (saved) {
+      try {
+        setCustomBets(JSON.parse(saved));
+      } catch (e) {
+        console.warn("Erro ao ler custom bets:", e);
+      }
+    }
+  }, [activeTab]);
+
+  const handleRegisterCustomBetToBanca = async (bet) => {
+    const desc = `[Aposta Criada] ${bet.home} x ${bet.away} (${bet.selections.map(s => s.label).join(', ')})`;
+    const isAlreadyFollowed = transactions.some(t => t.description === desc);
+    if (isAlreadyFollowed) {
+      showToast("Esta aposta já foi registrada na banca!", "error");
+      return;
+    }
+
+    const newTx = {
+      date: new Date().toISOString().slice(0, 10),
+      type: bet.status === 'pendente' ? 'pendente' : bet.status,
+      amount: bet.stake,
+      description: desc,
+      odd: bet.totalOdd
+    };
+
+    let success = false;
+    let savedTx = null;
+
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('banca_transactions')
+          .insert([newTx])
+          .select();
+
+        if (error) throw error;
+        if (data && data.length > 0) {
+          savedTx = data[0];
+          success = true;
+        }
+      } catch (err) {
+        console.warn("Erro ao salvar no Supabase:", err);
+      }
+    }
+
+    if (!success) {
+      savedTx = { id: Date.now(), ...newTx };
+      const savedTxs = localStorage.getItem('ev_tracker_banca_txs');
+      let txList = [];
+      if (savedTxs) {
+        try {
+          txList = JSON.parse(savedTxs);
+        } catch (e) {}
+      }
+      txList = [savedTx, ...txList];
+      localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(txList));
+      success = true;
+    }
+
+    if (success && savedTx) {
+      setTransactions(prev => [savedTx, ...prev]);
+      showToast('Aposta registrada no seu Controle de Banca!', 'success');
+    }
+  };
+
+  const handleUpdateCustomBetStatus = async (betId, newStatus) => {
+    const bet = customBets.find(b => b.id === betId);
+    if (!bet) return;
+
+    const updatedBets = customBets.map(b => {
+      if (b.id === betId) {
+        return { ...b, status: newStatus };
+      }
+      return b;
+    });
+    setCustomBets(updatedBets);
+    localStorage.setItem('ev_tracker_custom_bets', JSON.stringify(updatedBets));
+
+    const desc = `[Aposta Criada] ${bet.home} x ${bet.away} (${bet.selections.map(s => s.label).join(', ')})`;
+    const tx = transactions.find(t => t.description === desc);
+    if (tx) {
+      const updatedTxs = transactions.map(t => {
+        if (t.id === tx.id) {
+          return { ...t, type: newStatus === 'ganho' ? 'ganho' : 'perda' };
+        }
+        return t;
+      });
+      setTransactions(updatedTxs);
+
+      if (supabase) {
+        try {
+          await supabase
+            .from('banca_transactions')
+            .update({ type: newStatus === 'ganho' ? 'ganho' : 'perda' })
+            .eq('id', tx.id);
+        } catch (e) {
+          console.warn("Erro ao atualizar transação no Supabase:", e);
+        }
+      } else {
+        localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(updatedTxs));
+      }
+    }
+
+    showToast(`Aposta definida como ${newStatus === 'ganho' ? 'GREEN' : 'RED'}!`, 'success');
+  };
+
+  const handleDeleteCustomBet = (betId) => {
+    const updated = customBets.filter(b => b.id !== betId);
+    setCustomBets(updated);
+    localStorage.setItem('ev_tracker_custom_bets', JSON.stringify(updated));
+    showToast("Aposta customizada excluída.", "success");
   };
 
   const currentRoundBets = useMemo(() => {
@@ -626,578 +743,789 @@ export default function PalpitesPage() {
   return (
     <div className="palpites-container">
       
-      <header style={{ marginBottom: '32px', paddingTop: '16px' }}>
+      <header style={{ marginBottom: '24px', paddingTop: '16px' }}>
         <h1 className="page-title">
           <Trophy color="#FFD700" size={32} />
-          Palpites Brasileirão 🇧🇷
+          Central de Palpites & Bilhetes
         </h1>
         <p style={{ color: '#888', marginTop: '8px', fontSize: '1.1rem' }}>
-          Lista de prognósticos matemáticos gerados via Distribuição de Poisson. Dispare diretamente para os seus clientes.
+          Gerencie e acompanhe prognósticos automáticos e suas próprias apostas criadas via Poisson.
         </p>
       </header>
 
-      {/* Seletores de Liga e Data (Layout Organizado e Responsivo) */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
-        <div style={{ 
-          display: 'flex', 
-          gap: '8px', 
-          overflowX: 'auto', 
-          paddingBottom: '8px',
-          scrollbarWidth: 'none',
-          msOverflowStyle: 'none'
-        }} className="no-scrollbar">
-          {[
-            { id: '71', name: '🇧🇷 Série A' },
-            { id: '72', name: '🇧🇷 Série B' },
-            { id: '13', name: '🌎 Libertadores' },
-            { id: '39', name: '🇬🇧 Premier' },
-            { id: '140', name: '🇪🇸 La Liga' },
-            { id: '135', name: '🇮🇹 Serie A' },
-            { id: '78', name: '🇩🇪 Bundes' }
-          ].map(lg => (
-            <button
-              key={lg.id}
-              onClick={() => setSelectedLeague(lg.id)}
-              style={{
-                background: selectedLeague === lg.id ? 'var(--brand-neon)' : '#222',
-                color: selectedLeague === lg.id ? '#000' : '#888',
-                padding: '8px 16px',
-                borderRadius: '20px',
-                fontWeight: 'bold',
-                fontSize: '0.85rem',
-                border: 'none',
-                cursor: 'pointer',
-                transition: 'all 0.2s',
-                whiteSpace: 'nowrap',
-                flexShrink: 0
-              }}
-            >
-              {lg.name}
-            </button>
-          ))}
-        </div>
-
-        {/* Data e Seletor de Rodada Info */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-          <div style={{ color: 'var(--brand-neon)', fontWeight: 'bold', fontSize: '0.9rem' }}>
-            {roundInfo ? `Temporada ${roundInfo.season} • Rodada ${roundInfo.round}` : ''}
-          </div>
-          
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ fontSize: '0.85rem', color: '#888', fontWeight: 'bold' }}>Filtro de Data:</span>
-            <input 
-              type="date" 
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              style={{
-                padding: '8px 12px',
-                background: '#222',
-                border: 'none',
-                color: 'var(--brand-neon)',
-                borderRadius: '20px',
-                cursor: 'pointer',
-                colorScheme: 'dark',
-                fontWeight: 'bold',
-                outline: 'none',
-                fontSize: '0.9rem'
-              }}
-            />
-          </div>
-        </div>
+      {/* Abas Principais de Navegação */}
+      <div style={{ display: 'flex', borderBottom: '1px solid #333', marginBottom: '24px', gap: '8px' }}>
+        <button
+          onClick={() => setActiveTab('model')}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'model' ? '3px solid var(--brand-neon)' : '3px solid transparent',
+            color: activeTab === 'model' ? '#fff' : '#888',
+            padding: '10px 16px',
+            fontSize: '0.95rem',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          🏆 Palpites do Modelo
+        </button>
+        <button
+          onClick={() => setActiveTab('custom')}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            borderBottom: activeTab === 'custom' ? '3px solid var(--brand-neon)' : '3px solid transparent',
+            color: activeTab === 'custom' ? '#fff' : '#888',
+            padding: '10px 16px',
+            fontSize: '0.95rem',
+            fontWeight: 'bold',
+            cursor: 'pointer',
+            transition: 'all 0.2s'
+          }}
+        >
+          💼 Minhas Apostas Customizadas
+        </button>
       </div>
 
-      {/* Banner Balanço da Rodada */}
-      {currentRoundBets.length > 0 && (
-        <div style={{ 
-          background: 'linear-gradient(90deg, #111115, #1c1c24)', 
-          border: '1px solid #333', 
-          borderLeft: '4px solid var(--brand-neon)',
-          borderRadius: '12px', 
-          padding: '14px 20px', 
-          marginBottom: '24px', 
-          display: 'flex', 
-          alignItems: 'center', 
-          justifyContent: 'space-between',
-          flexWrap: 'wrap',
-          gap: '16px'
-        }}>
-          <div>
-            <div style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff' }}>
-              🏁 Rodada {roundInfo?.round} em Andamento/Finalizada
+      {activeTab === 'model' ? (
+        <>
+          {/* Seletores de Liga e Data (Layout Organizado e Responsivo) */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
+            <div style={{ 
+              display: 'flex', 
+              gap: '8px', 
+              overflowX: 'auto', 
+              paddingBottom: '8px',
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none'
+            }} className="no-scrollbar">
+              {[
+                { id: '71', name: '🇧🇷 Série A' },
+                { id: '72', name: '🇧🇷 Série B' },
+                { id: '13', name: '🌎 Libertadores' },
+                { id: '39', name: '🇬🇧 Premier' },
+                { id: '140', name: '🇪🇸 La Liga' },
+                { id: '135', name: '🇮🇹 Serie A' },
+                { id: '78', name: '🇩🇪 Bundes' }
+              ].map(lg => (
+                <button
+                  key={lg.id}
+                  onClick={() => setSelectedLeague(lg.id)}
+                  style={{
+                    background: selectedLeague === lg.id ? 'var(--brand-neon)' : '#222',
+                    color: selectedLeague === lg.id ? '#000' : '#888',
+                    padding: '8px 16px',
+                    borderRadius: '20px',
+                    fontWeight: 'bold',
+                    fontSize: '0.85rem',
+                    border: 'none',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    whiteSpace: 'nowrap',
+                    flexShrink: 0
+                  }}
+                >
+                  {lg.name}
+                </button>
+              ))}
             </div>
-            <div style={{ fontSize: '0.8rem', color: '#888', marginTop: '2px' }}>
-              Você seguiu {currentRoundBets.length} palpites nesta rodada. Deseja enviar o balanço parcial/final para os seus clientes no Telegram?
+
+            {/* Data e Seletor de Rodada Info */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+              <div style={{ color: 'var(--brand-neon)', fontWeight: 'bold', fontSize: '0.9rem' }}>
+                {roundInfo ? `Temporada ${roundInfo.season} • Rodada ${roundInfo.round}` : ''}
+              </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <span style={{ fontSize: '0.85rem', color: '#888', fontWeight: 'bold' }}>Filtro de Data:</span>
+                <input 
+                  type="date" 
+                  value={selectedDate}
+                  onChange={(e) => setSelectedDate(e.target.value)}
+                  style={{
+                    padding: '8px 12px',
+                    background: '#222',
+                    border: 'none',
+                    color: 'var(--brand-neon)',
+                    borderRadius: '20px',
+                    cursor: 'pointer',
+                    colorScheme: 'dark',
+                    fontWeight: 'bold',
+                    outline: 'none',
+                    fontSize: '0.9rem'
+                  }}
+                />
+              </div>
             </div>
           </div>
-          
-          <button
-            onClick={handleSendRoundSummary}
-            disabled={sendingSummary}
-            style={{
-              background: 'var(--brand-neon)',
-              color: '#000',
-              border: 'none',
-              padding: '8px 18px',
-              borderRadius: '6px',
-              fontWeight: 'bold',
-              fontSize: '0.85rem',
-              cursor: sendingSummary ? 'not-allowed' : 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              boxShadow: '0 2px 8px rgba(204, 255, 0, 0.2)'
-            }}
-          >
-            {sendingSummary ? (
-              <>Enviando...</>
-            ) : (
-              <>Enviar Balanço da Rodada 🤖</>
-            )}
-          </button>
-        </div>
-      )}
 
-      {/* Seletor de Estatísticas */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-        <h3 style={{ fontSize: '1rem', color: '#ccc', margin: 0, fontWeight: 'bold' }}>Estatísticas de Desempenho</h3>
-        <div style={{ display: 'flex', background: '#141419', borderRadius: '20px', padding: '4px', border: '1px solid #27272a' }}>
-          <button 
-            onClick={() => setStatsMode('minhas')}
-            style={{
-              background: statsMode === 'minhas' ? 'var(--brand-neon)' : 'transparent',
-              color: statsMode === 'minhas' ? '#000' : '#888',
-              border: 'none',
-              padding: '6px 16px',
-              borderRadius: '20px',
-              fontWeight: 'bold',
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            Minhas Apostas
-          </button>
-          <button 
-            onClick={() => setStatsMode('modelo')}
-            style={{
-              background: statsMode === 'modelo' ? 'var(--brand-neon)' : 'transparent',
-              color: statsMode === 'modelo' ? '#000' : '#888',
-              border: 'none',
-              padding: '6px 16px',
-              borderRadius: '20px',
-              fontWeight: 'bold',
-              fontSize: '0.8rem',
-              cursor: 'pointer',
-              transition: 'all 0.2s'
-            }}
-          >
-            Histórico do Modelo
-          </button>
-        </div>
-      </div>
-
-      {/* Estatísticas de Acertos (KPI Cards) */}
-      {(() => {
-        const currentStats = statsMode === 'minhas' 
-          ? {
-              hitRate: myStats.totalBets > 0 ? `${myStats.hitRate.toFixed(1)}%` : '--',
-              roi: myStats.totalBets > 0 ? `${myStats.roi >= 0 ? '+' : ''}${myStats.roi.toFixed(1)}%` : '--',
-              greens: myStats.wins,
-              reds: myStats.losses,
-              subtextRate: `Base: ${myStats.totalBets} palpites seguidos`,
-              subtextRoi: `Volume: R$ ${myStats.totalAmountBet.toFixed(2)}`,
-              subtextResult: `Últimas rodadas ativas`
-            }
-          : {
-              hitRate: '78.4%',
-              roi: '+18.2%',
-              greens: 116,
-              reds: 32,
-              subtextRate: 'Base: 148 palpites enviados',
-              subtextRoi: 'Volume: 12.4 u líquidas',
-              subtextResult: 'Últimas 4 rodadas monitoradas'
-            };
-
-        return (
-          <div style={{ 
-            display: 'grid', 
-            gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
-            gap: '20px', 
-            marginBottom: '32px' 
-          }}>
-            <div className="glass-panel" style={{ 
-              background: 'linear-gradient(135deg, #111115, #161622)', 
+          {/* Banner Balanço da Rodada */}
+          {currentRoundBets.length > 0 && (
+            <div style={{ 
+              background: 'linear-gradient(90deg, #111115, #1c1c24)', 
+              border: '1px solid #333', 
               borderLeft: '4px solid var(--brand-neon)',
-              padding: '12px 18px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              minHeight: '85px',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+              borderRadius: '12px', 
+              padding: '14px 20px', 
+              marginBottom: '24px', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              flexWrap: 'wrap',
+              gap: '16px'
             }}>
-              <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Taxa de Acerto Geral</div>
-              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', marginTop: '4px' }}>
-                {currentStats.hitRate}
+              <div>
+                <div style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff' }}>
+                  🏁 Rodada {roundInfo?.round} em Andamento/Finalizada
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#888', marginTop: '2px' }}>
+                  Você seguiu {currentRoundBets.length} palpites nesta rodada. Deseja enviar o balanço parcial/final para os seus clientes no Telegram?
+                </div>
               </div>
-              <div style={{ fontSize: '0.7rem', color: '#555', marginTop: '2px' }}>{currentStats.subtextRate}</div>
+              
+              <button
+                onClick={handleSendRoundSummary}
+                disabled={sendingSummary}
+                style={{
+                  background: 'var(--brand-neon)',
+                  color: '#000',
+                  border: 'none',
+                  padding: '8px 18px',
+                  borderRadius: '6px',
+                  fontWeight: 'bold',
+                  fontSize: '0.85rem',
+                  cursor: sendingSummary ? 'not-allowed' : 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 2px 8px rgba(204, 255, 0, 0.2)'
+                }}
+              >
+                {sendingSummary ? (
+                  <>Enviando...</>
+                ) : (
+                  <>Enviar Balanço da Rodada 🤖</>
+                )}
+              </button>
             </div>
+          )}
 
-            <div className="glass-panel" style={{ 
-              background: 'linear-gradient(135deg, #111115, #161622)', 
-              borderLeft: '4px solid #00d2ff',
-              padding: '12px 18px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              minHeight: '85px',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
-            }}>
-              <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>ROI (Retorno do Mês)</div>
-              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--brand-neon)', marginTop: '4px' }}>
-                {currentStats.roi}
-              </div>
-              <div style={{ fontSize: '0.7rem', color: '#555', marginTop: '2px' }}>{currentStats.subtextRoi}</div>
-            </div>
-
-            <div className="glass-panel" style={{ 
-              background: 'linear-gradient(135deg, #111115, #161622)', 
-              borderLeft: '4px solid #ff9800',
-              padding: '12px 18px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              minHeight: '85px',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
-            }}>
-              <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Palpites Verdes / Vermelhos</div>
-              <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', marginTop: '4px', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <span style={{ color: '#4CAF50' }}>{currentStats.greens} 🟢</span>
-                <span style={{ fontSize: '1.1rem', color: '#444' }}>/</span>
-                <span style={{ color: '#ff4d4d' }}>{currentStats.reds} 🔴</span>
-              </div>
-              <div style={{ fontSize: '0.7rem', color: '#555', marginTop: '2px' }}>{currentStats.subtextResult}</div>
-            </div>
-
-            <div className="glass-panel" style={{ 
-              background: 'linear-gradient(135deg, #111115, #161622)', 
-              borderLeft: '4px solid #b339ff',
-              padding: '12px 18px',
-              display: 'flex',
-              flexDirection: 'column',
-              justifyContent: 'center',
-              minHeight: '85px',
-              boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
-            }}>
-              <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Mercado mais Lucrativo</div>
-              <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fff', marginTop: '4px' }}>
-                Mais de 2.5 Gols
-              </div>
-              <div style={{ fontSize: '0.7rem', color: '#4CAF50', fontWeight: 'bold', marginTop: '2px' }}>Taxa de Acerto: 84.1%</div>
+          {/* Seletor de Estatísticas */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+            <h3 style={{ fontSize: '1rem', color: '#ccc', margin: 0, fontWeight: 'bold' }}>Estatísticas de Desempenho</h3>
+            <div style={{ display: 'flex', background: '#141419', borderRadius: '20px', padding: '4px', border: '1px solid #27272a' }}>
+              <button 
+                onClick={() => setStatsMode('minhas')}
+                style={{
+                  background: statsMode === 'minhas' ? 'var(--brand-neon)' : 'transparent',
+                  color: statsMode === 'minhas' ? '#000' : '#888',
+                  border: 'none',
+                  padding: '6px 16px',
+                  borderRadius: '20px',
+                  fontWeight: 'bold',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Minhas Apostas
+              </button>
+              <button 
+                onClick={() => setStatsMode('modelo')}
+                style={{
+                  background: statsMode === 'modelo' ? 'var(--brand-neon)' : 'transparent',
+                  color: statsMode === 'modelo' ? '#000' : '#888',
+                  border: 'none',
+                  padding: '6px 16px',
+                  borderRadius: '20px',
+                  fontWeight: 'bold',
+                  fontSize: '0.8rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Histórico do Modelo
+              </button>
             </div>
           </div>
-        );
-      })()}
 
-      {/* Banner de Status do Auto-Broadcast */}
-      {autoStatus === 'sending' && (
-        <div style={{ background: 'linear-gradient(90deg, #1a1a2e, #16213e)', border: '1px solid #4CAF50', borderRadius: '12px', padding: '16px 24px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', animation: 'pulse 2s infinite' }}>
-          <Loader2 size={20} color="#4CAF50" className="spin" />
-          <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>🤖 Piloto Automático ativo — Disparando palpites do dia para o Telegram...</span>
-        </div>
-      )}
-      {autoStatus === 'done' && (
-        <div style={{ background: 'linear-gradient(90deg, #1a2e1a, #162e16)', border: '1px solid #4CAF50', borderRadius: '12px', padding: '16px 24px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <CheckCircle2 size={20} color="#4CAF50" />
-          <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>✅ Todos os palpites do dia foram enviados automaticamente para o Telegram!</span>
-        </div>
-      )}
+          {/* Estatísticas de Acertos (KPI Cards) */}
+          {(() => {
+            const currentStats = statsMode === 'minhas' 
+              ? {
+                  hitRate: myStats.totalBets > 0 ? `${myStats.hitRate.toFixed(1)}%` : '--',
+                  roi: myStats.totalBets > 0 ? `${myStats.roi >= 0 ? '+' : ''}${myStats.roi.toFixed(1)}%` : '--',
+                  greens: myStats.wins,
+                  reds: myStats.losses,
+                  subtextRate: `Base: ${myStats.totalBets} palpites seguidos`,
+                  subtextRoi: `Volume: R$ ${myStats.totalAmountBet.toFixed(2)}`,
+                  subtextResult: `Últimas rodadas ativas`
+                }
+              : {
+                  hitRate: '78.4%',
+                  roi: '+18.2%',
+                  greens: 116,
+                  reds: 32,
+                  subtextRate: 'Base: 148 palpites enviados',
+                  subtextRoi: 'Volume: 12.4 u líquidas',
+                  subtextResult: 'Últimas 4 rodadas monitoradas'
+                };
 
-      {/* Tabs Funcionais Removidas (Filtro por API-Sports já resolve) */}
+            return (
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+                gap: '20px', 
+                marginBottom: '32px' 
+              }}>
+                <div className="glass-panel" style={{ 
+                  background: 'linear-gradient(135deg, #111115, #161622)', 
+                  borderLeft: '4px solid var(--brand-neon)',
+                  padding: '12px 18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  minHeight: '85px',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                }}>
+                  <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Taxa de Acerto Geral</div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', marginTop: '4px' }}>
+                    {currentStats.hitRate}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#555', marginTop: '2px' }}>{currentStats.subtextRate}</div>
+                </div>
 
-      <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '60px' }}>
-        {pageLoading && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            {[1,2,3].map(i => (
-              <div key={i} style={{ background: '#111', borderRadius: '16px', border: '1px solid #333', padding: '32px', animation: 'pulse 1.5s infinite', flexShrink: 0 }}>
-                <div style={{ height: '14px', width: '120px', background: '#222', borderRadius: '4px', marginBottom: '12px' }} />
-                <div style={{ height: '20px', width: '280px', background: '#222', borderRadius: '4px', marginBottom: '12px' }} />
-                <div style={{ height: '16px', width: '200px', background: '#222', borderRadius: '4px' }} />
+                <div className="glass-panel" style={{ 
+                  background: 'linear-gradient(135deg, #111115, #161622)', 
+                  borderLeft: '4px solid #00d2ff',
+                  padding: '12px 18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  minHeight: '85px',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                }}>
+                  <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>ROI (Retorno do Mês)</div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--brand-neon)', marginTop: '4px' }}>
+                    {currentStats.roi}
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#555', marginTop: '2px' }}>{currentStats.subtextRoi}</div>
+                </div>
+
+                <div className="glass-panel" style={{ 
+                  background: 'linear-gradient(135deg, #111115, #161622)', 
+                  borderLeft: '4px solid #ff9800',
+                  padding: '12px 18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  minHeight: '85px',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                }}>
+                  <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Palpites Verdes / Vermelhos</div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', marginTop: '4px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                    <span style={{ color: '#4CAF50' }}>{currentStats.greens} 🟢</span>
+                    <span style={{ fontSize: '1.1rem', color: '#444' }}>/</span>
+                    <span style={{ color: '#ff4d4d' }}>{currentStats.reds} 🔴</span>
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#555', marginTop: '2px' }}>{currentStats.subtextResult}</div>
+                </div>
+
+                <div className="glass-panel" style={{ 
+                  background: 'linear-gradient(135deg, #111115, #161622)', 
+                  borderLeft: '4px solid #b339ff',
+                  padding: '12px 18px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'center',
+                  minHeight: '85px',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                }}>
+                  <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Mercado mais Lucrativo</div>
+                  <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fff', marginTop: '4px' }}>
+                    Mais de 2.5 Gols
+                  </div>
+                  <div style={{ fontSize: '0.7rem', color: '#4CAF50', fontWeight: 'bold', marginTop: '2px' }}>Taxa de Acerto: 84.1%</div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Banner de Status do Auto-Broadcast */}
+          {autoStatus === 'sending' && (
+            <div style={{ background: 'linear-gradient(90deg, #1a1a2e, #16213e)', border: '1px solid #4CAF50', borderRadius: '12px', padding: '16px 24px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px', animation: 'pulse 2s infinite' }}>
+              <Loader2 size={20} color="#4CAF50" className="spin" />
+              <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>🤖 Piloto Automático ativo — Disparando palpites do dia para o Telegram...</span>
+            </div>
+          )}
+          {autoStatus === 'done' && (
+            <div style={{ background: 'linear-gradient(90deg, #1a2e1a, #162e16)', border: '1px solid #4CAF50', borderRadius: '12px', padding: '16px 24px', marginBottom: '24px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <CheckCircle2 size={20} color="#4CAF50" />
+              <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>✅ Todos os palpites do dia foram enviados automaticamente para o Telegram!</span>
+            </div>
+          )}
+
+          <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '60px' }}>
+            {pageLoading && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {[1,2,3].map(i => (
+                  <div key={i} style={{ background: '#111', borderRadius: '16px', border: '1px solid #333', padding: '32px', animation: 'pulse 1.5s infinite', flexShrink: 0 }}>
+                    <div style={{ height: '14px', width: '120px', background: '#222', borderRadius: '4px', marginBottom: '12px' }} />
+                    <div style={{ height: '20px', width: '280px', background: '#222', borderRadius: '4px', marginBottom: '12px' }} />
+                    <div style={{ height: '16px', width: '200px', background: '#222', borderRadius: '4px' }} />
+                  </div>
+                ))}
+              </div>
+            )}
+            {apiError && (
+              <div style={{ color: '#ff6b6b', padding: '24px', background: '#1a0000', borderRadius: '12px', textAlign: 'center', border: '1px solid #ff6b6b' }}>⚠️ {apiError}</div>
+            )}
+            {!pageLoading && !apiError && games.length === 0 && (
+              <div style={{ color: '#888', fontStyle: 'italic', padding: '24px', background: '#111', borderRadius: '12px', textAlign: 'center' }}>Nenhum jogo encontrado para este dia.</div>
+            )}
+            {games.map(game => (
+              <div key={game.id} style={{ 
+                background: '#111', 
+                borderRadius: '16px', 
+                border: game.isLive ? '1px solid #ff4444' : '1px solid #333', 
+                borderLeft: game.isLive ? '6px solid #ff4444' : game.isFinished ? '6px solid #666' : '6px solid #4CAF50',
+                overflow: 'hidden',
+                opacity: game.isFinished ? 0.7 : 1,
+                flexShrink: 0
+              }}>
+                {/* Linha Principal do Card */}
+                <div className="game-card-main-row">
+                  
+                  {/* Bloco 1: Informações do Jogo */}
+                  <div className="game-card-info">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                      <span className="mobile-hide" style={{ color: game.isLive ? '#ff4444' : '#4CAF50', fontWeight: 'bold', fontSize: '0.9rem' }}>{game.date}</span>
+                      {game.isLive && <span style={{ background: '#ff4444', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', animation: 'pulse 1.5s infinite' }}>🔴 AO VIVO</span>}
+                      {game.isFinished && <span style={{ background: '#444', color: '#aaa', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>ENCERRADO</span>}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: '4px', textTransform: 'uppercase' }}>Futebol</div>
+                    <div style={{ fontWeight: 'bold', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      Brasileirão Série A <span style={{ background: '#333', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', color: '#aaa' }}>Rodada {game.round}</span>
+                    </div>
+                    
+                    <div className="game-card-teams-row">
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, justifyContent: 'flex-end', textAlign: 'right' }}>
+                        <span className="team-name-text-mobile-hide">{game.home}</span>
+                        <img 
+                          src={game.homeLogo || `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`} 
+                          alt={game.home} 
+                          style={{ width: '32px', height: '32px', minWidth: '32px', minHeight: '32px', maxWidth: '32px', maxHeight: '32px', objectFit: 'contain', display: 'block' }}
+                          onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`; }} 
+                        />
+                      </div>
+                      
+                      <div style={{ 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '10px', 
+                        color: (game.isLive || game.isFinished) ? '#4CAF50' : '#555', 
+                        fontSize: '1.2rem', 
+                        fontWeight: 'bold',
+                        background: (game.isLive || game.isFinished) ? '#1a1a1a' : 'transparent',
+                        padding: (game.isLive || game.isFinished) ? '6px 14px' : '0',
+                        borderRadius: '8px',
+                        border: (game.isLive || game.isFinished) ? '1px solid #333' : 'none',
+                        justifyContent: 'center'
+                      }}>
+                        {(game.isLive || game.isFinished) ? (
+                          <>
+                            <span style={{ fontSize: '1.3rem', color: '#fff' }}>{game.goalsHome}</span>
+                            <span style={{ fontSize: '0.85rem', color: '#555' }}>X</span>
+                            <span style={{ fontSize: '1.3rem', color: '#fff' }}>{game.goalsAway}</span>
+                          </>
+                        ) : (
+                          'X'
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, justifyContent: 'flex-start' }}>
+                        <img 
+                          src={game.awayLogo || `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`} 
+                          alt={game.away} 
+                          style={{ width: '32px', height: '32px', minWidth: '32px', minHeight: '32px', maxWidth: '32px', maxHeight: '32px', objectFit: 'contain', display: 'block' }}
+                          onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`; }} 
+                        />
+                        <span className="team-name-text-mobile-hide">{game.away}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Bloco 2: 1 X 2 Visual */}
+                  <div className="game-card-1x2">
+                    <div style={{ border: '1px solid #333', padding: '6px 0', textAlign: 'center', borderRadius: '4px', color: '#888', fontWeight: 'bold', background: game.stats.bestTip.selection === 'Casa Vence' ? '#4CAF50' : 'transparent', color: game.stats.bestTip.selection === 'Casa Vence' ? '#fff' : '#888' }}>1</div>
+                    <div style={{ border: '1px solid #333', padding: '6px 0', textAlign: 'center', borderRadius: '4px', color: '#888', fontWeight: 'bold', background: game.stats.bestTip.selection === 'Empate' ? '#4CAF50' : 'transparent', color: game.stats.bestTip.selection === 'Empate' ? '#fff' : '#888' }}>X</div>
+                    <div style={{ border: '1px solid #333', padding: '6px 0', textAlign: 'center', borderRadius: '4px', color: '#888', fontWeight: 'bold', background: game.stats.bestTip.selection === 'Fora Vence' ? '#4CAF50' : 'transparent', color: game.stats.bestTip.selection === 'Fora Vence' ? '#fff' : '#888' }}>2</div>
+                  </div>
+
+                  {/* Bloco 3: Destaque do Palpite */}
+                  <div className="game-card-highlight">
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '0.8rem', letterSpacing: '2px', color: '#888', marginBottom: '4px' }}>P A L P I T E</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px', color: '#fff' }}>{game.stats.bestTip.selection}</div>
+                      <div style={{ fontSize: '0.9rem', color: '#aaa' }}>Probabilidade <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>{formatPct(game.stats.bestTip.prob)}%</span></div>
+                    </div>
+                    
+                    {/* ODD Verde Redonda */}
+                    <div style={{ background: '#4CAF50', width: '70px', height: '70px', borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 4px 15px rgba(76, 175, 80, 0.4)', flexShrink: 0 }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>ODD</div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>@{formatOdd(game.stats.bestTip.prob)}</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Expansão e Área de Disparo */}
+                <div style={{ borderTop: '1px solid #222', padding: '16px 24px', background: '#0a0a0a', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+                  <div style={{ color: '#aaa', fontSize: '0.9rem', flex: '1 1 300px' }}>
+                    O nosso <strong>algoritmo de Poisson</strong> validou esta entrada (Base: xG {game.homeXG} vs {game.awayXG}).
+                  </div>
+                  
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    {/* Botão Seguir Palpite */}
+                    <button
+                      onClick={() => {
+                        if (isFollowed(game)) return;
+                        if (activeFollowId === game.id) {
+                          setActiveFollowId(null);
+                        } else {
+                          setActiveFollowId(game.id);
+                          setFollowAmount('50');
+                          setFollowOdd(game.stats.bestTip.prob ? (1 / game.stats.bestTip.prob).toFixed(2) : '2.00');
+                        }
+                      }}
+                      disabled={isFollowed(game)}
+                      style={{
+                        background: isFollowed(game) ? 'rgba(76, 175, 80, 0.15)' : activeFollowId === game.id ? '#ff9800' : 'transparent',
+                        color: isFollowed(game) ? '#4CAF50' : activeFollowId === game.id ? '#fff' : '#aaa',
+                        border: isFollowed(game) ? '1px solid rgba(76, 175, 80, 0.3)' : activeFollowId === game.id ? '1px solid #ff9800' : '1px solid #444',
+                        padding: '10px 20px',
+                        borderRadius: '8px',
+                        fontSize: '0.95rem',
+                        fontWeight: 'bold',
+                        cursor: isFollowed(game) ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        transition: 'all 0.3s'
+                      }}
+                    >
+                      {isFollowed(game) ? (
+                        <>✓ Seguido (Banca)</>
+                      ) : activeFollowId === game.id ? (
+                        <>Cancelar ✕</>
+                      ) : (
+                        <>Seguir Palpite 🎯</>
+                      )}
+                    </button>
+
+                    {/* Botão Enviar p/ Telegram */}
+                    <button 
+                      onClick={() => handleBroadcast(game)}
+                      disabled={loadingId === game.id || sentIds.has(game.id)}
+                      style={{ 
+                        background: sentIds.has(game.id) ? '#333' : successId === game.id ? '#4CAF50' : 'var(--brand-neon)', 
+                        color: sentIds.has(game.id) ? '#888' : '#000', 
+                        padding: '10px 24px', 
+                        borderRadius: '8px', 
+                        fontSize: '0.95rem', 
+                        fontWeight: 'bold', 
+                        border: 'none', 
+                        cursor: (loadingId === game.id || sentIds.has(game.id)) ? 'not-allowed' : 'pointer', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        gap: '8px',
+                        transition: 'all 0.3s',
+                        opacity: sentIds.has(game.id) ? 0.7 : 1
+                      }}
+                    >
+                      {loadingId === game.id ? (
+                        <><Loader2 size={18} className="spin" /> Disparando...</>
+                      ) : sentIds.has(game.id) ? (
+                        <><CheckCircle2 size={18} /> Já Enviado ✅</>
+                      ) : successId === game.id ? (
+                        <><CheckCircle2 size={18} /> Enviado!</>
+                      ) : (
+                        <><Send size={18} /> Enviar p/ Telegram</>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Painel Inline para Entrada Rápida na Banca */}
+                {activeFollowId === game.id && (
+                  <div style={{ 
+                    borderTop: '1px solid #222', 
+                    padding: '16px 24px', 
+                    background: '#0c0c10', 
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'space-between', 
+                    flexWrap: 'wrap', 
+                    gap: '16px' 
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold' }}>Valor da Aposta (R$)</label>
+                        <input 
+                          type="number"
+                          value={followAmount}
+                          onChange={(e) => setFollowAmount(e.target.value)}
+                          placeholder="50"
+                          style={{ 
+                            background: '#1a1a24', 
+                            border: '1px solid #333', 
+                            color: '#fff', 
+                            padding: '8px 12px', 
+                            borderRadius: '6px', 
+                            width: '120px',
+                            fontSize: '0.9rem' 
+                          }}
+                        />
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <label style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold' }}>Odd Coletada</label>
+                        <input 
+                          type="number"
+                          step="0.01"
+                          value={followOdd}
+                          onChange={(e) => setFollowOdd(e.target.value)}
+                          placeholder="2.00"
+                          style={{ 
+                            background: '#1a1a24', 
+                            border: '1px solid #333', 
+                            color: '#fff', 
+                            padding: '8px 12px', 
+                            borderRadius: '6px', 
+                            width: '100px',
+                            fontSize: '0.9rem' 
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <button
+                        onClick={() => handleConfirmFollow(game)}
+                        style={{
+                          background: 'var(--brand-neon)',
+                          color: '#000',
+                          border: 'none',
+                          padding: '10px 20px',
+                          borderRadius: '6px',
+                          fontSize: '0.9rem',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          boxShadow: '0 2px 8px rgba(204, 255, 0, 0.2)'
+                        }}
+                      >
+                        Confirmar Registro 🎯
+                      </button>
+                      <button
+                        onClick={() => setActiveFollowId(null)}
+                        style={{
+                          background: 'transparent',
+                          color: '#aaa',
+                          border: '1px solid #444',
+                          padding: '10px 16px',
+                          borderRadius: '6px',
+                          fontSize: '0.9rem',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        Voltar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
-        )}
-        {apiError && (
-          <div style={{ color: '#ff6b6b', padding: '24px', background: '#1a0000', borderRadius: '12px', textAlign: 'center', border: '1px solid #ff6b6b' }}>⚠️ {apiError}</div>
-        )}
-        {!pageLoading && !apiError && games.length === 0 && (
-          <div style={{ color: '#888', fontStyle: 'italic', padding: '24px', background: '#111', borderRadius: '12px', textAlign: 'center' }}>Nenhum jogo encontrado para este dia.</div>
-        )}
-        {games.map(game => (
-          <div key={game.id} style={{ 
-            background: '#111', 
-            borderRadius: '16px', 
-            border: game.isLive ? '1px solid #ff4444' : '1px solid #333', 
-            borderLeft: game.isLive ? '6px solid #ff4444' : game.isFinished ? '6px solid #666' : '6px solid #4CAF50',
-            overflow: 'hidden',
-            opacity: game.isFinished ? 0.7 : 1,
-            flexShrink: 0
-          }}>
-            {/* Linha Principal do Card */}
-            <div className="game-card-main-row">
-              
-              {/* Bloco 1: Informações do Jogo */}
-              <div className="game-card-info">
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <span className="mobile-hide" style={{ color: game.isLive ? '#ff4444' : '#4CAF50', fontWeight: 'bold', fontSize: '0.9rem' }}>{game.date}</span>
-                  {game.isLive && <span style={{ background: '#ff4444', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', animation: 'pulse 1.5s infinite' }}>🔴 AO VIVO</span>}
-                  {game.isFinished && <span style={{ background: '#444', color: '#aaa', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>ENCERRADO</span>}
-                </div>
-                <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: '4px', textTransform: 'uppercase' }}>Futebol</div>
-                <div style={{ fontWeight: 'bold', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  Brasileirão Série A <span style={{ background: '#333', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', color: '#aaa' }}>Rodada {game.round}</span>
-                </div>
-                
-                <div className="game-card-teams-row">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, justifyContent: 'flex-end', textAlign: 'right' }}>
-                    <span className="team-name-text-mobile-hide">{game.home}</span>
-                    <img 
-                      src={game.homeLogo || `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`} 
-                      alt={game.home} 
-                      style={{ width: '32px', height: '32px', minWidth: '32px', minHeight: '32px', maxWidth: '32px', maxHeight: '32px', objectFit: 'contain', display: 'block' }}
-                      onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`; }} 
-                    />
-                  </div>
-                  
-                  <div style={{ 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '10px', 
-                    color: (game.isLive || game.isFinished) ? '#4CAF50' : '#555', 
-                    fontSize: '1.2rem', 
-                    fontWeight: 'bold',
-                    background: (game.isLive || game.isFinished) ? '#1a1a1a' : 'transparent',
-                    padding: (game.isLive || game.isFinished) ? '6px 14px' : '0',
-                    borderRadius: '8px',
-                    border: (game.isLive || game.isFinished) ? '1px solid #333' : 'none',
-                    justifyContent: 'center'
-                  }}>
-                    {(game.isLive || game.isFinished) ? (
-                      <>
-                        <span style={{ fontSize: '1.3rem', color: '#fff' }}>{game.goalsHome}</span>
-                        <span style={{ fontSize: '0.85rem', color: '#555' }}>X</span>
-                        <span style={{ fontSize: '1.3rem', color: '#fff' }}>{game.goalsAway}</span>
-                      </>
-                    ) : (
-                      'X'
-                    )}
-                  </div>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, justifyContent: 'flex-start' }}>
-                    <img 
-                      src={game.awayLogo || `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`} 
-                      alt={game.away} 
-                      style={{ width: '32px', height: '32px', minWidth: '32px', minHeight: '32px', maxWidth: '32px', maxHeight: '32px', objectFit: 'contain', display: 'block' }}
-                      onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`; }} 
-                    />
-                    <span className="team-name-text-mobile-hide">{game.away}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Bloco 2: 1 X 2 Visual */}
-              <div className="game-card-1x2">
-                <div style={{ border: '1px solid #333', padding: '6px 0', textAlign: 'center', borderRadius: '4px', color: '#888', fontWeight: 'bold', background: game.stats.bestTip.selection === 'Casa Vence' ? '#4CAF50' : 'transparent', color: game.stats.bestTip.selection === 'Casa Vence' ? '#fff' : '#888' }}>1</div>
-                <div style={{ border: '1px solid #333', padding: '6px 0', textAlign: 'center', borderRadius: '4px', color: '#888', fontWeight: 'bold', background: game.stats.bestTip.selection === 'Empate' ? '#4CAF50' : 'transparent', color: game.stats.bestTip.selection === 'Empate' ? '#fff' : '#888' }}>X</div>
-                <div style={{ border: '1px solid #333', padding: '6px 0', textAlign: 'center', borderRadius: '4px', color: '#888', fontWeight: 'bold', background: game.stats.bestTip.selection === 'Fora Vence' ? '#4CAF50' : 'transparent', color: game.stats.bestTip.selection === 'Fora Vence' ? '#fff' : '#888' }}>2</div>
-              </div>
-
-              {/* Bloco 3: Destaque do Palpite */}
-              <div className="game-card-highlight">
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: '0.8rem', letterSpacing: '2px', color: '#888', marginBottom: '4px' }}>P A L P I T E</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px', color: '#fff' }}>{game.stats.bestTip.selection}</div>
-                  <div style={{ fontSize: '0.9rem', color: '#aaa' }}>Probabilidade <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>{formatPct(game.stats.bestTip.prob)}%</span></div>
-                </div>
-                
-                {/* ODD Verde Redonda */}
-                <div style={{ background: '#4CAF50', width: '70px', height: '70px', borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 4px 15px rgba(76, 175, 80, 0.4)', flexShrink: 0 }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>ODD</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>@{formatOdd(game.stats.bestTip.prob)}</div>
-                </div>
-              </div>
+        </>
+      ) : (
+        /* Render Custom Bets Tab */
+        <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '60px' }}>
+          {customBets.length === 0 ? (
+            <div style={{ color: '#888', fontStyle: 'italic', padding: '40px 24px', background: '#111', borderRadius: '12px', textAlign: 'center', border: '1px dashed #333' }}>
+              Nenhuma aposta criada no momento. Vá até a aba "Laboratório" para selecionar mercados e criar seu bilhete!
             </div>
+          ) : (
+            customBets.map(bet => {
+              const desc = `[Aposta Criada] ${bet.home} x ${bet.away} (${bet.selections.map(s => s.label).join(', ')})`;
+              const isAlreadyFollowed = transactions.some(t => t.description === desc);
 
-            {/* Expansão e Área de Disparo */}
-            <div style={{ borderTop: '1px solid #222', padding: '16px 24px', background: '#0a0a0a', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-              <div style={{ color: '#aaa', fontSize: '0.9rem', flex: '1 1 300px' }}>
-                O nosso <strong>algoritmo de Poisson</strong> validou esta entrada (Base: xG {game.homeXG} vs {game.awayXG}).
-              </div>
-              
-              <div style={{ display: 'flex', gap: '12px' }}>
-                {/* Botão Seguir Palpite */}
-                <button
-                  onClick={() => {
-                    if (isFollowed(game)) return;
-                    if (activeFollowId === game.id) {
-                      setActiveFollowId(null);
-                    } else {
-                      setActiveFollowId(game.id);
-                      setFollowAmount('50');
-                      setFollowOdd(game.stats.bestTip.prob ? (1 / game.stats.bestTip.prob).toFixed(2) : '2.00');
-                    }
-                  }}
-                  disabled={isFollowed(game)}
-                  style={{
-                    background: isFollowed(game) ? 'rgba(76, 175, 80, 0.15)' : activeFollowId === game.id ? '#ff9800' : 'transparent',
-                    color: isFollowed(game) ? '#4CAF50' : activeFollowId === game.id ? '#fff' : '#aaa',
-                    border: isFollowed(game) ? '1px solid rgba(76, 175, 80, 0.3)' : activeFollowId === game.id ? '1px solid #ff9800' : '1px solid #444',
-                    padding: '10px 20px',
-                    borderRadius: '8px',
-                    fontSize: '0.95rem',
-                    fontWeight: 'bold',
-                    cursor: isFollowed(game) ? 'not-allowed' : 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    transition: 'all 0.3s'
-                  }}
-                >
-                  {isFollowed(game) ? (
-                    <>✓ Seguido (Banca)</>
-                  ) : activeFollowId === game.id ? (
-                    <>Cancelar ✕</>
-                  ) : (
-                    <>Seguir Palpite 🎯</>
-                  )}
-                </button>
+              return (
+                <div key={bet.id} style={{ 
+                  background: '#111', 
+                  borderRadius: '16px', 
+                  border: '1px solid #333', 
+                  borderLeft: bet.status === 'ganho' ? '6px solid #4CAF50' : bet.status === 'perda' ? '6px solid #ff4d4d' : '6px solid #ff9800',
+                  overflow: 'hidden',
+                  flexShrink: 0
+                }}>
+                  {/* Linha Principal do Card da Aposta Customizada */}
+                  <div className="game-card-main-row" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '24px', padding: '20px 24px', justifyContent: 'space-between', alignItems: 'center' }}>
+                    
+                    {/* Bloco 1: Times e Data */}
+                    <div style={{ flex: '1 1 250px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                        <span style={{ color: '#888', fontSize: '0.8rem', fontWeight: 'bold' }}>
+                          {new Date(bet.date).toLocaleDateString('pt-BR')} • {new Date(bet.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span style={{ 
+                          background: bet.status === 'ganho' ? '#4CAF5033' : bet.status === 'perda' ? '#ff4d4d33' : '#ff980033', 
+                          color: bet.status === 'ganho' ? '#4CAF50' : bet.status === 'perda' ? '#ff4d4d' : '#ff9800', 
+                          padding: '2px 8px', 
+                          borderRadius: '4px', 
+                          fontSize: '0.7rem', 
+                          fontWeight: 'bold',
+                          textTransform: 'uppercase'
+                        }}>
+                          {bet.status === 'ganho' ? 'GREEN 🟢' : bet.status === 'perda' ? 'RED 🔴' : 'PENDENTE ⏳'}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {bet.home} <span style={{ color: 'var(--brand-neon)', fontSize: '0.9rem' }}>x</span> {bet.away}
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#aaa', marginTop: '6px' }}>
+                        Bilhete Criado no Laboratório Poisson
+                      </div>
+                    </div>
 
-                {/* Botão Enviar p/ Telegram */}
-                <button 
-                  onClick={() => handleBroadcast(game)}
-                  disabled={loadingId === game.id || sentIds.has(game.id)}
-                  style={{ 
-                    background: sentIds.has(game.id) ? '#333' : successId === game.id ? '#4CAF50' : 'var(--brand-neon)', 
-                    color: sentIds.has(game.id) ? '#888' : '#000', 
-                    padding: '10px 24px', 
-                    borderRadius: '8px', 
-                    fontSize: '0.95rem', 
-                    fontWeight: 'bold', 
-                    border: 'none', 
-                    cursor: (loadingId === game.id || sentIds.has(game.id)) ? 'not-allowed' : 'pointer', 
-                    display: 'flex', 
-                    alignItems: 'center', 
-                    gap: '8px',
-                    transition: 'all 0.3s',
-                    opacity: sentIds.has(game.id) ? 0.7 : 1
-                  }}
-                >
-                  {loadingId === game.id ? (
-                    <><Loader2 size={18} className="spin" /> Disparando...</>
-                  ) : sentIds.has(game.id) ? (
-                    <><CheckCircle2 size={18} /> Já Enviado ✅</>
-                  ) : successId === game.id ? (
-                    <><CheckCircle2 size={18} /> Enviado!</>
-                  ) : (
-                    <><Send size={18} /> Enviar p/ Telegram</>
-                  )}
-                </button>
-              </div>
-            </div>
+                    {/* Bloco 2: Seleções de Mercados */}
+                    <div style={{ flex: '2 1 300px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <div style={{ fontSize: '0.7rem', letterSpacing: '1px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Seleções do Bilhete:</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                        {bet.selections.map((sel, idx) => (
+                          <div key={idx} style={{ background: '#1c1c24', border: '1px solid #333', padding: '6px 12px', borderRadius: '8px', fontSize: '0.8rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ color: '#aaa', fontWeight: 'normal', fontSize: '0.7rem' }}>{sel.market}:</span>
+                            <strong>{sel.label}</strong>
+                            <span style={{ color: '#ff9800' }}>@{sel.odd}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
 
-            {/* Painel Inline para Entrada Rápida na Banca */}
-            {activeFollowId === game.id && (
-              <div style={{ 
-                borderTop: '1px solid #222', 
-                padding: '16px 24px', 
-                background: '#0c0c10', 
-                display: 'flex', 
-                alignItems: 'center', 
-                justifyContent: 'space-between', 
-                flexWrap: 'wrap', 
-                gap: '16px' 
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold' }}>Valor da Aposta (R$)</label>
-                    <input 
-                      type="number"
-                      value={followAmount}
-                      onChange={(e) => setFollowAmount(e.target.value)}
-                      placeholder="50"
-                      style={{ 
-                        background: '#1a1a24', 
-                        border: '1px solid #333', 
-                        color: '#fff', 
-                        padding: '8px 12px', 
-                        borderRadius: '6px', 
-                        width: '120px',
-                        fontSize: '0.9rem' 
-                      }}
-                    />
+                    {/* Bloco 3: Detalhes Financeiros */}
+                    <div style={{ flex: '1 1 180px', display: 'flex', alignItems: 'center', gap: '16px', background: '#16161c', padding: '12px 18px', borderRadius: '12px', border: '1px solid #222', justifyContent: 'space-between' }}>
+                      <div>
+                        <div style={{ fontSize: '0.7rem', color: '#888', textTransform: 'uppercase' }}>Stake</div>
+                        <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#fff' }}>R$ {bet.stake.toFixed(2)}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontSize: '0.7rem', color: '#888', textTransform: 'uppercase' }}>Odd Total</div>
+                        <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#ff9800' }}>@{bet.totalOdd.toFixed(2)}</div>
+                      </div>
+                    </div>
+
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold' }}>Odd Coletada</label>
-                    <input 
-                      type="number"
-                      step="0.01"
-                      value={followOdd}
-                      onChange={(e) => setFollowOdd(e.target.value)}
-                      placeholder="2.00"
-                      style={{ 
-                        background: '#1a1a24', 
-                        border: '1px solid #333', 
-                        color: '#fff', 
-                        padding: '8px 12px', 
-                        borderRadius: '6px', 
-                        width: '100px',
-                        fontSize: '0.9rem' 
-                      }}
-                    />
+                  {/* Rodapé do Card com Ações */}
+                  <div style={{ borderTop: '1px solid #222', padding: '12px 24px', background: '#0a0a0a', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      {bet.status === 'pendente' && (
+                        <>
+                          <button
+                            onClick={() => handleUpdateCustomBetStatus(bet.id, 'ganho')}
+                            style={{
+                              background: '#4CAF50',
+                              color: '#fff',
+                              border: 'none',
+                              padding: '8px 14px',
+                              borderRadius: '6px',
+                              fontWeight: 'bold',
+                              fontSize: '0.85rem',
+                              cursor: 'pointer',
+                              transition: 'opacity 0.2s'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+                            onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                          >
+                            Definir Green 🟢
+                          </button>
+                          <button
+                            onClick={() => handleUpdateCustomBetStatus(bet.id, 'perda')}
+                            style={{
+                              background: '#ff4d4d',
+                              color: '#fff',
+                              border: 'none',
+                              padding: '8px 14px',
+                              borderRadius: '6px',
+                              fontWeight: 'bold',
+                              fontSize: '0.85rem',
+                              cursor: 'pointer',
+                              transition: 'opacity 0.2s'
+                            }}
+                            onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+                            onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                          >
+                            Definir Red 🔴
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                      <button
+                        onClick={() => handleRegisterCustomBetToBanca(bet)}
+                        disabled={isAlreadyFollowed}
+                        style={{
+                          background: isAlreadyFollowed ? 'rgba(76, 175, 80, 0.15)' : 'transparent',
+                          color: isAlreadyFollowed ? '#4CAF50' : '#aaa',
+                          border: isAlreadyFollowed ? '1px solid rgba(76, 175, 80, 0.3)' : '1px solid #444',
+                          padding: '8px 14px',
+                          borderRadius: '6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 'bold',
+                          cursor: isAlreadyFollowed ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px',
+                          transition: 'all 0.2s'
+                        }}
+                      >
+                        <PiggyBank size={16} />
+                        {isAlreadyFollowed ? 'Registrado na Banca' : 'Registrar na Banca'}
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteCustomBet(bet.id)}
+                        style={{
+                          background: 'transparent',
+                          color: '#ff4d4d',
+                          border: '1px solid #ff4d4d44',
+                          padding: '8px',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseOver={(e) => e.currentTarget.style.background = '#ff4d4d11'}
+                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
+                        title="Excluir Aposta"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
-                </div>
 
-                <div style={{ display: 'flex', gap: '12px' }}>
-                  <button
-                    onClick={() => handleConfirmFollow(game)}
-                    style={{
-                      background: 'var(--brand-neon)',
-                      color: '#000',
-                      border: 'none',
-                      padding: '10px 20px',
-                      borderRadius: '6px',
-                      fontSize: '0.9rem',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      boxShadow: '0 2px 8px rgba(204, 255, 0, 0.2)'
-                    }}
-                  >
-                    Confirmar Registro 🎯
-                  </button>
-                  <button
-                    onClick={() => setActiveFollowId(null)}
-                    style={{
-                      background: 'transparent',
-                      color: '#aaa',
-                      border: '1px solid #444',
-                      padding: '10px 16px',
-                      borderRadius: '6px',
-                      fontSize: '0.9rem',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    Voltar
-                  </button>
                 </div>
-              </div>
-            )}
-
-          </div>
-        ))}
-      </div>
+              );
+            })
+          )}
+        </div>
+      )}
 
       {/* Toast Notificação Customizada */}
       {toast.show && (

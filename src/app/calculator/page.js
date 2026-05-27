@@ -10,7 +10,9 @@ import {
   User, 
   Star, 
   AlertTriangle, 
-  TrendingUp 
+  TrendingUp,
+  CheckCircle2,
+  Trophy
 } from 'lucide-react';
 
 const factorial = (n) => {
@@ -212,6 +214,69 @@ export default function CalculatorPage() {
   const [homeXG, setHomeXG] = useState("");
   const [awayXG, setAwayXG] = useState("");
 
+  const [selectedSelections, setSelectedSelections] = useState([]);
+  const [betStake, setBetStake] = useState("100");
+  const [toastMessage, setToastMessage] = useState("");
+  const [showToast, setShowToast] = useState(false);
+
+  const triggerToast = (msg) => {
+    setToastMessage(msg);
+    setShowToast(true);
+    setTimeout(() => {
+      setShowToast(false);
+    }, 3000);
+  };
+
+  const handleToggleSelection = (market, label, prob, odd) => {
+    const matchName = `${homeTeam || "Casa"} x ${awayTeam || "Visitante"}`;
+    const id = `${matchName}_${market}_${label}`;
+    
+    setSelectedSelections(prev => {
+      const exists = prev.some(s => s.id === id);
+      if (exists) {
+        return prev.filter(s => s.id !== id);
+      } else {
+        return [...prev, { id, match: matchName, market, label, prob, odd }];
+      }
+    });
+  };
+
+  const handleSaveCustomBet = (totalOdd, totalProb) => {
+    if (selectedSelections.length === 0) return;
+    const stakeVal = betStake === "" ? 100 : Number(betStake);
+
+    const newCustomBet = {
+      id: Date.now(),
+      date: new Date().toISOString(),
+      matchDate: matchDate || new Date().toISOString(),
+      home: homeTeam || "Casa",
+      away: awayTeam || "Visitante",
+      selections: selectedSelections.map(s => ({
+        market: s.market,
+        label: s.label,
+        prob: s.prob,
+        odd: s.odd
+      })),
+      totalOdd: Number(totalOdd),
+      totalProb: Number(totalProb),
+      stake: stakeVal,
+      status: 'pendente'
+    };
+
+    const saved = localStorage.getItem('ev_tracker_custom_bets');
+    let list = [];
+    if (saved) {
+      try {
+        list = JSON.parse(saved);
+      } catch (e) {}
+    }
+    list = [newCustomBet, ...list];
+    localStorage.setItem('ev_tracker_custom_bets', JSON.stringify(list));
+
+    setSelectedSelections([]);
+    triggerToast("Aposta salva! Veja na aba de Palpites.");
+  };
+
   const [selectedRefIndex, setSelectedRefIndex] = useState(0);
   const [games, setGames] = useState([]);
   const [loadingGames, setLoadingGames] = useState(true);
@@ -362,6 +427,70 @@ export default function CalculatorPage() {
   const getOdd = (prob) => (prob > 0 ? (1 / prob).toFixed(2) : "0.00");
   const getPct = (prob) => (prob * 100).toFixed(1);
 
+  const hottest1X2 = useMemo(() => {
+    const probs = [
+      { key: 'Casa', prob: stats.probHome },
+      { key: 'Empate', prob: stats.probDraw },
+      { key: 'Visitante', prob: stats.probAway }
+    ];
+    probs.sort((a, b) => b.prob - a.prob);
+    return probs[0].key;
+  }, [stats.probHome, stats.probDraw, stats.probAway]);
+
+  const hottestGoal = useMemo(() => {
+    const markets = [
+      { label: 'Over 0.5', prob: stats.probOver05 },
+      { label: 'Under 0.5', prob: 1 - stats.probOver05 },
+      { label: 'Casa Over 0.5', prob: stats.probHomeOver05 },
+      { label: 'Casa Under 0.5', prob: 1 - stats.probHomeOver05 },
+      { label: 'Over 1.5', prob: stats.probOver15 },
+      { label: 'Under 1.5', prob: 1 - stats.probOver15 },
+      { label: 'Casa Over 1.5', prob: stats.probHomeOver15 },
+      { label: 'Casa Under 1.5', prob: 1 - stats.probHomeOver15 },
+      { label: 'Over 2.5', prob: stats.probOver25 },
+      { label: 'Under 2.5', prob: 1 - stats.probOver25 },
+      { label: 'Casa Over 2.5', prob: stats.probHomeOver25 },
+      { label: 'Casa Under 2.5', prob: 1 - stats.probHomeOver25 },
+      { label: 'Over 3.5', prob: stats.probOver35 },
+      { label: 'Under 3.5', prob: 1 - stats.probOver35 },
+      { label: 'Fora Over 0.5', prob: stats.probAwayOver05 },
+      { label: 'Fora Under 0.5', prob: 1 - stats.probAwayOver05 },
+      { label: 'Over 4.5', prob: stats.probOver45 },
+      { label: 'Under 4.5', prob: 1 - stats.probOver45 },
+      { label: 'Fora Over 1.5', prob: stats.probAwayOver15 },
+      { label: 'Fora Under 1.5', prob: 1 - stats.probAwayOver15 },
+      { label: 'BTTS (Sim)', prob: stats.probBtts },
+      { label: 'BTTS (Não)', prob: 1 - stats.probBtts },
+      { label: 'Fora Over 2.5', prob: stats.probAwayOver25 },
+      { label: 'Fora Under 2.5', prob: 1 - stats.probAwayOver25 }
+    ];
+    markets.sort((a, b) => b.prob - a.prob);
+    return markets[0].label;
+  }, [stats]);
+
+  const hottestPlayerGoal = useMemo(() => {
+    let highest = null;
+    let maxProb = -1;
+
+    homePlayersList.forEach(p => {
+      const anytime = 1 - Math.exp(-(homeXG === "" ? 0 : Number(homeXG)) * p.weight);
+      if (anytime > maxProb) {
+        maxProb = anytime;
+        highest = { name: p.name, type: 'anytime', team: 'home' };
+      }
+    });
+
+    awayPlayersList.forEach(p => {
+      const anytime = 1 - Math.exp(-(awayXG === "" ? 0 : Number(awayXG)) * p.weight);
+      if (anytime > maxProb) {
+        maxProb = anytime;
+        highest = { name: p.name, type: 'anytime', team: 'away' };
+      }
+    });
+
+    return highest;
+  }, [homePlayersList, awayPlayersList, homeXG, awayXG]);
+
   // === ANÁLISE DETALHADA E PROFISSIONAL ===
 
   const selectedRef = REFEREES[selectedRefIndex];
@@ -399,12 +528,28 @@ export default function CalculatorPage() {
     // P(Expulsão) estimada com base nos vermelhos históricos do árbitro e agressão dos times
     const redCardProb = 1 - Math.exp(-selectedRef.reds * (homeAggression + awayAggression) / 3.8);
 
+    // Projeções Poisson para cartões amarelos totais
+    const yellowLambda = expectedTotalYellows;
+    const p0 = getPoissonProbability(yellowLambda, 0);
+    const p1 = getPoissonProbability(yellowLambda, 1);
+    const p2 = getPoissonProbability(yellowLambda, 2);
+    const p3 = getPoissonProbability(yellowLambda, 3);
+    const p4 = getPoissonProbability(yellowLambda, 4);
+    const p5 = getPoissonProbability(yellowLambda, 5);
+
+    const probYellowOver35 = 1 - p0 - p1 - p2 - p3;
+    const probYellowOver45 = 1 - p0 - p1 - p2 - p3 - p4;
+    const probYellowOver55 = 1 - p0 - p1 - p2 - p3 - p4 - p5;
+
     return {
       homeYellows: expectedHomeYellows,
       awayYellows: expectedAwayYellows,
       totalYellows: expectedTotalYellows,
       redCardProb: getPct(redCardProb),
-      redCardOdd: getOdd(redCardProb)
+      redCardOdd: getOdd(redCardProb),
+      probYellowOver35,
+      probYellowOver45,
+      probYellowOver55
     };
   }, [homeTeam, awayTeam, selectedRef]);
 
@@ -551,27 +696,43 @@ export default function CalculatorPage() {
               <Activity size={16} color="var(--brand-neon)" /> Mercado 1X2
             </h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'transparent', border: '1px solid #333', borderRadius: '8px', gap: '8px' }}>
-                <span style={{ fontWeight: 600, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} title={homeTeam || "Casa"}>{homeTeam || "Casa"}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                  <strong style={{ color: 'var(--brand-neon)', fontSize: '0.85rem' }}>{getPct(stats.probHome)}%</strong>
-                  <span style={{ color: '#888', fontSize: '0.85rem' }}>@{getOdd(stats.probHome)}</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'transparent', border: '1px solid #333', borderRadius: '8px', gap: '8px' }}>
-                <span style={{ fontWeight: 600, fontSize: '0.85rem', flex: 1 }}>Empate</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                  <strong style={{ color: '#ffeb3b', fontSize: '0.85rem' }}>{getPct(stats.probDraw)}%</strong>
-                  <span style={{ color: '#888', fontSize: '0.85rem' }}>@{getOdd(stats.probDraw)}</span>
-                </div>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 10px', background: 'transparent', border: '1px solid #333', borderRadius: '8px', gap: '8px' }}>
-                <span style={{ fontWeight: 600, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} title={awayTeam || "Visit."}>{awayTeam || "Visit."}</span>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                  <strong style={{ color: '#ff4b4b', fontSize: '0.85rem' }}>{getPct(stats.probAway)}%</strong>
-                  <span style={{ color: '#888', fontSize: '0.85rem' }}>@{getOdd(stats.probAway)}</span>
-                </div>
-              </div>
+              {[
+                { label: 'Casa Vence', key: 'Casa', prob: stats.probHome, odd: getOdd(stats.probHome), name: homeTeam || "Casa", color: 'var(--brand-neon)' },
+                { label: 'Empate', key: 'Empate', prob: stats.probDraw, odd: getOdd(stats.probDraw), name: 'Empate', color: '#ffeb3b' },
+                { label: 'Fora Vence', key: 'Visitante', prob: stats.probAway, odd: getOdd(stats.probAway), name: awayTeam || "Visitante", color: '#ff4b4b' }
+              ].map((item, idx) => {
+                const isSelected = selectedSelections.some(s => s.market === '1X2' && s.label === item.label);
+                const isHottest = hottest1X2 === item.key;
+                return (
+                  <div 
+                    key={idx}
+                    onClick={() => handleToggleSelection('1X2', item.label, item.prob, item.odd)}
+                    style={{ 
+                      display: 'flex', 
+                      justifyContent: 'space-between', 
+                      alignItems: 'center', 
+                      padding: '8px 10px', 
+                      background: isSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent', 
+                      border: isSelected 
+                        ? '1.5px solid var(--brand-neon)' 
+                        : isHottest 
+                          ? '1.5px solid #00ffaa' 
+                          : '1px solid #333', 
+                      borderRadius: '8px', 
+                      gap: '8px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      boxShadow: isHottest ? '0 0 8px rgba(0, 255, 170, 0.3)' : 'none'
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }} title={item.name}>{item.name}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                      <strong style={{ color: item.color, fontSize: '0.85rem' }}>{getPct(item.prob)}%</strong>
+                      <span style={{ color: '#888', fontSize: '0.85rem' }}>@{item.odd}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
 
@@ -611,15 +772,37 @@ export default function CalculatorPage() {
                 { label: 'BTTS (Não)', prob: 1 - stats.probBtts },
                 { label: 'Fora Over 2.5', prob: stats.probAwayOver25 },
                 { label: 'Fora Under 2.5', prob: 1 - stats.probAwayOver25 }
-              ].map((item, idx) => (
-                <div key={idx} style={{ background: 'transparent', border: '1px solid #333', padding: '6px 2px', borderRadius: '6px', textAlign: 'center' }}>
-                  <div style={{ color: '#aaa', fontSize: '0.66rem', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.label}>
-                    {item.label}
+              ].map((item, idx) => {
+                const isSelected = selectedSelections.some(s => s.market === 'Gols' && s.label === item.label);
+                const isHottest = hottestGoal === item.label;
+                const oddVal = getOdd(item.prob);
+                return (
+                  <div 
+                    key={idx} 
+                    onClick={() => handleToggleSelection('Gols', item.label, item.prob, oddVal)}
+                    style={{ 
+                      background: isSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent', 
+                      border: isSelected 
+                        ? '1.5px solid var(--brand-neon)' 
+                        : isHottest 
+                          ? '1.5px solid #00ffaa' 
+                          : '1px solid #333', 
+                      padding: '6px 2px', 
+                      borderRadius: '6px', 
+                      textAlign: 'center',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      boxShadow: isHottest ? '0 0 6px rgba(0, 255, 170, 0.3)' : 'none'
+                    }}
+                  >
+                    <div style={{ color: '#aaa', fontSize: '0.66rem', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.label}>
+                      {item.label}
+                    </div>
+                    <strong style={{ fontSize: '0.82rem', display: 'block' }}>{getPct(item.prob)}%</strong>
+                    <div style={{ fontSize: '0.66rem', color: '#ff9800' }}>@{oddVal}</div>
                   </div>
-                  <strong style={{ fontSize: '0.82rem', display: 'block' }}>{getPct(item.prob)}%</strong>
-                  <div style={{ fontSize: '0.66rem', color: '#ff9800' }}>@{getOdd(item.prob)}</div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 
@@ -640,11 +823,32 @@ export default function CalculatorPage() {
                 
                 return flatScores.slice(0, 30).map((item, i) => {
                   const intensity = Math.min(1, item.prob * 5); 
-                  const bg = `rgba(0, 255, 170, ${intensity * 0.45})`;
+                  const isSelected = selectedSelections.some(s => s.market === 'Resultados Exatos' && s.label === `Placar ${item.score}`);
+                  const isHottest = i === 0;
+                  const bg = isSelected 
+                    ? 'rgba(204, 255, 0, 0.25)' 
+                    : `rgba(0, 255, 170, ${intensity * 0.45})`;
                   return (
-                    <div key={i} style={{ background: bg, border: '1px solid #333', borderRadius: '6px', padding: '4px 1px', textAlign: 'center' }}>
+                    <div 
+                      key={i} 
+                      onClick={() => handleToggleSelection('Resultados Exatos', `Placar ${item.score}`, item.prob, getOdd(item.prob))}
+                      style={{ 
+                        background: bg, 
+                        border: isSelected 
+                          ? '1.5px solid var(--brand-neon)' 
+                          : isHottest 
+                            ? '1.5px solid #00ffaa' 
+                            : '1px solid #333', 
+                        borderRadius: '6px', 
+                        padding: '4px 1px', 
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        boxShadow: isHottest ? '0 0 6px rgba(0, 255, 170, 0.4)' : 'none'
+                      }}
+                    >
                       <div style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>{item.score}</div>
-                      <div style={{ fontSize: '0.62rem', color: '#aaa' }}>{getPct(item.prob)}%</div>
+                      <div style={{ fontSize: '0.62rem', color: isSelected ? '#fff' : '#aaa' }}>{getPct(item.prob)}%</div>
                     </div>
                   )
                 });
@@ -709,6 +913,9 @@ export default function CalculatorPage() {
                   )}
                     {homePlayersList.map((p, idx) => {
                       const prob = calculatePlayerGoalProb(homeXG, p.weight);
+                      const isAnytimeSelected = selectedSelections.some(s => s.market === 'Marcadores' && s.label === `${p.name} (Qualquer Momento)`);
+                      const isFirstSelected = selectedSelections.some(s => s.market === 'Marcadores' && s.label === `${p.name} (Primeiro Gol)`);
+                      const isHottestAnytime = hottestPlayerGoal && hottestPlayerGoal.name === p.name && hottestPlayerGoal.type === 'anytime' && hottestPlayerGoal.team === 'home';
                       return (
                         <div key={`h-${idx}`} style={{ background: '#141419', padding: '8px 12px', borderRadius: '8px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 120px' }}>
@@ -717,12 +924,39 @@ export default function CalculatorPage() {
                               <span style={{ fontSize: '0.65rem', background: '#222', padding: '2px 6px', borderRadius: '4px', color: '#aaa', fontWeight: 'bold' }}>{p.role === 'Attacker' ? 'ATA' : p.role === 'Midfielder' ? 'MEI' : p.role === 'Defender' ? 'DEF' : p.role || 'GOL'}</span>
                             </div>
                           </div>
-                          <div style={{ display: 'flex', gap: '10px', textAlign: 'right', flexShrink: 0, alignItems: 'center' }}>
-                            <div>
+                          <div style={{ display: 'flex', gap: '8px', textAlign: 'right', flexShrink: 0, alignItems: 'center' }}>
+                            <div 
+                              onClick={() => handleToggleSelection('Marcadores', `${p.name} (Qualquer Momento)`, Number(prob.anytime)/100, prob.anytimeOdd)}
+                              style={{ 
+                                padding: '4px 6px', 
+                                borderRadius: '6px', 
+                                cursor: 'pointer', 
+                                background: isAnytimeSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
+                                border: isAnytimeSelected 
+                                  ? '1.5px solid var(--brand-neon)' 
+                                  : isHottestAnytime 
+                                    ? '1.5px solid #00ffaa' 
+                                    : '1px solid transparent',
+                                transition: 'all 0.2s',
+                                boxShadow: isHottestAnytime ? '0 0 6px rgba(0, 255, 170, 0.3)' : 'none'
+                              }}
+                            >
                               <div style={{ fontSize: '0.65rem', color: '#888' }}>Anytime</div>
                               <strong style={{ color: '#fff', fontSize: '0.8rem' }}>{prob.anytime}% <span style={{ color: '#ff9800', fontSize: '0.75rem', display: 'block' }}>@{prob.anytimeOdd}</span></strong>
                             </div>
-                            <div>
+                            <div 
+                              onClick={() => handleToggleSelection('Marcadores', `${p.name} (Primeiro Gol)`, Number(prob.first)/100, prob.firstOdd)}
+                              style={{ 
+                                padding: '4px 6px', 
+                                borderRadius: '6px', 
+                                cursor: 'pointer', 
+                                background: isFirstSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
+                                border: isFirstSelected 
+                                  ? '1.5px solid var(--brand-neon)' 
+                                  : '1px solid transparent',
+                                transition: 'all 0.2s'
+                              }}
+                            >
                               <div style={{ fontSize: '0.65rem', color: '#888' }}>Primeiro</div>
                               <strong style={{ color: '#aaa', fontSize: '0.8rem' }}>{prob.first}% <span style={{ color: '#ff9800', fontSize: '0.75rem', display: 'block' }}>@{prob.firstOdd}</span></strong>
                             </div>
@@ -778,6 +1012,9 @@ export default function CalculatorPage() {
                   )}
                     {awayPlayersList.map((p, idx) => {
                       const prob = calculatePlayerGoalProb(awayXG, p.weight);
+                      const isAnytimeSelected = selectedSelections.some(s => s.market === 'Marcadores' && s.label === `${p.name} (Qualquer Momento)`);
+                      const isFirstSelected = selectedSelections.some(s => s.market === 'Marcadores' && s.label === `${p.name} (Primeiro Gol)`);
+                      const isHottestAnytime = hottestPlayerGoal && hottestPlayerGoal.name === p.name && hottestPlayerGoal.type === 'anytime' && hottestPlayerGoal.team === 'away';
                       return (
                         <div key={`a-${idx}`} style={{ background: '#141419', padding: '8px 12px', borderRadius: '8px', border: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px' }}>
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: '1 1 120px' }}>
@@ -786,12 +1023,39 @@ export default function CalculatorPage() {
                               <span style={{ fontSize: '0.65rem', background: '#222', padding: '2px 6px', borderRadius: '4px', color: '#aaa', fontWeight: 'bold' }}>{p.role === 'Attacker' ? 'ATA' : p.role === 'Midfielder' ? 'MEI' : p.role === 'Defender' ? 'DEF' : p.role || 'GOL'}</span>
                             </div>
                           </div>
-                          <div style={{ display: 'flex', gap: '10px', textAlign: 'right', flexShrink: 0, alignItems: 'center' }}>
-                            <div>
+                          <div style={{ display: 'flex', gap: '8px', textAlign: 'right', flexShrink: 0, alignItems: 'center' }}>
+                            <div 
+                              onClick={() => handleToggleSelection('Marcadores', `${p.name} (Qualquer Momento)`, Number(prob.anytime)/100, prob.anytimeOdd)}
+                              style={{ 
+                                padding: '4px 6px', 
+                                borderRadius: '6px', 
+                                cursor: 'pointer', 
+                                background: isAnytimeSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
+                                border: isAnytimeSelected 
+                                  ? '1.5px solid var(--brand-neon)' 
+                                  : isHottestAnytime 
+                                    ? '1.5px solid #00ffaa' 
+                                    : '1px solid transparent',
+                                transition: 'all 0.2s',
+                                boxShadow: isHottestAnytime ? '0 0 6px rgba(0, 255, 170, 0.3)' : 'none'
+                              }}
+                            >
                               <div style={{ fontSize: '0.65rem', color: '#888' }}>Anytime</div>
                               <strong style={{ color: '#fff', fontSize: '0.8rem' }}>{prob.anytime}% <span style={{ color: '#ff9800', fontSize: '0.75rem', display: 'block' }}>@{prob.anytimeOdd}</span></strong>
                             </div>
-                            <div>
+                            <div 
+                              onClick={() => handleToggleSelection('Marcadores', `${p.name} (Primeiro Gol)`, Number(prob.first)/100, prob.firstOdd)}
+                              style={{ 
+                                padding: '4px 6px', 
+                                borderRadius: '6px', 
+                                cursor: 'pointer', 
+                                background: isFirstSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
+                                border: isFirstSelected 
+                                  ? '1.5px solid var(--brand-neon)' 
+                                  : '1px solid transparent',
+                                transition: 'all 0.2s'
+                              }}
+                            >
                               <div style={{ fontSize: '0.65rem', color: '#888' }}>Primeiro</div>
                               <strong style={{ color: '#aaa', fontSize: '0.8rem' }}>{prob.first}% <span style={{ color: '#ff9800', fontSize: '0.75rem', display: 'block' }}>@{prob.firstOdd}</span></strong>
                             </div>
@@ -820,54 +1084,131 @@ export default function CalculatorPage() {
               <ShieldAlert size={18} color="#ff5722" /> Previsão de Cartões & Disciplina
             </h3>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', flex: 1, justifyContent: 'center' }}>
-              
-              {/* Cartões Casa */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
-                  <span>Esperados {homeTeam || 'Casa'}:</span>
-                  <strong style={{ color: '#ffeb3b' }}>{cardsPrediction.homeYellows} Amarelos</strong>
-                </div>
-                <div style={{ width: '100%', height: '8px', background: '#222', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.min(100, (cardsPrediction.homeYellows / 6) * 100)}%`, height: '100%', background: '#ffeb3b', borderRadius: '4px' }}></div>
-                </div>
-              </div>
+            {(() => {
+              const cardMarkets = [
+                { label: 'Total Amarelos Over 3.5', prob: cardsPrediction.probYellowOver35 },
+                { label: 'Total Amarelos Over 4.5', prob: cardsPrediction.probYellowOver45 },
+                { label: 'Total Amarelos Over 5.5', prob: cardsPrediction.probYellowOver55 },
+                { label: 'Cartão Vermelho (Sim)', prob: Number(cardsPrediction.redCardProb) / 100 }
+              ];
+              cardMarkets.sort((a, b) => b.prob - a.prob);
+              const hottestCardMarket = cardMarkets[0]?.label;
 
-              {/* Cartões Visitante */}
-              <div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', marginBottom: '6px' }}>
-                  <span>Esperados {awayTeam || 'Visitante'}:</span>
-                  <strong style={{ color: '#ffeb3b' }}>{cardsPrediction.awayYellows} Amarelos</strong>
-                </div>
-                <div style={{ width: '100%', height: '8px', background: '#222', borderRadius: '4px', overflow: 'hidden' }}>
-                  <div style={{ width: `${Math.min(100, (cardsPrediction.awayYellows / 6) * 100)}%`, height: '100%', background: '#ffeb3b', borderRadius: '4px' }}></div>
-                </div>
-              </div>
-
-              {/* Totais Acumulados */}
-              <div style={{ background: '#141419', padding: '12px', borderRadius: '8px', border: '1px solid #222', textAlign: 'center' }}>
-                <div style={{ fontSize: '0.75rem', color: '#888' }}>Total de Cartões Estimados na Partida</div>
-                <div style={{ fontSize: '1.6rem', fontWeight: 'bold', color: '#ffeb3b', margin: '4px 0' }}>
-                  {cardsPrediction.totalYellows} <span style={{ fontSize: '1rem', color: '#aaa' }}>Amarelos</span>
-                </div>
-                <div style={{ fontSize: '0.7rem', color: '#555' }}>Cálculo combinando a agressividade dos times + rigor do árbitro</div>
-              </div>
-
-              {/* Cartão Vermelho */}
-              <div style={{ background: 'linear-gradient(135deg, #1f0808, #110404)', padding: '12px', borderRadius: '8px', border: '1px solid #ff444433', display: 'flex', alignItems: 'center', justifySpace: 'between', gap: '12px' }}>
-                <div style={{ background: '#ff3f3f', width: '30px', height: '42px', borderRadius: '4px', boxShadow: '0 0 10px rgba(255, 63, 63, 0.4)', flexShrink: 0 }}></div>
-                <div>
-                  <div style={{ fontSize: '0.75rem', color: '#ff6b6b', fontWeight: 'bold' }}>Chance de Expulsão (Vermelho)</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff', marginTop: '2px' }}>
-                    {cardsPrediction.redCardProb}% <span style={{ color: '#ff9800', fontSize: '0.85rem' }}>@{cardsPrediction.redCardOdd}</span>
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1, justifyContent: 'center' }}>
+                  
+                  {/* Seção Cartões Amarelos */}
+                  <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: 'transparent', border: '1px solid #333', padding: '10px', borderRadius: '12px' }}>
+                    <div style={{ 
+                      background: '#ffd600', 
+                      width: '42px', 
+                      height: '58px', 
+                      borderRadius: '6px', 
+                      boxShadow: '0 0 12px rgba(255, 214, 0, 0.3)', 
+                      display: 'flex', 
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#000',
+                      fontWeight: 'bold',
+                      fontSize: '1rem',
+                      flexShrink: 0
+                    }}>
+                      🟨
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: '0.75rem', color: '#aaa', marginBottom: '4px' }}>
+                        Amarelos Esperados: <strong style={{ color: '#fff' }}>{cardsPrediction.totalYellows}</strong> (Casa: {cardsPrediction.homeYellows} | Fora: {cardsPrediction.awayYellows})
+                      </div>
+                      {/* Linhas Clicáveis de Amarelos */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+                        {[
+                          { label: 'Over 3.5', prob: cardsPrediction.probYellowOver35 },
+                          { label: 'Over 4.5', prob: cardsPrediction.probYellowOver45 },
+                          { label: 'Over 5.5', prob: cardsPrediction.probYellowOver55 }
+                        ].map((line, idx) => {
+                          const marketLabel = `Total Amarelos ${line.label}`;
+                          const isSelected = selectedSelections.some(s => s.market === 'Cartões' && s.label === marketLabel);
+                          const isHottest = hottestCardMarket === marketLabel;
+                          return (
+                            <div 
+                              key={idx}
+                              onClick={() => handleToggleSelection('Cartões', marketLabel, line.prob, getOdd(line.prob))}
+                              style={{
+                                background: isSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
+                                border: isSelected 
+                                  ? '1.5px solid var(--brand-neon)' 
+                                  : isHottest 
+                                    ? '1.5px solid #00ffaa' 
+                                    : '1px solid #333',
+                                borderRadius: '6px',
+                                padding: '4px',
+                                textAlign: 'center',
+                                cursor: 'pointer',
+                                transition: 'all 0.2s',
+                                boxShadow: isHottest ? '0 0 6px rgba(0, 255, 170, 0.3)' : 'none'
+                              }}
+                            >
+                              <div style={{ fontSize: '0.62rem', color: '#aaa' }}>{line.label}</div>
+                              <div style={{ fontSize: '0.72rem', fontWeight: 'bold' }}>{getPct(line.prob)}%</div>
+                              <div style={{ fontSize: '0.62rem', color: '#ff9800' }}>@{getOdd(line.prob)}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
                   </div>
-                  <span style={{ fontSize: '0.65rem', color: Number(cardsPrediction.redCardProb) > 25 ? '#ff4b4b' : '#aaa', fontWeight: 'bold' }}>
-                    {Number(cardsPrediction.redCardProb) > 25 ? '⚠️ Risco de Cartão Vermelho Alto' : 'Risco de Expulsão Moderado'}
-                  </span>
-                </div>
-              </div>
 
-            </div>
+                  {/* Seção Cartão Vermelho */}
+                  <div 
+                    onClick={() => handleToggleSelection('Cartões', 'Cartão Vermelho (Sim)', Number(cardsPrediction.redCardProb)/100, cardsPrediction.redCardOdd)}
+                    style={{ 
+                      display: 'flex', 
+                      gap: '12px', 
+                      alignItems: 'center', 
+                      background: selectedSelections.some(s => s.market === 'Cartões' && s.label === 'Cartão Vermelho (Sim)') ? 'rgba(204, 255, 0, 0.15)' : 'linear-gradient(135deg, #1f0808, #110404)', 
+                      border: selectedSelections.some(s => s.market === 'Cartões' && s.label === 'Cartão Vermelho (Sim)') 
+                        ? '1.5px solid var(--brand-neon)' 
+                        : hottestCardMarket === 'Cartão Vermelho (Sim)' 
+                          ? '1.5px solid #00ffaa' 
+                          : '1px solid #ff444433', 
+                      padding: '10px', 
+                      borderRadius: '12px',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      boxShadow: hottestCardMarket === 'Cartão Vermelho (Sim)' ? '0 0 8px rgba(0, 255, 170, 0.3)' : 'none'
+                    }}
+                  >
+                    <div style={{ 
+                      background: '#ff3f3f', 
+                      width: '42px', 
+                      height: '58px', 
+                      borderRadius: '6px', 
+                      boxShadow: '0 0 12px rgba(255, 63, 63, 0.4)', 
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: '#fff',
+                      fontWeight: 'bold',
+                      fontSize: '1rem',
+                      flexShrink: 0
+                    }}>
+                      🟥
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.75rem', color: '#ff6b6b', fontWeight: 'bold' }}>Chance de Expulsão (Vermelho)</div>
+                      <div style={{ fontSize: '1.15rem', fontWeight: 'bold', color: '#fff', marginTop: '2px' }}>
+                        {cardsPrediction.redCardProb}% <span style={{ color: '#ff9800', fontSize: '0.85rem' }}>@{cardsPrediction.redCardOdd}</span>
+                      </div>
+                      <span style={{ fontSize: '0.62rem', color: Number(cardsPrediction.redCardProb) > 25 ? '#ff4b4b' : '#aaa', fontWeight: 'bold' }}>
+                        {Number(cardsPrediction.redCardProb) > 25 ? '⚠️ Risco de Vermelho Alto' : 'Risco de Expulsão Moderado'}
+                      </span>
+                    </div>
+                  </div>
+
+                </div>
+              );
+            })()}
           </div>
 
           {/* COLUNA 3: ANÁLISE DO ÁRBITRO */}
@@ -945,6 +1286,149 @@ export default function CalculatorPage() {
         </div>
       </div>
 
+      {/* PAINEL DE CUPOM DE APOSTAS */}
+      {selectedSelections.length > 0 && (
+        <div style={{
+          position: 'fixed',
+          bottom: '24px',
+          right: '24px',
+          width: '340px',
+          maxHeight: '450px',
+          background: '#141419',
+          border: '2px solid var(--brand-neon)',
+          borderRadius: '12px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.8)',
+          zIndex: 1000,
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          animation: 'slideUp 0.3s ease-out'
+        }} className="bet-slip-panel">
+          <div style={{ background: '#1c1c24', padding: '12px 16px', borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Trophy size={16} color="var(--brand-neon)" />
+              <strong style={{ fontSize: '0.85rem', color: '#fff' }}>Criador de Aposta ({selectedSelections.length})</strong>
+            </div>
+            <button 
+              onClick={() => setSelectedSelections([])}
+              style={{ background: 'transparent', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: '0.75rem', textDecoration: 'underline' }}
+            >
+              Limpar
+            </button>
+          </div>
+
+          <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            {selectedSelections.map((sel, idx) => (
+              <div key={idx} style={{ background: '#1e1e24', border: '1px solid #333', borderRadius: '8px', padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div style={{ minWidth: 0, flex: 1 }}>
+                  <div style={{ fontSize: '0.62rem', color: '#aaa', textTransform: 'uppercase' }}>{sel.market}</div>
+                  <div style={{ fontSize: '0.8rem', color: '#fff', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={sel.label}>
+                    {sel.label}
+                  </div>
+                  <div style={{ fontSize: '0.65rem', color: 'var(--brand-neon)' }}>{sel.match}</div>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <span style={{ fontSize: '0.85rem', color: '#ff9800', fontWeight: 'bold' }}>@{sel.odd}</span>
+                  <button 
+                    onClick={() => setSelectedSelections(selectedSelections.filter(s => s.id !== sel.id))}
+                    style={{ background: 'transparent', border: 'none', color: '#ff4b4b', cursor: 'pointer', padding: '2px', fontSize: '0.85rem' }}
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ padding: '14px', background: '#1c1c24', borderTop: '1px solid #333', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {(() => {
+              const totalOdd = selectedSelections.reduce((acc, s) => acc * Number(s.odd), 1).toFixed(2);
+              const totalProb = selectedSelections.reduce((acc, s) => acc * s.prob, 1);
+              return (
+                <>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
+                    <span style={{ color: '#aaa' }}>Odd Combinada:</span>
+                    <strong style={{ color: '#ff9800', fontSize: '1.1rem' }}>@{totalOdd}</strong>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
+                    <span style={{ color: '#aaa' }}>Probabilidade:</span>
+                    <strong style={{ color: 'var(--brand-neon)' }}>{(totalProb * 100).toFixed(1)}%</strong>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
+                    <span style={{ fontSize: '0.75rem', color: '#aaa' }}>Stake (R$):</span>
+                    <input 
+                      type="number" 
+                      placeholder="100" 
+                      value={betStake}
+                      onChange={(e) => setBetStake(e.target.value)}
+                      style={{
+                        flex: 1,
+                        background: '#141419',
+                        border: '1px solid #333',
+                        color: '#fff',
+                        borderRadius: '6px',
+                        padding: '6px 10px',
+                        fontSize: '0.85rem',
+                        outline: 'none',
+                        textAlign: 'right',
+                        fontWeight: 'bold'
+                      }}
+                    />
+                  </div>
+
+                  <button 
+                    onClick={() => handleSaveCustomBet(totalOdd, totalProb)}
+                    style={{
+                      background: 'var(--brand-neon)',
+                      color: '#000',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '10px',
+                      fontSize: '0.85rem',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      textAlign: 'center',
+                      transition: 'opacity 0.2s',
+                      width: '100%',
+                      marginTop: '4px'
+                    }}
+                    onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
+                    onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
+                  >
+                    Salvar Aposta
+                  </button>
+                </>
+              )
+            })()}
+          </div>
+        </div>
+      )}
+
+      {/* Toast Notification */}
+      {showToast && (
+        <div style={{
+          position: 'fixed',
+          top: '20px',
+          right: '20px',
+          background: '#1c1c24',
+          border: '1.5px solid var(--brand-neon)',
+          color: '#fff',
+          padding: '12px 20px',
+          borderRadius: '8px',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
+          zIndex: 10000,
+          fontSize: '0.85rem',
+          fontWeight: 'bold',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <CheckCircle2 size={16} color="var(--brand-neon)" />
+          {toastMessage}
+        </div>
+      )}
+
       <style>{`
         .no-scrollbar::-webkit-scrollbar {
           display: none;
@@ -952,6 +1436,23 @@ export default function CalculatorPage() {
         .no-scrollbar {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+        @keyframes slideUp {
+          from { transform: translateY(100px); opacity: 0; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @media (max-width: 950px) {
+          .bet-slip-panel {
+            right: 0 !important;
+            left: 0 !important;
+            bottom: 60px !important;
+            width: 100% !important;
+            max-height: 380px !important;
+            border-radius: 12px 12px 0 0 !important;
+            border-left: none !important;
+            border-right: none !important;
+            border-bottom: none !important;
+          }
         }
       `}</style>
     </div>

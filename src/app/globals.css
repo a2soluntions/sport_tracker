@@ -676,9 +676,15 @@ input[type=number] {
   align-items: flex-end;
   width: 100%;
 }
+.mobile-show {
+  display: none !important;
+}
 
 /* --- MOBILE COMPACT BUTTONS & LABELS --- */
 @media (max-width: 600px) {
+  .mobile-show {
+    display: inline-block !important;
+  }
   .btn-text-mobile-hide {
     display: none !important;
   }

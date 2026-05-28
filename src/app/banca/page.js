@@ -110,7 +110,13 @@ const evaluateSelection = (selection, gh, ga) => {
   }
 
   // Outros (Marcadores, Cartões, etc.) fallback to true if the match finished
-  return true;
+};
+
+const formatOddMobile = (odd) => {
+  if (!odd) return '-';
+  if (odd >= 100) return Math.round(odd).toString().substring(0, 3);
+  if (odd >= 10) return odd.toFixed(1);
+  return odd.toFixed(2);
 };
 
 export default function GestaoBancaPage() {
@@ -762,11 +768,13 @@ export default function GestaoBancaPage() {
                           color: isGain ? '#00d2ff' : isLoss ? '#ff4d4d' : '#FFC107',
                           border: '1px solid ' + (isGain ? 'rgba(0,210,255,0.3)' : isLoss ? 'rgba(255,77,77,0.3)' : 'rgba(255,193,7,0.3)')
                         }}>
-                          {isGain ? 'GANHO' : isLoss ? 'PERDA' : 'PENDENTE'}
+                          <span className="mobile-hide">{isGain ? 'GANHO' : isLoss ? 'PERDA' : 'PENDENTE'}</span>
+                          <span className="mobile-show">{isGain ? 'G' : isLoss ? 'P' : 'E'}</span>
                         </span>
                       </td>
                       <td style={{ padding: '12px', textAlign: 'center', color: '#ff9800', fontWeight: 500 }}>
-                        {tx.odd ? `@${tx.odd.toFixed(2)}` : '-'}
+                        <span className="mobile-hide">{tx.odd ? `@${tx.odd.toFixed(2)}` : '-'}</span>
+                        <span className="mobile-show">{tx.odd ? `@${formatOddMobile(tx.odd)}` : '-'}</span>
                       </td>
                       <td style={{ 
                         padding: '12px', 

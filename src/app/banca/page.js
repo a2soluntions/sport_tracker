@@ -58,6 +58,61 @@ const parseMatchTeams = (description) => {
   return { home: matchPart, away: '', rest: '' };
 };
 
+const evaluateSelection = (selection, gh, ga) => {
+  if (!selection) return true;
+  const cleanSel = selection.trim().toLowerCase();
+  
+  // 1X2
+  if (cleanSel === 'casa' || cleanSel === 'casa vence' || cleanSel === 'casa vencer') return gh > ga;
+  if (cleanSel === 'fora' || cleanSel === 'fora vence' || cleanSel === 'fora vencer') return ga > gh;
+  if (cleanSel === 'empate') return gh === ga;
+  
+  // Ambos marcam
+  if (cleanSel.includes('ambos marcam') || cleanSel.includes('ambas marcam')) {
+    if (cleanSel.includes('sim')) return gh > 0 && ga > 0;
+    if (cleanSel.includes('nã') || cleanSel.includes('na')) return !(gh > 0 && ga > 0);
+  }
+  if (cleanSel === 'sim') return gh > 0 && ga > 0;
+  if (cleanSel === 'não' || cleanSel === 'nao') return !(gh > 0 && ga > 0);
+  
+  // Placar Exato (e.g. Placar 1x0)
+  const placarMatch = cleanSel.match(/placar\s+(\d+)\s*[x-]\s*(\d+)/);
+  if (placarMatch) {
+    const targetH = parseInt(placarMatch[1]);
+    const targetA = parseInt(placarMatch[2]);
+    return gh === targetH && ga === targetA;
+  }
+  
+  // Fora Acima/Abaixo
+  const foraOverMatch = cleanSel.match(/fora\s+(?:acima|mais)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
+  if (foraOverMatch) {
+    const val = parseFloat(foraOverMatch[1]);
+    return ga > val;
+  }
+  const foraUnderMatch = cleanSel.match(/fora\s+(?:abaixo|menos)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
+  if (foraUnderMatch) {
+    const val = parseFloat(foraUnderMatch[1]);
+    return ga < val;
+  }
+
+  // Acima/Mais de Z Gols
+  const overMatch = cleanSel.match(/(?:acima|mais)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
+  if (overMatch) {
+    const val = parseFloat(overMatch[1]);
+    return (gh + ga) > val;
+  }
+  
+  // Abaixo/Menos de Z Gols
+  const underMatch = cleanSel.match(/(?:abaixo|menos)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
+  if (underMatch) {
+    const val = parseFloat(underMatch[1]);
+    return (gh + ga) < val;
+  }
+
+  // Outros (Marcadores, Cartões, etc.) fallback to true if the match finished
+  return true;
+};
+
 export default function GestaoBancaPage() {
   const [initialValue, setInitialValue] = useState(0);
   const [transactions, setTransactions] = useState([]);
@@ -88,6 +143,38 @@ export default function GestaoBancaPage() {
     const savedInitialValue = localStorage.getItem('ev_tracker_banca_initial_value');
     if (savedInitialValue) {
       setInitialValue(parseFloat(savedInitialValue));
+    }
+
+    async function cleanupPastBets() {
+      const cutoffDate = '2026-05-27';
+      if (supabase) {
+        try {
+          await supabase
+            .from('banca_transactions')
+            .delete()
+            .lt('date', cutoffDate)
+            .in('type', ['ganho', 'perda', 'pendente']);
+        } catch (e) {
+          console.warn("Erro ao limpar apostas passadas no Supabase:", e);
+        }
+      }
+
+      const savedTxs = localStorage.getItem('ev_tracker_banca_txs');
+      if (savedTxs) {
+        try {
+          const localList = JSON.parse(savedTxs);
+          if (Array.isArray(localList)) {
+            const filteredList = localList.filter(t => {
+              const isBet = ['ganho', 'perda', 'pendente'].includes(t.type);
+              const isPast = t.date < cutoffDate;
+              return !(isBet && isPast);
+            });
+            localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(filteredList));
+          }
+        } catch (e) {
+          console.warn("Erro ao limpar apostas passadas no localStorage:", e);
+        }
+      }
     }
 
     async function loadTransactions() {
@@ -188,23 +275,37 @@ export default function GestaoBancaPage() {
         let didUpdate = false;
 
         for (const t of pendingTxs) {
-          if (!t.description || !t.description.startsWith('[Palpite] ')) continue;
+          if (!t.description) continue;
           
-          const matchName = t.description.replace('[Palpite] ', '').split(' (')[0];
-          const bestTip = t.description.split(' (')[1]?.replace(')', '');
+          let isPalpite = t.description.startsWith('[Palpite] ');
+          let isApostaCriada = t.description.startsWith('[Aposta Criada] ');
+          if (!isPalpite && !isApostaCriada) continue;
+
+          const prefix = isPalpite ? '[Palpite] ' : '[Aposta Criada] ';
+          const matchName = t.description.replace(prefix, '').split(' (')[0];
+          const selectionsStr = t.description.split(' (')[1]?.replace(')', '') || '';
           
-          const game = allFixtures.find(f => `${f.home} x ${f.away}` === matchName);
+          const game = allFixtures.find(f => {
+            const gameName = `${f.home.trim()} x ${f.away.trim()}`.toLowerCase();
+            return gameName === matchName.trim().toLowerCase();
+          });
+
           if (game && game.isFinished) {
             const gh = game.goalsHome;
             const ga = game.goalsAway;
-            let isHit = false;
+            let isHit = true;
 
-            if (bestTip === 'Casa' || bestTip === 'Casa Vence') isHit = gh > ga;
-            else if (bestTip === 'Fora' || bestTip === 'Fora Vence') isHit = ga > gh;
-            else if (bestTip === 'Empate') isHit = gh === ga;
-            else if (bestTip === 'Mais de 2.5 Gols') isHit = (gh + ga) > 2;
-            else if (bestTip === 'Menos de 2.5 Gols') isHit = (gh + ga) < 3;
-            else if (bestTip === 'Ambos Marcam' || bestTip === 'Sim' || bestTip === 'Ambas Marcam') isHit = gh > 0 && ga > 0;
+            const selections = selectionsStr.split(',').map(s => s.trim()).filter(Boolean);
+            if (selections.length === 0) {
+              isHit = false;
+            } else {
+              for (const sel of selections) {
+                if (!evaluateSelection(sel, gh, ga)) {
+                  isHit = false;
+                  break;
+                }
+              }
+            }
 
             const resolvedType = isHit ? 'ganho' : 'perda';
             t.type = resolvedType;
@@ -246,7 +347,12 @@ export default function GestaoBancaPage() {
       setSyncStatus('local');
     }
 
-    loadTransactions();
+    async function init() {
+      await cleanupPastBets();
+      await loadTransactions();
+    }
+
+    init();
   }, []);
 
   // Helpers para salvar dados localmente (fallback)
@@ -342,34 +448,7 @@ export default function GestaoBancaPage() {
       showToast('Transação excluída com sucesso!', 'success');
     }
   };
-
-  const handleUpdateTransactionStatus = async (id, newStatus) => {
-    const updatedList = transactions.map(t => {
-      if (t.id === id) {
-        return { ...t, type: newStatus };
-      }
-      return t;
-    });
-    setTransactions(updatedList);
-
-    if (syncStatus === 'cloud' && supabase) {
-      try {
-        const { error } = await supabase
-          .from('banca_transactions')
-          .update({ type: newStatus })
-          .eq('id', id);
-        if (error) throw error;
-        showToast(`Transação definida como ${newStatus === 'ganho' ? 'GANHO 🟢' : 'PERDA 🔴'}!`, 'success');
-      } catch (err) {
-        console.warn("Erro ao atualizar no Supabase:", err);
-        showToast("Erro ao salvar alteração: " + err.message, 'error');
-      }
-    } else {
-      saveTransactionsLocal(updatedList);
-      showToast(`Transação definida como ${newStatus === 'ganho' ? 'GANHO 🟢' : 'PERDA 🔴'}!`, 'success');
-    }
-  };
-
+  
   // Cálculos de métricas da Banca
   const stats = useMemo(() => {
     let totalDeposits = initialValue;
@@ -631,7 +710,7 @@ export default function GestaoBancaPage() {
                   <th style={{ padding: '12px', textAlign: 'center' }}>Tipo</th>
                   <th style={{ padding: '12px', textAlign: 'center' }}>Odd</th>
                   <th style={{ padding: '12px', textAlign: 'right' }}>Valor</th>
-                  <th style={{ padding: '12px', width: '150px', textAlign: 'center' }}>Ações</th>
+                  <th style={{ padding: '12px', width: '50px' }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -701,29 +780,7 @@ export default function GestaoBancaPage() {
                         }
                       </td>
                       <td style={{ padding: '12px' }}>
-                        <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
-                          {isPending && (
-                            <>
-                              <button 
-                                onClick={() => handleUpdateTransactionStatus(tx.id, 'ganho')}
-                                style={{ background: '#4CAF50', border: 'none', borderRadius: '4px', color: '#fff', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', transition: 'opacity 0.2s' }}
-                                onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
-                                onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
-                                title="Definir Ganho"
-                              >
-                                Green 🟢
-                              </button>
-                              <button 
-                                onClick={() => handleUpdateTransactionStatus(tx.id, 'perda')}
-                                style={{ background: '#ff4d4d', border: 'none', borderRadius: '4px', color: '#fff', padding: '4px 8px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '2px', transition: 'opacity 0.2s' }}
-                                onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
-                                onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
-                                title="Definir Perda"
-                              >
-                                Red 🔴
-                              </button>
-                            </>
-                          )}
+                        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
                           <button 
                             onClick={() => handleDeleteTransaction(tx.id)}
                             style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px', transition: 'opacity 0.2s' }}

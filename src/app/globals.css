@@ -771,6 +771,263 @@ input[type=number] {
   }
 }
 
+/* Classes Responsivas para o Laboratório de Análise */
+.setup-row-responsive {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  width: 100%;
+}
+
+.gols-grid-responsive {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.exatos-grid-responsive {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+
+.ref-stats-grid-responsive {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+@media (max-width: 600px) {
+  .setup-row-responsive {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .gols-grid-responsive {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .exatos-grid-responsive {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .ref-stats-grid-responsive {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Ocultar barra de rolagem globalmente para elementos com a classe no-scrollbar */
+.no-scrollbar::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Central de Palpites - Alinhamento e Responsividade */
+.palpites-title-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.palpites-tabs {
+  display: flex;
+  border-bottom: 1px solid #333;
+  margin-bottom: 24px;
+  gap: 8px;
+}
+
+.palpites-tab-btn {
+  background: transparent;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: #888;
+  padding: 10px 16px;
+  font-size: 0.95rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.palpites-tab-btn.active {
+  border-bottom: 3px solid var(--brand-neon);
+  color: #fff;
+}
+
+.league-buttons-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.league-button {
+  background: #222;
+  color: #888;
+  padding: 8px 16px;
+  border-radius: 0px;
+  font-weight: bold;
+  font-size: 0.85rem;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.league-button.active {
+  background: var(--brand-neon);
+  color: #000;
+}
+
+.stats-selector-container {
+  display: flex;
+  background: #141419;
+  border-radius: 0px;
+  padding: 4px;
+  border: 1px solid #27272a;
+}
+
+.stats-selector-button {
+  background: transparent;
+  color: #888;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 0px;
+  font-weight: bold;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.stats-selector-button.active {
+  background: var(--brand-neon);
+  color: #000;
+}
+
+/* Grid de KPI - Taxa de Acerto */
+.palpites-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
+  margin-bottom: 32px;
+}
+
+.palpites-kpi-card {
+  background: linear-gradient(135deg, #111115, #161622);
+  border: 1px solid var(--border-color);
+  padding: 12px 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-height: 85px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  border-radius: 0px;
+}
+
+.palpites-kpi-card .kpi-title {
+  font-size: 0.75rem;
+  color: #888;
+  font-weight: bold;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.palpites-kpi-card .kpi-value {
+  font-size: 1.6rem;
+  font-weight: 800;
+  color: #fff;
+  margin-top: 4px;
+}
+
+.palpites-kpi-card .kpi-subtext {
+  font-size: 0.7rem;
+  color: #555;
+  margin-top: 2px;
+}
+
+/* Contêiner de rolagem responsivo */
+.palpites-scroll-container {
+  flex: 1;
+  overflow-y: auto;
+}
+
+@media (max-width: 950px) {
+  .palpites-title-container {
+    gap: 8px;
+  }
+  
+  .palpites-tab-btn {
+    padding: 8px 10px !important;
+    font-size: 0.82rem !important;
+    flex: 1;
+    justify-content: center;
+    border-radius: 0px !important;
+  }
+
+  .league-buttons-container {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr) !important;
+    gap: 6px !important;
+  }
+  
+  .league-button {
+    border-radius: 0px !important;
+    padding: 6px 4px !important;
+    font-size: 0.75rem !important;
+    text-align: center;
+    white-space: normal !important;
+  }
+
+  .stats-selector-container {
+    flex-direction: column !important;
+    border-radius: 0px !important;
+    width: 100% !important;
+    gap: 4px !important;
+  }
+
+  .stats-selector-button {
+    border-radius: 0px !important;
+    width: 100% !important;
+    padding: 8px 12px !important;
+    text-align: center !important;
+  }
+
+  .palpites-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+  }
+
+  .palpites-kpi-card {
+    padding: 8px 12px !important;
+    min-height: 70px !important;
+    border-radius: 0px !important;
+  }
+
+  .palpites-kpi-card .kpi-title {
+    font-size: 0.65rem !important;
+  }
+
+  .palpites-kpi-card .kpi-value {
+    font-size: 1.25rem !important;
+  }
+
+  .palpites-kpi-card .kpi-subtext {
+    font-size: 0.6rem !important;
+  }
+
+  .palpites-scroll-container {
+    flex: none !important;
+    overflow-y: visible !important;
+  }
+}
+
+
+
+
 
 
 

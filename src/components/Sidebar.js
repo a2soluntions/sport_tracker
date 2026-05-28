@@ -35,7 +35,7 @@ export default function Sidebar() {
           </Link>
           <Link href="/calculator" className={`${styles.navItem} ${pathname === '/calculator' ? styles.navItemActive : ''}`}>
             <Calculator size={20} className={styles.navIcon} /> 
-            <span>Laboratório (Calc)</span>
+            <span>Análise</span>
           </Link>
           <Link href="/oportunidades" className={`${styles.navItem} ${pathname === '/oportunidades' ? styles.navItemActive : ''}`}>
             <Activity size={20} className={styles.navIcon} /> 
@@ -72,7 +72,7 @@ export default function Sidebar() {
         </Link>
         <Link href="/calculator" className={`${styles.bottomNavItem} ${pathname === '/calculator' ? styles.bottomNavItemActive : ''}`}>
           <Calculator size={18} className={styles.bottomNavIcon} />
-          <span>Motor</span>
+          <span>Análise</span>
         </Link>
         <Link href="/palpites" className={`${styles.bottomNavItem} ${pathname === '/palpites' ? styles.bottomNavItemActive : ''}`}>
           <Trophy size={18} className={styles.bottomNavIcon} />

@@ -27,129 +27,12 @@ export default function PalpitesPage() {
   const [activeFollowId, setActiveFollowId] = useState(null);
   const [sendingSummary, setSendingSummary] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-  const [activeTab, setActiveTab] = useState('model'); // 'model' ou 'custom'
-  const [customBets, setCustomBets] = useState([]);
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
     setTimeout(() => {
       setToast({ show: false, message: '', type: 'success' });
     }, 4000);
-  };
-
-  useEffect(() => {
-    const saved = localStorage.getItem('ev_tracker_custom_bets');
-    if (saved) {
-      try {
-        setCustomBets(JSON.parse(saved));
-      } catch (e) {
-        console.warn("Erro ao ler custom bets:", e);
-      }
-    }
-  }, [activeTab]);
-
-  const handleRegisterCustomBetToBanca = async (bet) => {
-    const desc = `[Aposta Criada] ${bet.home} x ${bet.away} (${bet.selections.map(s => s.label).join(', ')})`;
-    const isAlreadyFollowed = transactions.some(t => t.description === desc);
-    if (isAlreadyFollowed) {
-      showToast("Esta aposta já foi registrada na banca!", "error");
-      return;
-    }
-
-    const newTx = {
-      date: new Date().toISOString().slice(0, 10),
-      type: bet.status === 'pendente' ? 'pendente' : bet.status,
-      amount: bet.stake,
-      description: desc,
-      odd: bet.totalOdd
-    };
-
-    let success = false;
-    let savedTx = null;
-
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('banca_transactions')
-          .insert([newTx])
-          .select();
-
-        if (error) throw error;
-        if (data && data.length > 0) {
-          savedTx = data[0];
-          success = true;
-        }
-      } catch (err) {
-        console.warn("Erro ao salvar no Supabase:", err);
-      }
-    }
-
-    if (!success) {
-      savedTx = { id: Date.now(), ...newTx };
-      const savedTxs = localStorage.getItem('ev_tracker_banca_txs');
-      let txList = [];
-      if (savedTxs) {
-        try {
-          txList = JSON.parse(savedTxs);
-        } catch (e) {}
-      }
-      txList = [savedTx, ...txList];
-      localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(txList));
-      success = true;
-    }
-
-    if (success && savedTx) {
-      setTransactions(prev => [savedTx, ...prev]);
-      showToast('Aposta registrada no seu Controle de Banca!', 'success');
-    }
-  };
-
-  const handleUpdateCustomBetStatus = async (betId, newStatus) => {
-    const bet = customBets.find(b => b.id === betId);
-    if (!bet) return;
-
-    const updatedBets = customBets.map(b => {
-      if (b.id === betId) {
-        return { ...b, status: newStatus };
-      }
-      return b;
-    });
-    setCustomBets(updatedBets);
-    localStorage.setItem('ev_tracker_custom_bets', JSON.stringify(updatedBets));
-
-    const desc = `[Aposta Criada] ${bet.home} x ${bet.away} (${bet.selections.map(s => s.label).join(', ')})`;
-    const tx = transactions.find(t => t.description === desc);
-    if (tx) {
-      const updatedTxs = transactions.map(t => {
-        if (t.id === tx.id) {
-          return { ...t, type: newStatus === 'ganho' ? 'ganho' : 'perda' };
-        }
-        return t;
-      });
-      setTransactions(updatedTxs);
-
-      if (supabase) {
-        try {
-          await supabase
-            .from('banca_transactions')
-            .update({ type: newStatus === 'ganho' ? 'ganho' : 'perda' })
-            .eq('id', tx.id);
-        } catch (e) {
-          console.warn("Erro ao atualizar transação no Supabase:", e);
-        }
-      } else {
-        localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(updatedTxs));
-      }
-    }
-
-    showToast(`Aposta definida como ${newStatus === 'ganho' ? 'GREEN' : 'RED'}!`, 'success');
-  };
-
-  const handleDeleteCustomBet = (betId) => {
-    const updated = customBets.filter(b => b.id !== betId);
-    setCustomBets(updated);
-    localStorage.setItem('ev_tracker_custom_bets', JSON.stringify(updated));
-    showToast("Aposta customizada excluída.", "success");
   };
 
   const currentRoundBets = useMemo(() => {
@@ -743,64 +626,21 @@ export default function PalpitesPage() {
   return (
     <div className="palpites-container">
       
-      <header style={{ marginBottom: '24px', paddingTop: '16px' }}>
-        <h1 className="page-title">
-          <Trophy color="#FFD700" size={32} />
-          Central de Palpites & Bilhetes
-        </h1>
-        <p style={{ color: '#888', marginTop: '8px', fontSize: '1.1rem' }}>
+      <header style={{ marginBottom: '20px', paddingTop: '16px' }}>
+        <div className="palpites-title-container">
+          <Trophy color="#FFD700" size={28} style={{ flexShrink: 0 }} />
+          <h1 className="page-title" style={{ fontSize: '1.8rem', margin: 0 }}>Central de Palpites</h1>
+        </div>
+        <p style={{ color: '#888', marginTop: '8px', fontSize: '0.95rem', lineHeight: '1.4' }}>
           Gerencie e acompanhe prognósticos automáticos e suas próprias apostas criadas via Poisson.
         </p>
       </header>
 
-      {/* Abas Principais de Navegação */}
-      <div style={{ display: 'flex', borderBottom: '1px solid #333', marginBottom: '24px', gap: '8px' }}>
-        <button
-          onClick={() => setActiveTab('model')}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            borderBottom: activeTab === 'model' ? '3px solid var(--brand-neon)' : '3px solid transparent',
-            color: activeTab === 'model' ? '#fff' : '#888',
-            padding: '10px 16px',
-            fontSize: '0.95rem',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          🏆 Palpites do Modelo
-        </button>
-        <button
-          onClick={() => setActiveTab('custom')}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            borderBottom: activeTab === 'custom' ? '3px solid var(--brand-neon)' : '3px solid transparent',
-            color: activeTab === 'custom' ? '#fff' : '#888',
-            padding: '10px 16px',
-            fontSize: '0.95rem',
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            transition: 'all 0.2s'
-          }}
-        >
-          💼 Minhas Apostas Customizadas
-        </button>
-      </div>
-
-      {activeTab === 'model' ? (
+      (
         <>
           {/* Seletores de Liga e Data (Layout Organizado e Responsivo) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
-            <div style={{ 
-              display: 'flex', 
-              gap: '8px', 
-              overflowX: 'auto', 
-              paddingBottom: '8px',
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none'
-            }} className="no-scrollbar">
+            <div className="league-buttons-container">
               {[
                 { id: '71', name: '🇧🇷 Série A' },
                 { id: '72', name: '🇧🇷 Série B' },
@@ -813,19 +653,7 @@ export default function PalpitesPage() {
                 <button
                   key={lg.id}
                   onClick={() => setSelectedLeague(lg.id)}
-                  style={{
-                    background: selectedLeague === lg.id ? 'var(--brand-neon)' : '#222',
-                    color: selectedLeague === lg.id ? '#000' : '#888',
-                    padding: '8px 16px',
-                    borderRadius: '20px',
-                    fontWeight: 'bold',
-                    fontSize: '0.85rem',
-                    border: 'none',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    whiteSpace: 'nowrap',
-                    flexShrink: 0
-                  }}
+                  className={`league-button ${selectedLeague === lg.id ? 'active' : ''}`}
                 >
                   {lg.name}
                 </button>
@@ -849,7 +677,7 @@ export default function PalpitesPage() {
                     background: '#222',
                     border: 'none',
                     color: 'var(--brand-neon)',
-                    borderRadius: '20px',
+                    borderRadius: '0px',
                     cursor: 'pointer',
                     colorScheme: 'dark',
                     fontWeight: 'bold',
@@ -893,7 +721,7 @@ export default function PalpitesPage() {
                   color: '#000',
                   border: 'none',
                   padding: '8px 18px',
-                  borderRadius: '6px',
+                  borderRadius: '0px',
                   fontWeight: 'bold',
                   fontSize: '0.85rem',
                   cursor: sendingSummary ? 'not-allowed' : 'pointer',
@@ -915,36 +743,16 @@ export default function PalpitesPage() {
           {/* Seletor de Estatísticas */}
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
             <h3 style={{ fontSize: '1rem', color: '#ccc', margin: 0, fontWeight: 'bold' }}>Estatísticas de Desempenho</h3>
-            <div style={{ display: 'flex', background: '#141419', borderRadius: '20px', padding: '4px', border: '1px solid #27272a' }}>
+            <div className="stats-selector-container">
               <button 
                 onClick={() => setStatsMode('minhas')}
-                style={{
-                  background: statsMode === 'minhas' ? 'var(--brand-neon)' : 'transparent',
-                  color: statsMode === 'minhas' ? '#000' : '#888',
-                  border: 'none',
-                  padding: '6px 16px',
-                  borderRadius: '20px',
-                  fontWeight: 'bold',
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
+                className={`stats-selector-button ${statsMode === 'minhas' ? 'active' : ''}`}
               >
                 Minhas Apostas
               </button>
               <button 
                 onClick={() => setStatsMode('modelo')}
-                style={{
-                  background: statsMode === 'modelo' ? 'var(--brand-neon)' : 'transparent',
-                  color: statsMode === 'modelo' ? '#000' : '#888',
-                  border: 'none',
-                  padding: '6px 16px',
-                  borderRadius: '20px',
-                  fontWeight: 'bold',
-                  fontSize: '0.8rem',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s'
-                }}
+                className={`stats-selector-button ${statsMode === 'modelo' ? 'active' : ''}`}
               >
                 Histórico do Modelo
               </button>
@@ -974,80 +782,35 @@ export default function PalpitesPage() {
                 };
 
             return (
-              <div style={{ 
-                display: 'grid', 
-                gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
-                gap: '20px', 
-                marginBottom: '32px' 
-              }}>
-                <div className="glass-panel" style={{ 
-                  background: 'linear-gradient(135deg, #111115, #161622)', 
-                  borderLeft: '4px solid var(--brand-neon)',
-                  padding: '12px 18px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  minHeight: '85px',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
-                }}>
-                  <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Taxa de Acerto Geral</div>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', marginTop: '4px' }}>
-                    {currentStats.hitRate}
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: '#555', marginTop: '2px' }}>{currentStats.subtextRate}</div>
+              <div className="palpites-kpi-grid">
+                <div className="palpites-kpi-card" style={{ borderLeft: '4px solid var(--brand-neon)' }}>
+                  <div className="kpi-title">Taxa de Acerto Geral</div>
+                  <div className="kpi-value">{currentStats.hitRate}</div>
+                  <div className="kpi-subtext">{currentStats.subtextRate}</div>
                 </div>
 
-                <div className="glass-panel" style={{ 
-                  background: 'linear-gradient(135deg, #111115, #161622)', 
-                  borderLeft: '4px solid #00d2ff',
-                  padding: '12px 18px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  minHeight: '85px',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
-                }}>
-                  <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>ROI (Retorno do Mês)</div>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: 'var(--brand-neon)', marginTop: '4px' }}>
-                    {currentStats.roi}
-                  </div>
-                  <div style={{ fontSize: '0.7rem', color: '#555', marginTop: '2px' }}>{currentStats.subtextRoi}</div>
+                <div className="palpites-kpi-card" style={{ borderLeft: '4px solid #00d2ff' }}>
+                  <div className="kpi-title">ROI (Retorno do Mês)</div>
+                  <div className="kpi-value" style={{ color: 'var(--brand-neon)' }}>{currentStats.roi}</div>
+                  <div className="kpi-subtext">{currentStats.subtextRoi}</div>
                 </div>
 
-                <div className="glass-panel" style={{ 
-                  background: 'linear-gradient(135deg, #111115, #161622)', 
-                  borderLeft: '4px solid #ff9800',
-                  padding: '12px 18px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  minHeight: '85px',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
-                }}>
-                  <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Palpites Verdes / Vermelhos</div>
-                  <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', marginTop: '4px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <div className="palpites-kpi-card" style={{ borderLeft: '4px solid #ff9800' }}>
+                  <div className="kpi-title">Palpites Verdes / Vermelhos</div>
+                  <div className="kpi-value" style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
                     <span style={{ color: '#4CAF50' }}>{currentStats.greens} 🟢</span>
                     <span style={{ fontSize: '1.1rem', color: '#444' }}>/</span>
                     <span style={{ color: '#ff4d4d' }}>{currentStats.reds} 🔴</span>
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: '#555', marginTop: '2px' }}>{currentStats.subtextResult}</div>
+                  <div className="kpi-subtext">{currentStats.subtextResult}</div>
                 </div>
 
-                <div className="glass-panel" style={{ 
-                  background: 'linear-gradient(135deg, #111115, #161622)', 
-                  borderLeft: '4px solid #b339ff',
-                  padding: '12px 18px',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'center',
-                  minHeight: '85px',
-                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
-                }}>
-                  <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Mercado mais Lucrativo</div>
-                  <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fff', marginTop: '4px' }}>
+                <div className="palpites-kpi-card" style={{ borderLeft: '4px solid #b339ff' }}>
+                  <div className="kpi-title">Mercado mais Lucrativo</div>
+                  <div className="kpi-value" style={{ fontSize: '1.25rem' }}>
                     Mais de 2.5 Gols
                   </div>
-                  <div style={{ fontSize: '0.7rem', color: '#4CAF50', fontWeight: 'bold', marginTop: '2px' }}>Taxa de Acerto: 84.1%</div>
+                  <div className="kpi-subtext" style={{ color: '#4CAF50', fontWeight: 'bold' }}>Taxa de Acerto: 84.1%</div>
                 </div>
               </div>
             );
@@ -1067,7 +830,7 @@ export default function PalpitesPage() {
             </div>
           )}
 
-          <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '60px' }}>
+          <div className="palpites-scroll-container no-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingBottom: '60px' }}>
             {pageLoading && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                 {[1,2,3].map(i => (
@@ -1351,181 +1114,7 @@ export default function PalpitesPage() {
             ))}
           </div>
         </>
-      ) : (
-        /* Render Custom Bets Tab */
-        <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '20px', paddingBottom: '60px' }}>
-          {customBets.length === 0 ? (
-            <div style={{ color: '#888', fontStyle: 'italic', padding: '40px 24px', background: '#111', borderRadius: '12px', textAlign: 'center', border: '1px dashed #333' }}>
-              Nenhuma aposta criada no momento. Vá até a aba "Laboratório" para selecionar mercados e criar seu bilhete!
-            </div>
-          ) : (
-            customBets.map(bet => {
-              const desc = `[Aposta Criada] ${bet.home} x ${bet.away} (${bet.selections.map(s => s.label).join(', ')})`;
-              const isAlreadyFollowed = transactions.some(t => t.description === desc);
-
-              return (
-                <div key={bet.id} style={{ 
-                  background: '#111', 
-                  borderRadius: '16px', 
-                  border: '1px solid #333', 
-                  borderLeft: bet.status === 'ganho' ? '6px solid #4CAF50' : bet.status === 'perda' ? '6px solid #ff4d4d' : '6px solid #ff9800',
-                  overflow: 'hidden',
-                  flexShrink: 0
-                }}>
-                  {/* Linha Principal do Card da Aposta Customizada */}
-                  <div className="game-card-main-row" style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '24px', padding: '20px 24px', justifyContent: 'space-between', alignItems: 'center' }}>
-                    
-                    {/* Bloco 1: Times e Data */}
-                    <div style={{ flex: '1 1 250px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                        <span style={{ color: '#888', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                          {new Date(bet.date).toLocaleDateString('pt-BR')} • {new Date(bet.date).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                        </span>
-                        <span style={{ 
-                          background: bet.status === 'ganho' ? '#4CAF5033' : bet.status === 'perda' ? '#ff4d4d33' : '#ff980033', 
-                          color: bet.status === 'ganho' ? '#4CAF50' : bet.status === 'perda' ? '#ff4d4d' : '#ff9800', 
-                          padding: '2px 8px', 
-                          borderRadius: '4px', 
-                          fontSize: '0.7rem', 
-                          fontWeight: 'bold',
-                          textTransform: 'uppercase'
-                        }}>
-                          {bet.status === 'ganho' ? 'GREEN 🟢' : bet.status === 'perda' ? 'RED 🔴' : 'PENDENTE ⏳'}
-                        </span>
-                      </div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {bet.home} <span style={{ color: 'var(--brand-neon)', fontSize: '0.9rem' }}>x</span> {bet.away}
-                      </div>
-                      <div style={{ fontSize: '0.75rem', color: '#aaa', marginTop: '6px' }}>
-                        Bilhete Criado no Laboratório Poisson
-                      </div>
-                    </div>
-
-                    {/* Bloco 2: Seleções de Mercados */}
-                    <div style={{ flex: '2 1 300px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                      <div style={{ fontSize: '0.7rem', letterSpacing: '1px', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>Seleções do Bilhete:</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                        {bet.selections.map((sel, idx) => (
-                          <div key={idx} style={{ background: '#1c1c24', border: '1px solid #333', padding: '6px 12px', borderRadius: '8px', fontSize: '0.8rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                            <span style={{ color: '#aaa', fontWeight: 'normal', fontSize: '0.7rem' }}>{sel.market}:</span>
-                            <strong>{sel.label}</strong>
-                            <span style={{ color: '#ff9800' }}>@{sel.odd}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Bloco 3: Detalhes Financeiros */}
-                    <div style={{ flex: '1 1 180px', display: 'flex', alignItems: 'center', gap: '16px', background: '#16161c', padding: '12px 18px', borderRadius: '12px', border: '1px solid #222', justifyContent: 'space-between' }}>
-                      <div>
-                        <div style={{ fontSize: '0.7rem', color: '#888', textTransform: 'uppercase' }}>Stake</div>
-                        <div style={{ fontSize: '1rem', fontWeight: 'bold', color: '#fff' }}>R$ {bet.stake.toFixed(2)}</div>
-                      </div>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '0.7rem', color: '#888', textTransform: 'uppercase' }}>Odd Total</div>
-                        <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#ff9800' }}>@{bet.totalOdd.toFixed(2)}</div>
-                      </div>
-                    </div>
-
-                  </div>
-
-                  {/* Rodapé do Card com Ações */}
-                  <div style={{ borderTop: '1px solid #222', padding: '12px 24px', background: '#0a0a0a', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      {bet.status === 'pendente' && (
-                        <>
-                          <button
-                            onClick={() => handleUpdateCustomBetStatus(bet.id, 'ganho')}
-                            style={{
-                              background: '#4CAF50',
-                              color: '#fff',
-                              border: 'none',
-                              padding: '8px 14px',
-                              borderRadius: '6px',
-                              fontWeight: 'bold',
-                              fontSize: '0.85rem',
-                              cursor: 'pointer',
-                              transition: 'opacity 0.2s'
-                            }}
-                            onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
-                            onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
-                          >
-                            Definir Green 🟢
-                          </button>
-                          <button
-                            onClick={() => handleUpdateCustomBetStatus(bet.id, 'perda')}
-                            style={{
-                              background: '#ff4d4d',
-                              color: '#fff',
-                              border: 'none',
-                              padding: '8px 14px',
-                              borderRadius: '6px',
-                              fontWeight: 'bold',
-                              fontSize: '0.85rem',
-                              cursor: 'pointer',
-                              transition: 'opacity 0.2s'
-                            }}
-                            onMouseOver={(e) => e.currentTarget.style.opacity = '0.9'}
-                            onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
-                          >
-                            Definir Red 🔴
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                      <button
-                        onClick={() => handleRegisterCustomBetToBanca(bet)}
-                        disabled={isAlreadyFollowed}
-                        style={{
-                          background: isAlreadyFollowed ? 'rgba(76, 175, 80, 0.15)' : 'transparent',
-                          color: isAlreadyFollowed ? '#4CAF50' : '#aaa',
-                          border: isAlreadyFollowed ? '1px solid rgba(76, 175, 80, 0.3)' : '1px solid #444',
-                          padding: '8px 14px',
-                          borderRadius: '6px',
-                          fontSize: '0.85rem',
-                          fontWeight: 'bold',
-                          cursor: isAlreadyFollowed ? 'not-allowed' : 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '6px',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        <PiggyBank size={16} />
-                        {isAlreadyFollowed ? 'Registrado na Banca' : 'Registrar na Banca'}
-                      </button>
-
-                      <button
-                        onClick={() => handleDeleteCustomBet(bet.id)}
-                        style={{
-                          background: 'transparent',
-                          color: '#ff4d4d',
-                          border: '1px solid #ff4d4d44',
-                          padding: '8px',
-                          borderRadius: '6px',
-                          cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          transition: 'all 0.2s'
-                        }}
-                        onMouseOver={(e) => e.currentTarget.style.background = '#ff4d4d11'}
-                        onMouseOut={(e) => e.currentTarget.style.background = 'transparent'}
-                        title="Excluir Aposta"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  </div>
-
-                </div>
-              );
-            })
-          )}
-        </div>
-      )}
+      )
 
       {/* Toast Notificação Customizada */}
       {toast.show && (

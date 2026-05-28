@@ -37,10 +37,6 @@ export default function Sidebar() {
             <Calculator size={20} className={styles.navIcon} /> 
             <span>Análise</span>
           </Link>
-          <Link href="/oportunidades" className={`${styles.navItem} ${pathname === '/oportunidades' ? styles.navItemActive : ''}`}>
-            <Activity size={20} className={styles.navIcon} /> 
-            <span>Radar Analítico</span>
-          </Link>
           <Link href="/backtest" className={`${styles.navItem} ${pathname === '/backtest' ? styles.navItemActive : ''}`}>
             <TrendingUp size={20} className={styles.navIcon} /> 
             <span>Resultados</span>

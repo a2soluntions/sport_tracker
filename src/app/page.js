@@ -337,12 +337,16 @@ export default function ResponsiveDashboard() {
                       {/* Matrix de Dados (Mono) */}
                       <div className="odds-matrix-block" style={{ background: '#050508', border: '1px solid #1c1c24', borderRadius: '6px', padding: '10px', marginTop: '6px', fontFamily: 'monospace' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', borderBottom: '1px dashed #1f1f2e', paddingBottom: '6px' }}>
-                          <span style={{ color: '#666', fontSize: '0.8rem' }}>Odd Justa (Motor)</span>
-                          <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '0.85rem' }}>@{opp.odd_justa}</span>
+                          <span style={{ color: '#666', fontSize: '0.8rem' }}>Valor Detectado</span>
+                          <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold', fontSize: '0.85rem' }}>+{parseFloat(opp.vantagem_ev_porcentagem).toFixed(1)}% EV</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', borderBottom: '1px dashed #1f1f2e', paddingBottom: '6px' }}>
+                          <span style={{ color: '#666', fontSize: '0.8rem' }}>Casa mais Vantajosa</span>
+                          <span style={{ color: '#00d2ff', fontWeight: 'bold', fontSize: '0.85rem' }}>Betano (@{opp.odd_oferecida})</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#666', fontSize: '0.8rem' }}>Odd Mercado</span>
-                          <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold', fontSize: '0.85rem' }}>@{opp.odd_oferecida}</span>
+                          <span style={{ color: '#666', fontSize: '0.8rem' }}>Comparativo (Outras)</span>
+                          <span style={{ color: '#aaa', fontSize: '0.85rem' }}>Betfair (@{opp.odd_justa})</span>
                         </div>
                       </div>
 

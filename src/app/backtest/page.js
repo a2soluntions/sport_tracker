@@ -807,11 +807,11 @@ export default function RelatorioApostasPage() {
                 <thead>
                   <tr style={{ borderBottom: '1px solid #222', color: '#666', fontSize: '0.85rem', fontWeight: 600 }}>
                     <th style={{ padding: '12px' }} className="mobile-hide">Data</th>
-                    <th style={{ padding: '12px' }}>Aposta / Confronto</th>
+                    <th style={{ padding: '12px' }}><span className="mobile-hide">Aposta / </span>Confronto</th>
                     <th style={{ padding: '12px', textAlign: 'center' }}>Resultado</th>
                     <th style={{ padding: '12px', textAlign: 'center' }}>Odd</th>
-                    <th style={{ padding: '12px', textAlign: 'right' }}>Stake (Apostado)</th>
-                    <th style={{ padding: '12px', textAlign: 'right' }}>Retorno Líquido</th>
+                    <th style={{ padding: '12px', textAlign: 'right' }}>Stake<span className="mobile-hide"> (Apostado)</span></th>
+                    <th style={{ padding: '12px', textAlign: 'right' }}>Retorno<span className="mobile-hide"> Líquido</span></th>
                     <th style={{ padding: '12px', width: '50px' }}></th>
                   </tr>
                 </thead>

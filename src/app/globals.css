@@ -821,6 +821,13 @@ input[type=number] {
     overflow-x: hidden;
     margin: 0 !important;
   }
+  header h1 {
+    font-size: 1.5rem !important;
+  }
+  header p {
+    font-size: 0.85rem !important;
+    margin-top: 4px !important;
+  }
 }
 
 /* Classes Responsivas para o Laboratório de Análise */

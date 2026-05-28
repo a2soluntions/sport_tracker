@@ -385,66 +385,7 @@ export default function ResponsiveDashboard() {
           </div>
         </div>
 
-        {/* Right pane: Bankroll, risk parameters and live terminal */}
-        <div className="dashboard-sidebar-panel">
-          
-          {/* BANKROLL CARD */}
-          <div style={{ background: '#0D0D11', border: '1px solid rgba(255,255,255,0.05)', borderRadius: '12px', padding: '20px', position: 'relative', overflow: 'hidden' }}>
-            <div style={{ position: 'absolute', top: '-10px', right: '-10px', opacity: 0.02, pointerEvents: 'none' }}>
-              <Wallet size={120} />
-            </div>
-            
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ color: '#888', fontSize: '0.75rem', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: 'bold' }}>
-                Capital (Bankroll)
-              </div>
-              <button 
-                onClick={() => {
-                  setModalInputVal(initialValue.toString());
-                  setShowModal(true);
-                }}
-                style={{ background: 'transparent', border: 'none', color: 'var(--brand-neon)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', fontWeight: 'bold', padding: '4px' }}
-              >
-                <Edit2 size={12} /> Editar
-              </button>
-            </div>
-            <div style={{ fontSize: '2rem', fontWeight: 900, color: '#fff', marginTop: '4px', fontFamily: 'monospace' }}>
-              R$ {banca.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            </div>
 
-            <div style={{ display: 'flex', gap: '16px', marginTop: '20px', paddingTop: '16px', borderTop: '1px dashed #222' }}>
-              <div>
-                <div style={{ color: '#555', fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Fórmula de Risco</div>
-                <div style={{ color: '#ccc', fontSize: '0.8rem', fontWeight: 'bold', marginTop: '2px' }}>Half-Kelly (Max 5%)</div>
-              </div>
-              <div>
-                <div style={{ color: '#555', fontSize: '0.65rem', textTransform: 'uppercase', fontWeight: 'bold' }}>Exposição Atual</div>
-                <div style={{ color: '#00d2ff', fontSize: '0.8rem', fontWeight: 'bold', marginTop: '2px' }}>0.00%</div>
-              </div>
-            </div>
-          </div>
-
-          {/* BRUTALIST TERMINAL */}
-          <div className="brutalist-terminal">
-            <div className="brutalist-terminal-header">
-              <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '8px', height: '8px', background: 'var(--brand-neon)', borderRadius: '50%', display: 'inline-block', boxShadow: '0 0 8px var(--brand-neon)' }}></span>
-                LIVE LOG PROCESSOR
-              </span>
-              <span style={{ fontSize: '0.65rem', color: '#444', fontWeight: 'bold', fontFamily: 'monospace' }}>SYSTEM_OK</span>
-            </div>
-            <div className="brutalist-terminal-content">
-              {terminalLogs.map((log, index) => (
-                <div key={index} className="brutalist-terminal-line">
-                  <span className="brutalist-terminal-time">[{log.time}]</span>
-                  <span>{log.text}</span>
-                </div>
-              ))}
-              <div ref={terminalEndRef}></div>
-            </div>
-          </div>
-
-        </div>
 
       </div>
 

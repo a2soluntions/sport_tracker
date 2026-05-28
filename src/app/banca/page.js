@@ -661,7 +661,7 @@ export default function GestaoBancaPage() {
       </div>
 
       {/* Gráfico de Crescimento do Capital */}
-      <div className="glass-panel responsive-chart-panel" style={{ display: 'flex', flexDirection: 'column', maxWidth: '600px', width: '100%' }}>
+      <div className="glass-panel responsive-chart-panel" style={{ display: 'flex', flexDirection: 'column', maxWidth: '100%', width: '100%' }}>
         <h2 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0, color: '#ccc', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
           Gráfico de Crescimento do Capital
         </h2>

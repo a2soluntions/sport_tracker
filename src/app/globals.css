@@ -708,22 +708,30 @@ input[type=number] {
   .grid-responsive-cards-banca > div > div:first-child {
     font-size: 0.58rem !important;
     letter-spacing: 0px !important;
+    flex-wrap: wrap !important; /* Evita sobreposição do botão Editar */
   }
   .grid-responsive-cards-banca > div > div:nth-child(2) {
-    font-size: 0.85rem !important; /* Smaller values (e.g. R$ 10.00) */
+    font-size: 0.82rem !important; /* Ajusta valor da banca */
     margin-top: 1px !important;
+  }
+  .grid-responsive-cards-banca > div > div:nth-child(2) span {
+    font-size: 0.6rem !important; /* Diminui porcentagem do Yield */
   }
   .mobile-edit-btn {
     font-size: 0.55rem !important;
     padding: 0 !important;
   }
 
-  /* Compact Form Row */
+  /* Stacked Banca Form (Evita botões cortados e overflow) */
   .banca-form-row {
-    flex-direction: row !important;
-    align-items: flex-end !important;
-    gap: 8px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
     margin-top: 8px !important;
+  }
+  .banca-form-row > div {
+    width: 100% !important;
+    flex: none !important;
   }
   .responsive-banca-form {
     padding: 12px !important;
@@ -736,17 +744,60 @@ input[type=number] {
   .banca-form-row label {
     font-size: 0.65rem !important;
   }
-  .banca-form-row select,
+  .banca-form-row select {
+    height: 38px !important;
+    font-size: 0.82rem !important;
+    padding: 6px 12px !important;
+    width: 100% !important;
+  }
+  .banca-form-row div > div {
+    height: 38px !important;
+    width: 100% !important;
+  }
   .banca-form-row input,
   .banca-form-row span {
-    height: 36px !important;
-    font-size: 0.8rem !important;
+    height: 100% !important;
+    font-size: 0.82rem !important;
     padding: 6px 10px !important;
   }
   .banca-form-row .btn-responsive-compact {
-    height: 36px !important;
-    width: 36px !important;
-    padding: 0 !important;
+    height: 38px !important;
+    width: 100% !important;
+    border-radius: 8px !important;
+    margin-top: 4px !important;
+    padding: 0 16px !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 8px !important;
+  }
+  .banca-form-row .btn-responsive-compact .btn-text-mobile-hide {
+    display: inline !important; /* Exibe o texto do botão já que está full-width */
+  }
+
+  /* Tabela de Lançamentos Compacta (Cabe tudo sem rolagem horizontal) */
+  .table-responsive-container table {
+    width: 100% !important;
+    table-layout: auto !important;
+  }
+  .table-responsive-container table th,
+  .table-responsive-container table td {
+    padding: 6px 4px !important;
+    font-size: 0.72rem !important;
+    font-weight: 400 !important; /* Retira o peso do texto */
+    white-space: nowrap !important;
+  }
+  .table-responsive-container table th {
+    font-weight: 500 !important;
+    color: #666 !important;
+  }
+  .table-responsive-container table td span {
+    font-weight: 400 !important;
+    font-size: 0.65rem !important;
+    padding: 2px 4px !important;
+  }
+  .table-responsive-container table td > div {
+    flex-wrap: nowrap !important;
   }
 
   /* Compact Charts */
@@ -768,6 +819,7 @@ input[type=number] {
     max-width: 100%;
     min-width: 0;
     overflow-x: hidden;
+    margin: 0 !important;
   }
 }
 

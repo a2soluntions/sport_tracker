@@ -589,6 +589,7 @@ export default function GestaoBancaPage() {
                 setModalInputVal(initialValue.toString());
                 setShowModal(true);
               }}
+              className="mobile-edit-btn"
               style={{ background: 'transparent', border: 'none', color: 'var(--brand-neon)', cursor: 'pointer', fontSize: '0.75rem', padding: '0 4px', fontWeight: 'bold' }}
             >
               Editar

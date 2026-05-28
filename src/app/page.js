@@ -189,6 +189,11 @@ export default function ResponsiveDashboard() {
     return () => supabase.removeChannel(channel);
   }, []);
 
+  const activeOpportunities = useMemo(() => {
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+    return opportunities.filter(opp => new Date(opp.created_at) > twelveHoursAgo);
+  }, [opportunities]);
+
   // Simulate Terminal Logs activity
   useEffect(() => {
     const logs = [
@@ -207,8 +212,8 @@ export default function ResponsiveDashboard() {
       const now = new Date().toLocaleTimeString('pt-BR');
       
       let logText = randomLog;
-      if (Math.random() > 0.6 && opportunities.length > 0) {
-        const randomOpp = opportunities[Math.floor(Math.random() * opportunities.length)];
+      if (Math.random() > 0.6 && activeOpportunities.length > 0) {
+        const randomOpp = activeOpportunities[Math.floor(Math.random() * activeOpportunities.length)];
         logText = `🎯 ANÁLISE: ${randomOpp.confronto} (${randomOpp.mercado}) possui margem matemática +EV`;
       }
       
@@ -216,7 +221,7 @@ export default function ResponsiveDashboard() {
     }, 8000);
     
     return () => clearInterval(interval);
-  }, [opportunities]);
+  }, [activeOpportunities]);
 
   // Calculate Kelly Criterion
   const calculateKelly = (oddMercado, oddJusta) => {
@@ -270,16 +275,16 @@ export default function ResponsiveDashboard() {
             <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#fff', margin: 0, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Zap size={18} color="var(--brand-neon)" /> Sinais +EV Em Tempo Real
             </h2>
-            <span style={{ fontSize: '0.8rem', color: '#666', fontWeight: 'bold' }}>{opportunities.length} ATIVOS</span>
+            <span style={{ fontSize: '0.8rem', color: '#666', fontWeight: 'bold' }}>{activeOpportunities.length} ATIVOS</span>
           </div>
 
           <div className="dashboard-cards-grid">
-            {opportunities.length === 0 ? (
+            {activeOpportunities.length === 0 ? (
               <div style={{ textAlign: 'center', color: '#555', padding: '60px', gridColumn: '1 / -1', border: '1px dashed #222', borderRadius: '8px' }}>
                 Nenhum sinal ativo no momento. Aguardando processamento do motor lógico...
               </div>
             ) : (
-              opportunities.map((opp) => {
+              activeOpportunities.map((opp) => {
                 const stake = calculateKelly(opp.odd_oferecida, opp.odd_justa);
                 
                 return (

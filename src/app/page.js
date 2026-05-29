@@ -280,8 +280,208 @@ export default function ResponsiveDashboard() {
 
           <div className="dashboard-cards-grid">
             {activeOpportunities.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#555', padding: '60px', gridColumn: '1 / -1', border: '1px dashed #222', borderRadius: '8px' }}>
-                Nenhum sinal ativo no momento. Aguardando processamento do motor lógico...
+              <div style={{ gridColumn: '1 / -1', display: 'flex', flexDirection: 'column', gap: '32px', width: '100%', marginTop: '12px' }}>
+                
+                {/* Banner de Status do Motor */}
+                <div className="glass-panel" style={{ 
+                  background: 'linear-gradient(135deg, #111115, #14141d)', 
+                  border: '1px solid #222', 
+                  borderLeft: '4px solid var(--brand-neon)',
+                  padding: '24px', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  justifyContent: 'space-between',
+                  flexWrap: 'wrap',
+                  gap: '16px',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div className="sync-pulse" style={{ 
+                      width: '12px', height: '12px', borderRadius: '50%', 
+                      background: 'var(--brand-neon)', boxShadow: '0 0 10px var(--brand-neon)' 
+                    }}></div>
+                    <div>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        Varredura de Odds em Andamento
+                      </h3>
+                      <p style={{ color: '#888', fontSize: '0.85rem', marginTop: '4px' }}>
+                        Nosso robô está monitorando a Betano e Betfair neste instante. Nenhuma assimetria de valor matemático foi detectada nas últimas 12 horas.
+                      </p>
+                    </div>
+                  </div>
+                  <div style={{ background: 'rgba(204, 255, 0, 0.05)', color: 'var(--brand-neon)', border: '1px solid rgba(204, 255, 0, 0.15)', padding: '8px 16px', borderRadius: '8px', fontSize: '0.8rem', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                    PATROL_STATUS: ACTIVE
+                  </div>
+                </div>
+
+                {/* Grid de Benefícios / Explicação */}
+                <div style={{ 
+                  display: 'grid', 
+                  gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+                  gap: '20px' 
+                }}>
+                  
+                  <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '20px', background: '#111115' }}>
+                    <div style={{ width: '40px', height: '40px', background: 'rgba(204, 255, 0, 0.05)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(204, 255, 0, 0.15)' }}>
+                      <Target size={20} color="var(--brand-neon)" />
+                    </div>
+                    <h4 style={{ fontSize: '1.05rem', fontWeight: 'bold', color: '#fff' }}>Modelo de Poisson 2D</h4>
+                    <p style={{ color: '#888', fontSize: '0.82rem', lineHeight: '1.4' }}>
+                      Utilizamos distribuição probabilística baseada em gols esperados (xG) para calcular as True Odds (probabilidade real) de cada confronto.
+                    </p>
+                  </div>
+
+                  <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '20px', background: '#111115' }}>
+                    <div style={{ width: '40px', height: '40px', background: 'rgba(0, 210, 255, 0.05)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(0, 210, 255, 0.15)' }}>
+                      <TrendingUp size={20} color="#00d2ff" />
+                    </div>
+                    <h4 style={{ fontSize: '1.05rem', fontWeight: 'bold', color: '#fff' }}>Gestão de Risco Kelly</h4>
+                    <p style={{ color: '#888', fontSize: '0.82rem', lineHeight: '1.4' }}>
+                      Cada sinal acompanha uma recomendação de aposta customizada e otimizada (Half-Kelly) de acordo com sua banca para proteger e expandir seu capital.
+                    </p>
+                  </div>
+
+                  <div className="glass-panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px', padding: '20px', background: '#111115' }}>
+                    <div style={{ width: '40px', height: '40px', background: 'rgba(255, 152, 0, 0.05)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(255, 152, 0, 0.15)' }}>
+                      <Terminal size={20} color="#ff9800" />
+                    </div>
+                    <h4 style={{ fontSize: '1.05rem', fontWeight: 'bold', color: '#fff' }}>Assimetria Detectada</h4>
+                    <p style={{ color: '#888', fontSize: '0.82rem', lineHeight: '1.4' }}>
+                      O robô compara cotações oferecidas contra odds justas. Se houver vantagem matemática (+EV), o sinal é disparado na hora.
+                    </p>
+                  </div>
+
+                </div>
+
+                {/* Seção de Exemplo Prático (Preview do Sinal) */}
+                <div style={{ marginTop: '12px' }}>
+                  <h4 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#aaa', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Info size={16} color="var(--brand-neon)" /> Como são os alertas de valor (+EV)
+                  </h4>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(330px, 1fr))', gap: '16px', opacity: 0.85 }}>
+                    
+                    {/* Mock de sinal 1 */}
+                    <div className="card-brutalist" style={{ position: 'relative', border: '1px solid rgba(204, 255, 0, 0.2)', boxShadow: '0 4px 30px rgba(204, 255, 0, 0.05)' }}>
+                      <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%) rotate(-5deg)', background: '#ff9800', color: '#000', fontSize: '0.62rem', fontWeight: 900, padding: '2px 10px', borderRadius: '4px', letterSpacing: '1px', zIndex: 10, border: '1px solid #000' }}>
+                        EXEMPLO DE ALERTA
+                      </div>
+                      
+                      <div style={{ height: '4px', width: '100%', background: 'var(--brand-neon)' }}></div>
+                      <div className="card-brutalist-header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--brand-neon)' }}></div>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff', letterSpacing: '0.5px' }}>VALOR DETECTADO</span>
+                        </div>
+                        <div style={{ background: 'rgba(204,255,0,0.15)', color: 'var(--brand-neon)', padding: '4px 8px', borderRadius: '4px', fontWeight: 900, fontSize: '0.85rem', border: '1px solid rgba(204,255,0,0.2)' }}>
+                          +18.9% EV
+                        </div>
+                      </div>
+                      <div className="card-brutalist-body" style={{ filter: 'grayscale(20%)' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#666', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Clock size={11} /> 20:45 • Brasileirão Série A
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                          <span style={{ fontWeight: 800, color: '#fff', fontSize: '1.05rem' }}>Flamengo x Palmeiras</span>
+                        </div>
+                        <div style={{ color: '#00d2ff', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                          📍 Vitória do Flamengo
+                        </div>
+                        <div className="odds-matrix-block" style={{ background: '#050508', border: '1px solid #1c1c24', borderRadius: '6px', padding: '10px', marginTop: '6px', fontFamily: 'monospace' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', borderBottom: '1px dashed #1f1f2e', paddingBottom: '6px' }}>
+                            <span style={{ color: '#666', fontSize: '0.8rem' }}>Valor Detectado</span>
+                            <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold', fontSize: '0.85rem' }}>+18.9% EV</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', borderBottom: '1px dashed #1f1f2e', paddingBottom: '6px' }}>
+                            <span style={{ color: '#666', fontSize: '0.8rem' }}>Casa mais Vantajosa</span>
+                            <span style={{ color: '#00d2ff', fontWeight: 'bold', fontSize: '0.85rem' }}>Betano (@2.20)</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#666', fontSize: '0.8rem' }}>Comparativo (Outras)</span>
+                            <span style={{ color: '#aaa', fontSize: '0.85rem' }}>Betfair (@1.85)</span>
+                          </div>
+                        </div>
+                        <div className="risk-block" style={{ background: 'rgba(242, 63, 66, 0.03)', border: '1px solid rgba(242, 63, 66, 0.15)', borderRadius: '6px', padding: '10px', marginTop: '4px' }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--alert-red)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.5px' }}>
+                            Gestão de Risco (Kelly)
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                            <div>
+                              <div style={{ color: '#666', fontSize: '0.65rem' }}>Stake Recomendada</div>
+                              <div style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 900, fontFamily: 'monospace', marginTop: '2px' }}>
+                                R$ 50,00
+                              </div>
+                            </div>
+                            <div style={{ color: '#888', fontSize: '0.7rem', textAlign: 'right', fontWeight: 'bold' }}>
+                              5.00% Banca
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Mock de sinal 2 */}
+                    <div className="card-brutalist" style={{ position: 'relative', border: '1px solid rgba(0, 210, 255, 0.2)', boxShadow: '0 4px 30px rgba(0, 210, 255, 0.05)' }}>
+                      <div style={{ position: 'absolute', top: '12px', left: '50%', transform: 'translateX(-50%) rotate(5deg)', background: '#ff9800', color: '#000', fontSize: '0.62rem', fontWeight: 900, padding: '2px 10px', borderRadius: '4px', letterSpacing: '1px', zIndex: 10, border: '1px solid #000' }}>
+                        EXEMPLO DE ALERTA
+                      </div>
+                      
+                      <div style={{ height: '4px', width: '100%', background: '#00d2ff' }}></div>
+                      <div className="card-brutalist-header">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#00d2ff' }}></div>
+                          <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff', letterSpacing: '0.5px' }}>VALOR DETECTADO</span>
+                        </div>
+                        <div style={{ background: 'rgba(0,210,255,0.15)', color: '#00d2ff', padding: '4px 8px', borderRadius: '4px', fontWeight: 900, fontSize: '0.85rem', border: '1px solid rgba(0,210,255,0.2)' }}>
+                          +10.5% EV
+                        </div>
+                      </div>
+                      <div className="card-brutalist-body" style={{ filter: 'grayscale(20%)' }}>
+                        <div style={{ fontSize: '0.75rem', color: '#666', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                          <Clock size={11} /> 21:30 • Brasileirão Série A
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
+                          <span style={{ fontWeight: 800, color: '#fff', fontSize: '1.05rem' }}>São Paulo x Botafogo</span>
+                        </div>
+                        <div style={{ color: '#00d2ff', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                          📍 Mais de 2.5 Gols
+                        </div>
+                        <div className="odds-matrix-block" style={{ background: '#050508', border: '1px solid #1c1c24', borderRadius: '6px', padding: '10px', marginTop: '6px', fontFamily: 'monospace' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', borderBottom: '1px dashed #1f1f2e', paddingBottom: '6px' }}>
+                            <span style={{ color: '#666', fontSize: '0.8rem' }}>Valor Detectado</span>
+                            <span style={{ color: '#00d2ff', fontWeight: 'bold', fontSize: '0.85rem' }}>+10.5% EV</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px', borderBottom: '1px dashed #1f1f2e', paddingBottom: '6px' }}>
+                            <span style={{ color: '#666', fontSize: '0.8rem' }}>Casa mais Vantajosa</span>
+                            <span style={{ color: '#00d2ff', fontWeight: 'bold', fontSize: '0.85rem' }}>Betano (@2.10)</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                            <span style={{ color: '#666', fontSize: '0.8rem' }}>Comparativo (Outras)</span>
+                            <span style={{ color: '#aaa', fontSize: '0.85rem' }}>Betfair (@1.90)</span>
+                          </div>
+                        </div>
+                        <div className="risk-block" style={{ background: 'rgba(242, 63, 66, 0.03)', border: '1px solid rgba(242, 63, 66, 0.15)', borderRadius: '6px', padding: '10px', marginTop: '4px' }}>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--alert-red)', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '0.5px' }}>
+                            Gestão de Risco (Kelly)
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                            <div>
+                              <div style={{ color: '#666', fontSize: '0.65rem' }}>Stake Recomendada</div>
+                              <div style={{ color: '#fff', fontSize: '1.25rem', fontWeight: 900, fontFamily: 'monospace', marginTop: '2px' }}>
+                                R$ 35,00
+                              </div>
+                            </div>
+                            <div style={{ color: '#888', fontSize: '0.7rem', textAlign: 'right', fontWeight: 'bold' }}>
+                              3.50% Banca
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
               </div>
             ) : (
               activeOpportunities.map((opp) => {

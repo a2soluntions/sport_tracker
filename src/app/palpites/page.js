@@ -708,6 +708,12 @@ export default function PalpitesPage() {
           return { ...game, stats };
         });
 
+        // Ordenar: Ao Vivo primeiro → Não Iniciados → Encerrados por último
+        processedGames.sort((a, b) => {
+          const priority = (g) => g.isLive ? 0 : g.isFinished ? 2 : 1;
+          return priority(a) - priority(b);
+        });
+
         setGames(processedGames);
         
         if (selectedLeague === 'all') {

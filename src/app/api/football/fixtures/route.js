@@ -35,18 +35,82 @@ async function getBrasileiraoStats() {
   }
 }
 
+// ESTATÍSTICAS DETALHADAS DE QUALQUER LIGA VIA API-SPORTS (CLASSIFICAÇÃO)
+async function getApiSportsStandings(leagueId, season) {
+  const cacheKey = `${leagueId}_${season}`;
+  const now = Date.now();
+  if (cache.stats[cacheKey] && (now - cache.stats[cacheKey].timestamp) < 12 * 60 * 60 * 1000) {
+    return cache.stats[cacheKey].data;
+  }
+  
+  try {
+    const url = `${API_HOST}/standings?league=${leagueId}&season=${season}`;
+    const res = await fetch(url, {
+      headers: { 'x-apisports-key': API_KEY }
+    });
+    const data = await res.json();
+    const standings = data.response?.[0]?.league?.standings?.[0] || [];
+    
+    const stats = {};
+    for (const entry of standings) {
+      const teamName = entry.team.name;
+      const played = entry.all.played || 1;
+      stats[teamName] = {
+        name: teamName,
+        logo: entry.team.logo,
+        goalsFor: entry.all.goals.for / played,
+        goalsAgainst: entry.all.goals.against / played,
+        position: entry.rank
+      };
+    }
+    
+    cache.stats[cacheKey] = { data: stats, timestamp: now };
+    return stats;
+  } catch (err) {
+    console.warn(`[API-Sports Standings] Falha ao carregar classificação da liga ${leagueId}:`, err);
+    return {};
+  }
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const leagueId = searchParams.get('league') || '71';
     const targetDate = searchParams.get('date') || new Date().toISOString().split('T')[0];
 
-    // ==========================================
-    // FALLBACK BRASILEIRÃO (LIGA 71) - IGNORA DATA SE FOR HOJE/RODADA ATUAL
-    // A chave API-Sports do usuário está bloqueada para temporadas 2025/2026 (Free Plan limitation).
-    // Então, para o Brasileirão, usamos o web scraper gratuito que funciona 100%.
-    // ==========================================
-    if (leagueId === '71' || leagueId === '72') {
+    const season = process.env.API_FOOTBALL_SEASON || '2024';
+    const isPaidPlan = season === '2026';
+    const returnAll = searchParams.get('all') === 'true';
+
+    // Para Brasileirão (Ligas 71/72), se não for plano pago (temporada 2026),
+    // ou se for plano pago mas a API falhar/retornar vazio, usamos o scraper campeonato-brasileiro-api.
+    let useScraper = (leagueId === '71' || leagueId === '72') && !isPaidPlan;
+    let apiSportsFixtures = [];
+    let apiSportsRound = '?';
+
+    if ((leagueId === '71' || leagueId === '72') && isPaidPlan) {
+      try {
+        const url = returnAll
+          ? `${API_HOST}/fixtures?league=${leagueId}&season=${season}`
+          : `${API_HOST}/fixtures?league=${leagueId}&season=${season}&date=${targetDate}`;
+
+        const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
+        const data = await res.json();
+        
+        if (data.response && data.response.length > 0) {
+          apiSportsFixtures = data.response;
+          apiSportsRound = data.response[0].league.round.replace('Regular Season - ', '') || '?';
+        } else {
+          console.log(`[API-Sports] Nenhum jogo retornado para Brasileirão liga ${leagueId} temporada ${season}. Usando fallback Scraper...`);
+          useScraper = true;
+        }
+      } catch (err) {
+        console.warn(`[API-Sports] Erro ao buscar Brasileirão da API. Usando fallback Scraper...`, err);
+        useScraper = true;
+      }
+    }
+
+    if (useScraper) {
       const currentRoundData = await getCurrentRound(leagueId === '71' ? 'a' : 'b');
       if (!currentRoundData || !currentRoundData.rounds || currentRoundData.rounds.length === 0) {
         return NextResponse.json({ fixtures: [], round: '?', season: 2026, fromCache: false });
@@ -69,7 +133,7 @@ export async function GET(request) {
 
         return {
           id: m.id,
-          homeTeamId: null, // Será buscado pelo nome na calculadora
+          homeTeamId: null,
           awayTeamId: null,
           date: `${new Date(m.date + 'T' + m.time + ':00').toLocaleDateString('pt-BR', {day:'2-digit', month:'short'})} • ${m.time}`,
           rawDate: m.date,
@@ -93,8 +157,6 @@ export async function GET(request) {
         };
       });
 
-      // Se o usuário selecionou uma data específica, filtramos os jogos dessa data localmente (exceto se pediu all=true para auto-resolver)
-      const returnAll = searchParams.get('all') === 'true';
       const filteredByDate = returnAll ? formattedFixtures : formattedFixtures.filter(f => f.rawDate === targetDate);
 
       return NextResponse.json({ 
@@ -106,25 +168,33 @@ export async function GET(request) {
     }
 
     // ==========================================
-    // OUTRAS LIGAS - TENTA USAR API-SPORTS (Pode vir vazio devido ao plano Free)
+    // OUTRAS LIGAS OU BRASILEIRÃO VIA API-SPORTS
     // ==========================================
-    const season = process.env.API_FOOTBALL_SEASON || '2024'; // Usar a do ambiente ou 2024 como fallback para plano Free
-    const returnAll = searchParams.get('all') === 'true';
+    const matches = apiSportsFixtures.length > 0 ? apiSportsFixtures : await (async () => {
+      const url = returnAll
+        ? `${API_HOST}/fixtures?league=${leagueId}&season=${season}`
+        : `${API_HOST}/fixtures?league=${leagueId}&season=${season}&date=${targetDate}`;
+      const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
+      const data = await res.json();
+      return data.response || [];
+    })();
 
-    const url = returnAll
-      ? `${API_HOST}/fixtures?league=${leagueId}&season=${season}`
-      : `${API_HOST}/fixtures?league=${leagueId}&season=${season}&date=${targetDate}`;
-
-    const fixturesRes = await fetch(url, {
-      headers: { 'x-apisports-key': API_KEY }
-    });
-    const fixturesData = await fixturesRes.json();
-    const matches = fixturesData.response || [];
+    // Buscar classificação (standings) da liga para calcular xG dinâmico
+    const teamStats = await getApiSportsStandings(leagueId, season);
 
     let formattedFixtures = matches.map((m) => {
       const isFinished = ['FT', 'AET', 'PEN'].includes(m.fixture.status.short);
       const isLive = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT'].includes(m.fixture.status.short);
       let statusLabel = isLive ? `Em Andamento ⚽ ${m.fixture.status.elapsed}'` : isFinished ? 'Finalizado' : 'Não Iniciado';
+
+      // Calcular xG dinâmico usando estatísticas da classificação
+      const homeTeamName = m.teams.home.name;
+      const awayTeamName = m.teams.away.name;
+      const homeStats = teamStats[homeTeamName] || { goalsFor: 1.4, goalsAgainst: 1.2, position: '-' };
+      const awayStats = teamStats[awayTeamName] || { goalsFor: 1.2, goalsAgainst: 1.4, position: '-' };
+
+      const homeXG = Math.round(((homeStats.goalsFor + awayStats.goalsAgainst) / 2) * 10) / 10;
+      const awayXG = Math.round(((awayStats.goalsFor + homeStats.goalsAgainst) / 2) * 10) / 10;
 
       return {
         id: m.fixture.id,
@@ -134,12 +204,12 @@ export async function GET(request) {
         rawDate: m.fixture.date.split('T')[0],
         dayCategory: 'TODOS',
         round: m.league.round.replace('Regular Season - ', '') || '?',
-        home: m.teams.home.name,
-        away: m.teams.away.name,
+        home: homeTeamName,
+        away: awayTeamName,
         homeLogo: m.teams.home.logo,
         awayLogo: m.teams.away.logo,
-        homeXG: 1.5, // Mock baseline já que stats de 2024 n fazem sentido
-        awayXG: 1.1,
+        homeXG,
+        awayXG,
         goalsHome: m.goals.home ?? 0,
         goalsAway: m.goals.away ?? 0,
         status: statusLabel,
@@ -147,12 +217,12 @@ export async function GET(request) {
         isFinished,
         minute: m.fixture.status.elapsed || 0,
         venue: m.fixture.venue?.name || '',
-        homePosition: '-',
-        awayPosition: '-'
+        homePosition: homeStats.position,
+        awayPosition: awayStats.position
       };
     });
 
-    if (returnAll) {
+    if (returnAll && !(leagueId === '71' || leagueId === '72')) {
       // Ordena por data decrescente e pega as 40 partidas mais recentes
       formattedFixtures.sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate));
       formattedFixtures = formattedFixtures.slice(0, 40);
@@ -160,8 +230,8 @@ export async function GET(request) {
 
     return NextResponse.json({ 
       fixtures: formattedFixtures, 
-      round: '?',
-      season: 2024,
+      round: apiSportsRound !== '?' ? apiSportsRound : (matches[0]?.league?.round?.replace('Regular Season - ', '') || '?'),
+      season: parseInt(season),
       fromCache: false 
     });
 

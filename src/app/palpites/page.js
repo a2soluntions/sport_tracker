@@ -669,8 +669,7 @@ export default function PalpitesPage() {
         </p>
       </header>
 
-      (
-        <>
+      <>
           {/* Seletores de Liga e Data (Layout Organizado e Responsivo) */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
             <div className="league-buttons-container">
@@ -1074,123 +1073,7 @@ export default function PalpitesPage() {
                   </div>
                 </div>
 
-                {/* PAINEL DE ESTATÍSTICAS EXPANSÍVEL (Inspirado no Radar Esportivo) */}
-                {openStatsId === game.id && (() => {
-                  const corn = getCornersStats(game.home, game.away, game.homeXG, game.awayXG);
-                  const probOver05HT = (1 - Math.exp(-0.45 * (game.homeXG + game.awayXG))) * 100;
-                  
-                  return (
-                    <div style={{ 
-                      borderTop: '1px solid #222', 
-                      padding: '24px', 
-                      background: 'linear-gradient(180deg, #0e0e12, #141419)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      gap: '20px'
-                    }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                        <h4 style={{ fontSize: '1rem', fontWeight: 'bold', margin: 0, color: 'var(--brand-neon)', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          📊 Radar de Estatísticas de Jogo
-                        </h4>
-                        <span style={{ fontSize: '0.75rem', color: '#666', fontFamily: 'monospace' }}>MODEL_PROJECTION: IN_PLAY_READY</span>
-                      </div>
-                      
-                      {/* Grid de 2 Colunas */}
-                      <div className="stats-drawer-grid" style={{ 
-                        display: 'grid', 
-                        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
-                        gap: '24px' 
-                      }}>
-                        
-                        {/* Coluna 1: Escanteios */}
-                        <div style={{ background: '#1c1c24', borderRadius: '12px', border: '1px solid #333', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
-                            <span>📐 Média de Escanteios (Cantos)</span>
-                            <span style={{ color: 'var(--brand-neon)' }}>Partida: {corn.projected}</span>
-                          </div>
-                          
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {/* Casa */}
-                            <div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
-                                <span>{game.home} (Casa)</span>
-                                <span>Feitos: <strong>{corn.home.feitos}</strong> | Sofridos: <strong>{corn.home.sofridos}</strong></span>
-                              </div>
-                              <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ background: '#00d2ff', width: `${(corn.home.feitos / 12) * 100}%`, height: '100%' }}></div>
-                              </div>
-                            </div>
 
-                            {/* Fora */}
-                            <div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
-                                <span>{game.away} (Fora)</span>
-                                <span>Feitos: <strong>{corn.away.feitos}</strong> | Sofridos: <strong>{corn.away.sofridos}</strong></span>
-                              </div>
-                              <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ background: '#ff9800', width: `${(corn.away.feitos / 12) * 100}%`, height: '100%' }}></div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Coluna 2: Probabilidade de Gols */}
-                        <div style={{ background: '#1c1c24', borderRadius: '12px', border: '1px solid #333', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                          <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
-                            ⚽ Matriz Probabilística de Gols
-                          </div>
-                          
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                            {/* Over 0.5 HT */}
-                            <div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
-                                <span>Over 0.5 Gols no HT (1º Tempo)</span>
-                                <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>{probOver05HT.toFixed(1)}%</span>
-                              </div>
-                              <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ background: 'var(--brand-neon)', width: `${probOver05HT}%`, height: '100%' }}></div>
-                              </div>
-                            </div>
-
-                            {/* Over 1.5 FT */}
-                            <div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
-                                <span>Over 1.5 Gols no FT (Jogo Todo)</span>
-                                <span style={{ color: '#00ffa0', fontWeight: 'bold' }}>{(game.stats.probOver15 * 100).toFixed(1)}%</span>
-                              </div>
-                              <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ background: '#00ffa0', width: `${game.stats.probOver15 * 100}%`, height: '100%' }}></div>
-                              </div>
-                            </div>
-
-                            {/* Over 2.5 FT */}
-                            <div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
-                                <span>Over 2.5 Gols no FT (Jogo Todo)</span>
-                                <span style={{ color: '#00d2ff', fontWeight: 'bold' }}>{(game.stats.probOver25 * 100).toFixed(1)}%</span>
-                              </div>
-                              <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ background: '#00d2ff', width: `${game.stats.probOver25 * 100}%`, height: '100%' }}></div>
-                              </div>
-                            </div>
-
-                            {/* Ambos Marcam */}
-                            <div>
-                              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
-                                <span>Ambas Equipes Marcam (BTTS)</span>
-                                <span style={{ color: '#b339ff', fontWeight: 'bold' }}>{(game.stats.probBtts * 100).toFixed(1)}%</span>
-                              </div>
-                              <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                                <div style={{ background: '#b339ff', width: `${game.stats.probBtts * 100}%`, height: '100%' }}></div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                      </div>
-                    </div>
-                  );
-                })()}
 
                 {/* Painel Inline para Entrada Rápida na Banca */}
                 {activeFollowId === game.id && (
@@ -1286,7 +1169,206 @@ export default function PalpitesPage() {
             ))}
           </div>
         </>
-      )
+
+      {/* POPUP DE ESTATÍSTICAS (MODAL) */}
+      {openStatsId && (() => {
+        const game = games.find(g => g.id === openStatsId);
+        if (!game) return null;
+        
+        const corn = getCornersStats(game.home, game.away, game.homeXG, game.awayXG);
+        const probOver05HT = (1 - Math.exp(-0.45 * (game.homeXG + game.awayXG))) * 100;
+        
+        return (
+          <div 
+            onClick={() => setOpenStatsId(null)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              backgroundColor: 'rgba(0, 0, 0, 0.75)',
+              backdropFilter: 'blur(5px)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 10000,
+              animation: 'fadeIn 0.2s ease-out'
+            }}
+          >
+            <div 
+              className="glass-panel" 
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '90%',
+                maxWidth: '650px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                background: 'linear-gradient(135deg, #111115, #14141d)',
+                border: '1px solid #333',
+                borderTop: '4px solid var(--brand-neon)',
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '20px',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.8)',
+                position: 'relative',
+                animation: 'scaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)'
+              }}
+            >
+              {/* Botão de Fechar Modal */}
+              <button 
+                onClick={() => setOpenStatsId(null)}
+                style={{
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#aaa',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  transition: 'color 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.color = '#fff'}
+                onMouseOut={(e) => e.target.style.color = '#aaa'}
+              >
+                ✕
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
+                <span style={{ fontSize: '1.5rem' }}>📊</span>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>
+                    Radar de Estatísticas
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: '#888', margin: '2px 0 0 0', fontFamily: 'monospace' }}>
+                    {game.home} x {game.away} • Poisson Projections
+                  </p>
+                </div>
+              </div>
+
+              {/* Grid de 2 Colunas */}
+              <div className="stats-drawer-grid" style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', 
+                gap: '20px',
+                marginTop: '8px'
+              }}>
+                
+                {/* Coluna 1: Escanteios */}
+                <div style={{ background: '#1c1c24', borderRadius: '12px', border: '1px solid #333', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
+                    <span>📐 Média de Escanteios (Cantos)</span>
+                    <span style={{ color: 'var(--brand-neon)' }}>Partida: {corn.projected}</span>
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    {/* Casa */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
+                        <span>{game.home} (Casa)</span>
+                        <span>Feitos: <strong>{corn.home.feitos}</strong> | Sofridos: <strong>{corn.home.sofridos}</strong></span>
+                      </div>
+                      <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ background: '#00d2ff', width: `${(corn.home.feitos / 12) * 100}%`, height: '100%' }}></div>
+                      </div>
+                    </div>
+
+                    {/* Fora */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
+                        <span>{game.away} (Fora)</span>
+                        <span>Feitos: <strong>{corn.away.feitos}</strong> | Sofridos: <strong>{corn.away.sofridos}</strong></span>
+                      </div>
+                      <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ background: '#ff9800', width: `${(corn.away.feitos / 12) * 100}%`, height: '100%' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Coluna 2: Probabilidade de Gols */}
+                <div style={{ background: '#1c1c24', borderRadius: '12px', border: '1px solid #333', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
+                    ⚽ Matriz Probabilística de Gols
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {/* Over 0.5 HT */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
+                        <span>Over 0.5 Gols no HT (1º Tempo)</span>
+                        <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>{probOver05HT.toFixed(1)}%</span>
+                      </div>
+                      <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ background: 'var(--brand-neon)', width: `${probOver05HT}%`, height: '100%' }}></div>
+                      </div>
+                    </div>
+
+                    {/* Over 1.5 FT */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
+                        <span>Over 1.5 Gols no FT (Jogo Todo)</span>
+                        <span style={{ color: '#00ffa0', fontWeight: 'bold' }}>{(game.stats.probOver15 * 100).toFixed(1)}%</span>
+                      </div>
+                      <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ background: '#00ffa0', width: `${game.stats.probOver15 * 100}%`, height: '100%' }}></div>
+                      </div>
+                    </div>
+
+                    {/* Over 2.5 FT */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
+                        <span>Over 2.5 Gols no FT (Jogo Todo)</span>
+                        <span style={{ color: '#00d2ff', fontWeight: 'bold' }}>{(game.stats.probOver25 * 100).toFixed(1)}%</span>
+                      </div>
+                      <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ background: '#00d2ff', width: `${game.stats.probOver25 * 100}%`, height: '100%' }}></div>
+                      </div>
+                    </div>
+
+                    {/* Ambos Marcam */}
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
+                        <span>Ambas Equipes Marcam (BTTS)</span>
+                        <span style={{ color: '#b339ff', fontWeight: 'bold' }}>{(game.stats.probBtts * 100).toFixed(1)}%</span>
+                      </div>
+                      <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
+                        <div style={{ background: '#b339ff', width: `${game.stats.probBtts * 100}%`, height: '100%' }}></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+              </div>
+              
+              {/* Botão de Fechar no Rodapé */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+                <button 
+                  onClick={() => setOpenStatsId(null)}
+                  style={{
+                    background: 'var(--brand-neon)',
+                    border: 'none',
+                    color: '#000',
+                    padding: '10px 24px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '0.9rem',
+                    boxShadow: '0 4px 15px rgba(204, 255, 0, 0.2)'
+                  }}
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Toast Notificação Customizada */}
       {toast.show && (
@@ -1324,6 +1406,14 @@ export default function PalpitesPage() {
         @keyframes slideIn {
           from { transform: translateY(100px); opacity: 0; }
           to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes scaleUp {
+          from { transform: scale(0.95); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
         }
       `}</style>
     </div>

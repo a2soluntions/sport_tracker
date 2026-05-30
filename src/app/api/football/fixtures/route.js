@@ -82,6 +82,22 @@ export async function GET(request) {
     const isPaidPlan = season === '2026';
     const returnAll = searchParams.get('all') === 'true';
 
+    // Determinar a temporada ativa correspondente
+    let activeSeason = season;
+    const europeanLeagues = ['39', '140', '135', '78'];
+    if (europeanLeagues.includes(leagueId)) {
+      const year = parseInt(season);
+      if (year === 2026) {
+        // Obter o mês a partir da data de destino
+        const targetMonth = new Date(targetDate + 'T00:00:00').getMonth();
+        if (targetMonth < 6) { // Antes de julho, a temporada europeia ativa ainda é a de 2025 (2025/2026)
+          activeSeason = '2025';
+        } else {
+          activeSeason = '2026'; // A partir de julho/agosto inicia a temporada de 2026 (2026/2027)
+        }
+      }
+    }
+
     // Para Brasileirão (Ligas 71/72), se não for plano pago (temporada 2026),
     // ou se for plano pago mas a API falhar/retornar vazio, usamos o scraper campeonato-brasileiro-api.
     let useScraper = (leagueId === '71' || leagueId === '72') && !isPaidPlan;
@@ -91,8 +107,8 @@ export async function GET(request) {
     if ((leagueId === '71' || leagueId === '72') && isPaidPlan) {
       try {
         const url = returnAll
-          ? `${API_HOST}/fixtures?league=${leagueId}&season=${season}`
-          : `${API_HOST}/fixtures?league=${leagueId}&season=${season}&date=${targetDate}`;
+          ? `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}`
+          : `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}&date=${targetDate}`;
 
         const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
         const data = await res.json();
@@ -101,7 +117,7 @@ export async function GET(request) {
           apiSportsFixtures = data.response;
           apiSportsRound = data.response[0].league.round.replace('Regular Season - ', '') || '?';
         } else {
-          console.log(`[API-Sports] Nenhum jogo retornado para Brasileirão liga ${leagueId} temporada ${season}. Usando fallback Scraper...`);
+          console.log(`[API-Sports] Nenhum jogo retornado para Brasileirão liga ${leagueId} temporada ${activeSeason}. Usando fallback Scraper...`);
           useScraper = true;
         }
       } catch (err) {
@@ -172,15 +188,15 @@ export async function GET(request) {
     // ==========================================
     const matches = apiSportsFixtures.length > 0 ? apiSportsFixtures : await (async () => {
       const url = returnAll
-        ? `${API_HOST}/fixtures?league=${leagueId}&season=${season}`
-        : `${API_HOST}/fixtures?league=${leagueId}&season=${season}&date=${targetDate}`;
+        ? `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}`
+        : `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}&date=${targetDate}`;
       const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
       const data = await res.json();
       return data.response || [];
     })();
 
     // Buscar classificação (standings) da liga para calcular xG dinâmico
-    const teamStats = await getApiSportsStandings(leagueId, season);
+    const teamStats = await getApiSportsStandings(leagueId, activeSeason);
 
     let formattedFixtures = matches.map((m) => {
       const isFinished = ['FT', 'AET', 'PEN'].includes(m.fixture.status.short);
@@ -231,7 +247,7 @@ export async function GET(request) {
     return NextResponse.json({ 
       fixtures: formattedFixtures, 
       round: apiSportsRound !== '?' ? apiSportsRound : (matches[0]?.league?.round?.replace('Regular Season - ', '') || '?'),
-      season: parseInt(season),
+      season: parseInt(activeSeason),
       fromCache: false 
     });
 

@@ -130,9 +130,19 @@ export default function GestaoBancaPage() {
   const [modalInputVal, setModalInputVal] = useState('');
 
   // Form States
-  const [txType, setTxType] = useState('ganho'); // 'ganho', 'perda'
+  const [txType, setTxType] = useState('ganho'); // 'ganho', 'perda', 'alavancagem'
   const [txAmount, setTxAmount] = useState('');
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+
+  // Mapeia transações com descrição 'Alavancagem' para o tipo virtual 'alavancagem'
+  const normalizedTransactions = useMemo(() => {
+    return transactions.map(t => {
+      if (t.description === 'Alavancagem' || t.description === 'Alavancagem Manual' || (t.description && t.description.startsWith('[Alavancagem]'))) {
+        return { ...t, type: 'alavancagem' };
+      }
+      return t;
+    });
+  }, [transactions]);
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -145,10 +155,28 @@ export default function GestaoBancaPage() {
   useEffect(() => {
     setMounted(true);
     
-    // Carregar valor inicial da banca
-    const savedInitialValue = localStorage.getItem('ev_tracker_banca_initial_value');
-    if (savedInitialValue) {
-      setInitialValue(parseFloat(savedInitialValue));
+    async function loadInitialValue() {
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('user_settings')
+            .select('banca')
+            .eq('id', 1)
+            .single();
+          if (!error && data && data.banca !== undefined) {
+            const val = parseFloat(data.banca);
+            setInitialValue(val);
+            localStorage.setItem('ev_tracker_banca_initial_value', val.toString());
+            return;
+          }
+        } catch (e) {
+          console.warn("Erro ao carregar banca inicial do Supabase:", e);
+        }
+      }
+      const savedInitialValue = localStorage.getItem('ev_tracker_banca_initial_value');
+      if (savedInitialValue) {
+        setInitialValue(parseFloat(savedInitialValue));
+      }
     }
 
     async function cleanupPastBets() {
@@ -354,6 +382,7 @@ export default function GestaoBancaPage() {
     }
 
     async function init() {
+      await loadInitialValue();
       await cleanupPastBets();
       await loadTransactions();
     }
@@ -377,7 +406,15 @@ export default function GestaoBancaPage() {
     if (!txAmount || Number(txAmount) <= 0) return;
 
     const todayDate = new Date().toISOString().slice(0, 10);
-    const desc = txType === 'ganho' ? 'Ganho Manual' : 'Perda Manual';
+    
+    // Se for Alavancagem, salvamos na DB como "ganho" para respeitar a constraint,
+    // e na descrição como "Alavancagem" para ser mapeada no frontend.
+    const dbType = txType === 'alavancagem' ? 'ganho' : txType;
+    const desc = txType === 'alavancagem' 
+      ? 'Alavancagem' 
+      : txType === 'ganho' 
+        ? 'Ganho Manual' 
+        : 'Perda Manual';
     const oddVal = null;
 
     const newTxLocal = {
@@ -395,7 +432,7 @@ export default function GestaoBancaPage() {
           .from('banca_transactions')
           .insert([{
             date: todayDate,
-            type: txType,
+            type: dbType,
             amount: Number(txAmount),
             description: desc,
             odd: oddVal
@@ -464,10 +501,10 @@ export default function GestaoBancaPage() {
     let wins = 0;
     let losses = 0;
 
-    transactions.forEach(t => {
+    normalizedTransactions.forEach(t => {
       if (t.type === 'aporte') totalDeposits += t.amount;
       else if (t.type === 'retirada') totalWithdrawals += t.amount;
-      else if (t.type === 'ganho') {
+      else if (t.type === 'ganho' || t.type === 'alavancagem') {
         const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;
         totalProfit += profit;
         wins += 1;
@@ -496,12 +533,12 @@ export default function GestaoBancaPage() {
       totalBets,
       hitRate
     };
-  }, [transactions, initialValue]);
+  }, [normalizedTransactions, initialValue]);
 
   // Compilar dados para o gráfico (ordem cronológica ascendente)
   const chartData = useMemo(() => {
-    const sorted = [...transactions]
-      .filter(t => t.type === 'ganho' || t.type === 'perda')
+    const sorted = [...normalizedTransactions]
+      .filter(t => t.type === 'ganho' || t.type === 'perda' || t.type === 'alavancagem')
       .sort((a, b) => new Date(a.date) - new Date(b.date));
     
     const dataPoints = [{
@@ -512,7 +549,7 @@ export default function GestaoBancaPage() {
 
     let balance = initialValue;
     sorted.forEach((t) => {
-      if (t.type === 'ganho') {
+      if (t.type === 'ganho' || t.type === 'alavancagem') {
         const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;
         balance += profit;
       }
@@ -530,7 +567,7 @@ export default function GestaoBancaPage() {
     });
 
     return dataPoints;
-  }, [transactions, initialValue]);
+  }, [normalizedTransactions, initialValue]);
 
   const isPositive = stats.netProfit >= 0;
 
@@ -625,6 +662,7 @@ export default function GestaoBancaPage() {
             >
               <option value="ganho">Ganho (Blue) 🔵</option>
               <option value="perda">Perda (Red) 🔴</option>
+              <option value="alavancagem">Alavancagem 🟢</option>
             </select>
           </div>
 
@@ -703,7 +741,7 @@ export default function GestaoBancaPage() {
           Histórico de Lançamentos
         </h2>
         
-        {transactions.filter(t => t.type === 'ganho' || t.type === 'perda' || t.type === 'pendente').length === 0 ? (
+        {normalizedTransactions.filter(t => t.type === 'ganho' || t.type === 'perda' || t.type === 'alavancagem' || t.type === 'pendente').length === 0 ? (
           <div style={{ color: '#888', fontStyle: 'italic', padding: '32px', textAlign: 'center' }}>
             Nenhum ganho ou perda registrado. Comece gravando um lançamento acima.
           </div>
@@ -721,10 +759,11 @@ export default function GestaoBancaPage() {
                 </tr>
               </thead>
               <tbody>
-                {transactions.filter(t => t.type === 'ganho' || t.type === 'perda' || t.type === 'pendente').map((tx) => {
+                 {normalizedTransactions.filter(t => t.type === 'ganho' || t.type === 'perda' || t.type === 'alavancagem' || t.type === 'pendente').map((tx) => {
                   const isGain = tx.type === 'ganho';
                   const isLoss = tx.type === 'perda';
                   const isPending = tx.type === 'pendente';
+                  const isAlav = tx.type === 'alavancagem';
 
                   return (
                     <tr key={tx.id} style={{ borderBottom: '1px solid #1c1c24' }}>
@@ -764,12 +803,12 @@ export default function GestaoBancaPage() {
                           borderRadius: '20px', 
                           fontSize: '0.75rem', 
                           fontWeight: 600,
-                          background: isGain ? 'rgba(0, 210, 255, 0.15)' : isLoss ? 'rgba(255, 77, 77, 0.15)' : 'rgba(255, 193, 7, 0.15)',
-                          color: isGain ? '#00d2ff' : isLoss ? '#ff4d4d' : '#FFC107',
-                          border: '1px solid ' + (isGain ? 'rgba(0,210,255,0.3)' : isLoss ? 'rgba(255,77,77,0.3)' : 'rgba(255,193,7,0.3)')
+                          background: isGain ? 'rgba(0, 210, 255, 0.15)' : isLoss ? 'rgba(255, 77, 77, 0.15)' : isAlav ? 'rgba(76, 175, 80, 0.15)' : 'rgba(255, 193, 7, 0.15)',
+                          color: isGain ? '#00d2ff' : isLoss ? '#ff4d4d' : isAlav ? '#4CAF50' : '#FFC107',
+                          border: '1px solid ' + (isGain ? 'rgba(0,210,255,0.3)' : isLoss ? 'rgba(255,77,77,0.3)' : isAlav ? 'rgba(76,175,80,0.3)' : 'rgba(255,193,7,0.3)')
                         }}>
-                          <span className="mobile-hide">{isGain ? 'GANHO' : isLoss ? 'PERDA' : 'PENDENTE'}</span>
-                          <span className="mobile-show">{isGain ? 'G' : isLoss ? 'P' : 'E'}</span>
+                          <span className="mobile-hide">{isGain ? 'GANHO' : isLoss ? 'PERDA' : isAlav ? 'ALAVANCAGEM' : 'PENDENTE'}</span>
+                          <span className="mobile-show">{isGain ? 'G' : isLoss ? 'P' : isAlav ? 'A' : 'E'}</span>
                         </span>
                       </td>
                       <td style={{ padding: '12px', textAlign: 'center', color: '#ff9800', fontWeight: 500 }}>
@@ -780,10 +819,10 @@ export default function GestaoBancaPage() {
                         padding: '12px', 
                         textAlign: 'right', 
                         fontWeight: 500,
-                        color: isPending ? '#FFC107' : isGain ? '#00d2ff' : '#ff4d4d' 
+                        color: isPending ? '#FFC107' : (isGain || isAlav) ? '#4CAF50' : '#ff4d4d' 
                       }}>
-                        {isPending ? '' : isGain ? '+' : '-'} R$ {
-                          isGain && tx.odd 
+                        {isPending ? '' : (isGain || isAlav) ? '+' : '-'} R$ {
+                          (isGain || isAlav) && tx.odd 
                             ? (tx.amount * (tx.odd - 1)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                             : tx.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                         }
@@ -914,11 +953,24 @@ export default function GestaoBancaPage() {
                 Cancelar
               </button>
               <button 
-                onClick={() => {
+                onClick={async () => {
                   const num = parseFloat(modalInputVal.replace(',', '.'));
                   if (!isNaN(num)) {
                     setInitialValue(num);
                     localStorage.setItem('ev_tracker_banca_initial_value', num.toString());
+                    
+                    if (supabase) {
+                      try {
+                        const { error } = await supabase
+                          .from('user_settings')
+                          .update({ banca: num })
+                          .eq('id', 1);
+                        if (error) throw error;
+                      } catch (e) {
+                        console.warn("Erro ao salvar banca inicial no Supabase:", e);
+                      }
+                    }
+
                     showToast('Valor inicial atualizado com sucesso!', 'success');
                     setShowModal(false);
                   } else {

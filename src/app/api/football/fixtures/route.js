@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentRound, getStandings } from 'campeonato-brasileiro-api';
 
-const API_KEY = '4101632afdfe0cbb870f0432e05ec892';
+const API_KEY = process.env.API_FOOTBALL_KEY;
 const API_HOST = 'https://v3.football.api-sports.io';
 
 // Caches
@@ -108,7 +108,7 @@ export async function GET(request) {
     // ==========================================
     // OUTRAS LIGAS - TENTA USAR API-SPORTS (Pode vir vazio devido ao plano Free)
     // ==========================================
-    const season = '2024'; // Forçado 2024 pois a API key Free só aceita até 2024.
+    const season = process.env.API_FOOTBALL_SEASON || '2024'; // Usar a do ambiente ou 2024 como fallback para plano Free
     const returnAll = searchParams.get('all') === 'true';
 
     const url = returnAll

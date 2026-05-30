@@ -106,24 +106,64 @@ export default function ResponsiveDashboard() {
 
   // Load Initial Value
   useEffect(() => {
-    const savedInitial = localStorage.getItem('ev_tracker_banca_initial_value');
-    if (savedInitial) {
-      setInitialValue(parseFloat(savedInitial));
-    }
+    const loadInitialValue = async () => {
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('user_settings')
+            .select('banca')
+            .eq('id', 1)
+            .single();
+          if (!error && data && data.banca !== undefined) {
+            const val = parseFloat(data.banca);
+            setInitialValue(val);
+            localStorage.setItem('ev_tracker_banca_initial_value', val.toString());
+            return;
+          }
+        } catch (e) {
+          console.warn("Erro ao carregar banca inicial do Supabase:", e);
+        }
+      }
+      const savedInitial = localStorage.getItem('ev_tracker_banca_initial_value');
+      if (savedInitial) {
+        setInitialValue(parseFloat(savedInitial));
+      }
+    };
+    loadInitialValue();
   }, []);
 
   // Fetch Transactions and Calculate Banca
   const fetchTransactions = async () => {
     let initial = 0;
-    const savedInitial = localStorage.getItem('ev_tracker_banca_initial_value');
-    if (savedInitial) initial = parseFloat(savedInitial);
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('user_settings')
+          .select('banca')
+          .eq('id', 1)
+          .single();
+        if (!error && data && data.banca !== undefined) {
+          initial = parseFloat(data.banca);
+        } else {
+          const savedInitial = localStorage.getItem('ev_tracker_banca_initial_value');
+          if (savedInitial) initial = parseFloat(savedInitial);
+        }
+      } catch (e) {
+        const savedInitial = localStorage.getItem('ev_tracker_banca_initial_value');
+        if (savedInitial) initial = parseFloat(savedInitial);
+      }
+    } else {
+      const savedInitial = localStorage.getItem('ev_tracker_banca_initial_value');
+      if (savedInitial) initial = parseFloat(savedInitial);
+    }
 
     let currentBanca = initial;
     if (supabase) {
       const { data } = await supabase.from('banca_transactions').select('*');
       if (data) {
         data.forEach(t => {
-          if (t.type === 'ganho') {
+          const isGain = t.type === 'ganho' || t.type === 'alavancagem' || t.description === 'Alavancagem';
+          if (isGain) {
             const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;
             currentBanca += profit;
           } else if (t.type === 'perda') {
@@ -136,7 +176,8 @@ export default function ResponsiveDashboard() {
       if (savedTxs) {
         const txs = JSON.parse(savedTxs);
         txs.forEach(t => {
-          if (t.type === 'ganho') {
+          const isGain = t.type === 'ganho' || t.type === 'alavancagem' || t.description === 'Alavancagem';
+          if (isGain) {
             const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;
             currentBanca += profit;
           } else if (t.type === 'perda') {
@@ -243,11 +284,23 @@ export default function ResponsiveDashboard() {
     return 'var(--brand-neon)';
   };
 
-  const handleSaveBanca = () => {
+  const handleSaveBanca = async () => {
     const num = parseFloat(modalInputVal.replace(',', '.'));
     if (!isNaN(num)) {
       setInitialValue(num);
       localStorage.setItem('ev_tracker_banca_initial_value', num.toString());
+      
+      if (supabase) {
+        try {
+          await supabase
+            .from('user_settings')
+            .update({ banca: num })
+            .eq('id', 1);
+        } catch (e) {
+          console.warn("Erro ao salvar banca inicial no Supabase:", e);
+        }
+      }
+      
       setShowModal(false);
       
       // Log event to terminal

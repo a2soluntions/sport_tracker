@@ -165,6 +165,20 @@ const getH2HStats = (home, away) => {
   };
 };
 
+const getLeagueName = (leagueId) => {
+  const mapping = {
+    '71': 'Brasileirão Série A',
+    '72': 'Brasileirão Série B',
+    '13': 'Copa Libertadores',
+    '12': 'Copa Sudamericana',
+    '39': 'Premier League',
+    '140': 'La Liga',
+    '135': 'Serie A (Itália)',
+    '78': 'Bundesliga'
+  };
+  return mapping[leagueId] || 'Futebol';
+};
+
 export default function PalpitesPage() {
   const [games, setGames] = useState([]);
   const [loadingId, setLoadingId] = useState(null);
@@ -176,7 +190,7 @@ export default function PalpitesPage() {
   const [roundInfo, setRoundInfo] = useState(null);
 
   // Novos estados para Filtro de Ligas e Data
-  const [selectedLeague, setSelectedLeague] = useState('71'); // 71 = Brasileirão A
+  const [selectedLeague, setSelectedLeague] = useState('all'); // default to load all games
   const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
 
   // Estados do Controle de Banca integrado
@@ -651,17 +665,38 @@ export default function PalpitesPage() {
   useEffect(() => {
     const fetchFixtures = async () => {
       setPageLoading(true);
+      setApiError(null);
       try {
-        const response = await fetch(`/api/football/fixtures?league=${selectedLeague}&date=${selectedDate}`);
-        const data = await response.json();
+        const leaguesToFetch = selectedLeague === 'all'
+          ? ['71', '72', '13', '12', '39', '140', '135', '78']
+          : [selectedLeague];
 
-        if (data.error) {
-          setApiError(data.error);
-          setPageLoading(false);
-          return;
-        }
+        const fetchPromises = leaguesToFetch.map(async (lgId) => {
+          try {
+            const response = await fetch(`/api/football/fixtures?league=${lgId}&date=${selectedDate}`);
+            if (!response.ok) return { fixtures: [], round: '?', leagueId: lgId };
+            const data = await response.json();
+            return { fixtures: data.fixtures || [], round: data.round || '?', leagueId: lgId };
+          } catch (e) {
+            return { fixtures: [], round: '?', leagueId: lgId };
+          }
+        });
 
-        const processedGames = data.fixtures.map(game => {
+        const results = await Promise.all(fetchPromises);
+        
+        let allFixtures = [];
+        let primaryRound = null;
+
+        results.forEach(res => {
+          const gamesWithLeague = res.fixtures.map(g => ({ ...g, sourceLeagueId: res.leagueId }));
+          allFixtures = [...allFixtures, ...gamesWithLeague];
+          
+          if (res.leagueId === selectedLeague || (selectedLeague === 'all' && res.leagueId === '71' && res.fixtures.length > 0)) {
+            primaryRound = res.round;
+          }
+        });
+
+        const processedGames = allFixtures.map(game => {
           const stats = calculatePoissonMatchStats(
             game.homeXG, 
             game.awayXG, 
@@ -674,7 +709,13 @@ export default function PalpitesPage() {
         });
 
         setGames(processedGames);
-        setRoundInfo({ round: data.round, season: data.season });
+        
+        if (selectedLeague === 'all') {
+          setRoundInfo({ round: primaryRound || 'Várias', season: '2026' });
+        } else {
+          const selectedRes = results.find(r => r.leagueId === selectedLeague);
+          setRoundInfo({ round: selectedRes?.round || '?', season: '2026' });
+        }
       } catch (err) {
         console.error('Erro ao buscar jogos:', err);
         setApiError('Falha ao conectar com a API de futebol.');
@@ -803,9 +844,11 @@ export default function PalpitesPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
             <div className="league-buttons-container">
               {[
+                { id: 'all', name: '⚽ Todas' },
                 { id: '71', name: '🇧🇷 Série A' },
                 { id: '72', name: '🇧🇷 Série B' },
                 { id: '13', name: '🌎 Libertadores' },
+                { id: '12', name: '🌎 Sudamericana' },
                 { id: '39', name: '🇬🇧 Premier' },
                 { id: '140', name: '🇪🇸 La Liga' },
                 { id: '135', name: '🇮🇹 Serie A' },
@@ -1031,7 +1074,7 @@ export default function PalpitesPage() {
                     </div>
                     <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: '4px', textTransform: 'uppercase' }}>Futebol</div>
                     <div style={{ fontWeight: 'bold', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      Brasileirão Série A <span style={{ background: '#333', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', color: '#aaa' }}>Rodada {game.round}</span>
+                      {getLeagueName(game.sourceLeagueId || selectedLeague)} <span style={{ background: '#333', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', color: '#aaa' }}>Rodada {game.round}</span>
                     </div>
                     
                     <div className="game-card-teams-row">

@@ -82,19 +82,18 @@ export async function GET(request) {
     const isPaidPlan = season === '2026';
     const returnAll = searchParams.get('all') === 'true';
 
-    // Determinar a temporada ativa correspondente
-    let activeSeason = season;
+    // Determinar a temporada ativa correspondente com base no ano da data de destino
+    const dateObj = new Date(targetDate + 'T00:00:00');
+    const targetYear = dateObj.getFullYear();
+    const targetMonth = dateObj.getMonth();
+
+    let activeSeason = String(targetYear);
     const europeanLeagues = ['39', '140', '135', '78'];
     if (europeanLeagues.includes(leagueId)) {
-      const year = parseInt(season);
-      if (year === 2026) {
-        // Obter o mês a partir da data de destino
-        const targetMonth = new Date(targetDate + 'T00:00:00').getMonth();
-        if (targetMonth < 6) { // Antes de julho, a temporada europeia ativa ainda é a de 2025 (2025/2026)
-          activeSeason = '2025';
-        } else {
-          activeSeason = '2026'; // A partir de julho/agosto inicia a temporada de 2026 (2026/2027)
-        }
+      if (targetMonth < 6) { // Antes de julho, a temporada europeia ativa ainda é a do ano anterior (e.g. 2025 para maio de 2026)
+        activeSeason = String(targetYear - 1);
+      } else {
+        activeSeason = String(targetYear);
       }
     }
 
@@ -118,6 +117,9 @@ export async function GET(request) {
           apiSportsRound = data.response[0].league.round.replace('Regular Season - ', '') || '?';
         } else {
           console.log(`[API-Sports] Nenhum jogo retornado para Brasileirão liga ${leagueId} temporada ${activeSeason}. Usando fallback Scraper...`);
+          if (data.errors && Object.keys(data.errors).length > 0) {
+            console.error(`[API-Sports] Detalhes dos erros da API:`, data.errors);
+          }
           useScraper = true;
         }
       } catch (err) {
@@ -192,6 +194,9 @@ export async function GET(request) {
         : `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}&date=${targetDate}`;
       const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
       const data = await res.json();
+      if (data.errors && Object.keys(data.errors).length > 0) {
+        console.error(`[API-Sports] Erro retornado pela API para a liga ${leagueId}:`, data.errors);
+      }
       return data.response || [];
     })();
 

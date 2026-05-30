@@ -76,14 +76,28 @@ export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
     const leagueId = searchParams.get('league') || '71';
-    const targetDate = searchParams.get('date') || new Date().toISOString().split('T')[0];
+    
+    // Get target date or default to today's date in America/Sao_Paulo timezone
+    const targetDate = searchParams.get('date') || (() => {
+      const formatter = new Intl.DateTimeFormat('pt-BR', {
+        timeZone: 'America/Sao_Paulo',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit'
+      });
+      const parts = formatter.formatToParts(new Date());
+      const day = parts.find(p => p.type === 'day').value;
+      const month = parts.find(p => p.type === 'month').value;
+      const year = parts.find(p => p.type === 'year').value;
+      return `${year}-${month}-${day}`;
+    })();
 
     const season = process.env.API_FOOTBALL_SEASON || '2024';
     const isPaidPlan = season === '2026';
     const returnAll = searchParams.get('all') === 'true';
 
     // Determinar a temporada ativa correspondente com base no ano da data de destino
-    const dateObj = new Date(targetDate + 'T00:00:00');
+    const dateObj = new Date(targetDate + 'T00:00:00-03:00');
     const targetYear = dateObj.getFullYear();
     const targetMonth = dateObj.getMonth();
 
@@ -101,29 +115,40 @@ export async function GET(request) {
     // ou se for plano pago mas a API falhar/retornar vazio, usamos o scraper campeonato-brasileiro-api.
     let useScraper = (leagueId === '71' || leagueId === '72') && !isPaidPlan;
     let apiSportsFixtures = [];
-    let apiSportsRound = '?';
+    let fromCache = false;
+
+    // Cache key for fixtures of the league and season
+    const fixturesCacheKey = `${leagueId}_${activeSeason}`;
+    const nowTimestamp = Date.now();
 
     if ((leagueId === '71' || leagueId === '72') && isPaidPlan) {
-      try {
-        const url = returnAll
-          ? `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}`
-          : `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}&date=${targetDate}`;
-
-        const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
-        const data = await res.json();
-        
-        if (data.response && data.response.length > 0) {
-          apiSportsFixtures = data.response;
-          apiSportsRound = data.response[0].league.round.replace('Regular Season - ', '') || '?';
-        } else {
-          console.log(`[API-Sports] Nenhum jogo retornado para Brasileirão liga ${leagueId} temporada ${activeSeason}. Usando fallback Scraper...`);
-          if (data.errors && Object.keys(data.errors).length > 0) {
-            console.error(`[API-Sports] Detalhes dos erros da API:`, data.errors);
+      let matchesOfSeason = [];
+      if (cache.fixtures[fixturesCacheKey] && (nowTimestamp - cache.fixtures[fixturesCacheKey].timestamp) < CACHE_DURATION_FIXTURES) {
+        matchesOfSeason = cache.fixtures[fixturesCacheKey].data;
+        fromCache = true;
+      } else {
+        try {
+          const url = `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}`;
+          const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
+          const data = await res.json();
+          matchesOfSeason = data.response || [];
+          if (matchesOfSeason.length > 0) {
+            cache.fixtures[fixturesCacheKey] = {
+              data: matchesOfSeason,
+              timestamp: nowTimestamp
+            };
           }
-          useScraper = true;
+        } catch (err) {
+          console.warn(`[API-Sports] Erro ao buscar Brasileirão da API:`, err);
+          matchesOfSeason = cache.fixtures[fixturesCacheKey]?.data || [];
+          fromCache = !!cache.fixtures[fixturesCacheKey];
         }
-      } catch (err) {
-        console.warn(`[API-Sports] Erro ao buscar Brasileirão da API. Usando fallback Scraper...`, err);
+      }
+
+      if (matchesOfSeason.length > 0) {
+        apiSportsFixtures = matchesOfSeason;
+      } else {
+        console.log(`[API-Sports] Nenhum jogo retornado para Brasileirão liga ${leagueId} temporada ${activeSeason}. Usando fallback Scraper...`);
         useScraper = true;
       }
     }
@@ -153,7 +178,11 @@ export async function GET(request) {
           id: m.id,
           homeTeamId: null,
           awayTeamId: null,
-          date: `${new Date(m.date + 'T' + m.time + ':00').toLocaleDateString('pt-BR', {day:'2-digit', month:'short'})} • ${m.time}`,
+          date: (() => {
+            const dateObj = new Date(`${m.date}T${m.time}:00-03:00`);
+            const localDateStr = dateObj.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'short' }).replace('.', '');
+            return `${localDateStr} • ${m.time}`;
+          })(),
           rawDate: m.date,
           dayCategory: 'TODOS',
           round: activeRound.number || '?',
@@ -188,17 +217,35 @@ export async function GET(request) {
     // ==========================================
     // OUTRAS LIGAS OU BRASILEIRÃO VIA API-SPORTS
     // ==========================================
-    const matches = apiSportsFixtures.length > 0 ? apiSportsFixtures : await (async () => {
-      const url = returnAll
-        ? `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}`
-        : `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}&date=${targetDate}`;
-      const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
-      const data = await res.json();
-      if (data.errors && Object.keys(data.errors).length > 0) {
-        console.error(`[API-Sports] Erro retornado pela API para a liga ${leagueId}:`, data.errors);
+    let matches = [];
+    if (apiSportsFixtures.length > 0) {
+      matches = apiSportsFixtures;
+    } else {
+      if (cache.fixtures[fixturesCacheKey] && (nowTimestamp - cache.fixtures[fixturesCacheKey].timestamp) < CACHE_DURATION_FIXTURES) {
+        matches = cache.fixtures[fixturesCacheKey].data;
+        fromCache = true;
+      } else {
+        try {
+          const url = `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}`;
+          const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
+          const data = await res.json();
+          if (data.errors && Object.keys(data.errors).length > 0) {
+            console.error(`[API-Sports] Erro retornado pela API para a liga ${leagueId}:`, data.errors);
+          }
+          matches = data.response || [];
+          if (matches.length > 0) {
+            cache.fixtures[fixturesCacheKey] = {
+              data: matches,
+              timestamp: nowTimestamp
+            };
+          }
+        } catch (err) {
+          console.warn(`[API-Sports] Erro ao buscar fixtures da liga ${leagueId} temporada ${activeSeason}:`, err);
+          matches = cache.fixtures[fixturesCacheKey]?.data || [];
+          fromCache = !!cache.fixtures[fixturesCacheKey];
+        }
       }
-      return data.response || [];
-    })();
+    }
 
     // Buscar classificação (standings) da liga para calcular xG dinâmico
     const teamStats = await getApiSportsStandings(leagueId, activeSeason);
@@ -217,12 +264,33 @@ export async function GET(request) {
       const homeXG = Math.round(((homeStats.goalsFor + awayStats.goalsAgainst) / 2) * 10) / 10;
       const awayXG = Math.round(((awayStats.goalsFor + homeStats.goalsAgainst) / 2) * 10) / 10;
 
+      // Timezone-aware date formatting (Brazil timezone)
+      const dateObj = new Date(m.fixture.date);
+      const localDateStr = dateObj.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'short' }).replace('.', '');
+      const localTimeStr = dateObj.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+      const displayDate = `${localDateStr} • ${localTimeStr}`;
+
+      // Timezone-aware rawDate in YYYY-MM-DD in America/Sao_Paulo timezone
+      const rawDate = (() => {
+        const formatter = new Intl.DateTimeFormat('en-US', {
+          timeZone: 'America/Sao_Paulo',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit'
+        });
+        const parts = formatter.formatToParts(dateObj);
+        const year = parts.find(p => p.type === 'year').value;
+        const month = parts.find(p => p.type === 'month').value;
+        const day = parts.find(p => p.type === 'day').value;
+        return `${year}-${month}-${day}`;
+      })();
+
       return {
         id: m.fixture.id,
         homeTeamId: m.teams.home.id,
         awayTeamId: m.teams.away.id,
-        date: `${new Date(m.fixture.date).toLocaleDateString('pt-BR', {day:'2-digit', month:'short', timeZone: 'America/Sao_Paulo'})} • ${new Date(m.fixture.date).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit', timeZone: 'America/Sao_Paulo'})}`,
-        rawDate: new Date(m.fixture.date).toLocaleDateString('en-CA', { timeZone: 'America/Sao_Paulo' }),
+        date: displayDate,
+        rawDate: rawDate,
         dayCategory: 'TODOS',
         round: m.league.round.replace('Regular Season - ', '') || '?',
         home: homeTeamName,
@@ -243,17 +311,32 @@ export async function GET(request) {
       };
     });
 
-    if (returnAll && !(leagueId === '71' || leagueId === '72')) {
-      // Ordena por data decrescente e pega as 40 partidas mais recentes
-      formattedFixtures.sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate));
-      formattedFixtures = formattedFixtures.slice(0, 40);
+    let filteredFixtures = formattedFixtures;
+    let apiSportsRound = '?';
+
+    if (returnAll) {
+      if (!(leagueId === '71' || leagueId === '72')) {
+        // Ordena por data decrescente e pega as 40 partidas mais recentes
+        filteredFixtures.sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate));
+        filteredFixtures = filteredFixtures.slice(0, 40);
+      }
+    } else {
+      // Filter matches by the local date (America/Sao_Paulo)
+      filteredFixtures = formattedFixtures.filter(f => f.rawDate === targetDate);
+      if (filteredFixtures.length > 0) {
+        apiSportsRound = filteredFixtures[0].round;
+      }
+    }
+
+    if (apiSportsRound === '?') {
+      apiSportsRound = matches[0]?.league?.round?.replace('Regular Season - ', '') || '?';
     }
 
     return NextResponse.json({ 
-      fixtures: formattedFixtures, 
-      round: apiSportsRound !== '?' ? apiSportsRound : (matches[0]?.league?.round?.replace('Regular Season - ', '') || '?'),
+      fixtures: filteredFixtures, 
+      round: apiSportsRound,
       season: parseInt(activeSeason),
-      fromCache: false 
+      fromCache: fromCache 
     });
 
   } catch (error) {

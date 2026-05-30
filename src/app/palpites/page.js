@@ -5,6 +5,14 @@ import { Send, CheckCircle2, Trophy, Loader2, Trash2, PiggyBank, AlertTriangle }
 import { calculatePoissonMatchStats, formatPct, formatOdd } from '../../utils/poisson';
 import { supabase } from '../../lib/supabaseClient';
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const getTeamHash = (name) => {
   if (!name) return 0;
   let hash = 0;
@@ -191,7 +199,7 @@ export default function PalpitesPage() {
 
   // Novos estados para Filtro de Ligas e Data
   const [selectedLeague, setSelectedLeague] = useState('all'); // default to load all games
-  const [selectedDate, setSelectedDate] = useState(() => new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(() => getLocalDateString());
 
   // Estados do Controle de Banca integrado
   const [transactions, setTransactions] = useState([]);
@@ -612,7 +620,7 @@ export default function PalpitesPage() {
     }
 
     const newTx = {
-      date: new Date().toISOString().slice(0, 10),
+      date: getLocalDateString(),
       type,
       amount,
       description: desc,
@@ -745,7 +753,7 @@ export default function PalpitesPage() {
     if (!config.autoBroadcast) return;
 
     // Verificar quais jogos de HOJE já foram enviados
-    const todayKey = `sent_palpites_${new Date().toISOString().slice(0, 10)}`;
+    const todayKey = `sent_palpites_${getLocalDateString()}`;
     const alreadySent = JSON.parse(localStorage.getItem(todayKey) || '[]');
     const alreadySentSet = new Set(alreadySent);
     setSentIds(alreadySentSet);
@@ -813,7 +821,7 @@ export default function PalpitesPage() {
       });
       if (response.ok) {
         setSuccessId(game.id);
-        const todayKey = `sent_palpites_${new Date().toISOString().slice(0, 10)}`;
+        const todayKey = `sent_palpites_${getLocalDateString()}`;
         const alreadySent = JSON.parse(localStorage.getItem(todayKey) || '[]');
         alreadySent.push(game.id);
         localStorage.setItem(todayKey, JSON.stringify(alreadySent));

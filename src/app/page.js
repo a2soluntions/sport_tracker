@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Zap, Target, AlertTriangle, CheckCircle, TrendingUp, Wallet, Clock, Edit2, Terminal, Info } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
+import { useAuth } from '../context/AuthContext';
 
 const parseConfronto = (confronto) => {
   if (!confronto) return { home: '', away: '' };
@@ -77,6 +78,7 @@ const getTeamLogoUrl = (teamName) => {
 };
 
 export default function ResponsiveDashboard() {
+  const { user } = useAuth();
   const [banca, setBanca] = useState(0);
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -106,62 +108,43 @@ export default function ResponsiveDashboard() {
 
   // Load Initial Value
   useEffect(() => {
-    const loadInitialValue = async () => {
-      if (supabase) {
-        try {
-          const { data, error } = await supabase
-            .from('user_settings')
-            .select('banca')
-            .eq('id', 1)
-            .single();
-          if (!error && data && data.banca !== undefined) {
-            const val = parseFloat(data.banca);
-            setInitialValue(val);
-            localStorage.setItem('ev_tracker_banca_initial_value', val.toString());
-            return;
-          }
-        } catch (e) {
-          console.warn("Erro ao carregar banca inicial do Supabase:", e);
-        }
-      }
-      const savedInitial = localStorage.getItem('ev_tracker_banca_initial_value');
+    if (!user) return;
+    const loadInitialValue = () => {
+      const userBancaKey = `ev_tracker_banca_initial_value_${user.id}`;
+      const savedInitial = localStorage.getItem(userBancaKey);
       if (savedInitial) {
         setInitialValue(parseFloat(savedInitial));
+      } else {
+        setInitialValue(1000);
+        localStorage.setItem(userBancaKey, '1000');
       }
     };
     loadInitialValue();
-  }, []);
+  }, [user]);
 
   // Fetch Transactions and Calculate Banca
   const fetchTransactions = async () => {
+    if (!user) return;
     let initial = 0;
-    if (supabase) {
-      try {
-        const { data, error } = await supabase
-          .from('user_settings')
-          .select('banca')
-          .eq('id', 1)
-          .single();
-        if (!error && data && data.banca !== undefined) {
-          initial = parseFloat(data.banca);
-        } else {
-          const savedInitial = localStorage.getItem('ev_tracker_banca_initial_value');
-          if (savedInitial) initial = parseFloat(savedInitial);
-        }
-      } catch (e) {
-        const savedInitial = localStorage.getItem('ev_tracker_banca_initial_value');
-        if (savedInitial) initial = parseFloat(savedInitial);
-      }
+    const userBancaKey = `ev_tracker_banca_initial_value_${user.id}`;
+    const userTxsKey = `ev_tracker_banca_txs_${user.id}`;
+    const userTxIdsKey = `ev_tracker_user_tx_ids_${user.id}`;
+
+    const savedInitial = localStorage.getItem(userBancaKey);
+    if (savedInitial) {
+      initial = parseFloat(savedInitial);
     } else {
-      const savedInitial = localStorage.getItem('ev_tracker_banca_initial_value');
-      if (savedInitial) initial = parseFloat(savedInitial);
+      localStorage.setItem(userBancaKey, '1000');
+      initial = 1000;
     }
 
     let currentBanca = initial;
     if (supabase) {
       const { data } = await supabase.from('banca_transactions').select('*');
       if (data) {
-        data.forEach(t => {
+        const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+        const filtered = data.filter(t => userTxIds.includes(t.id));
+        filtered.forEach(t => {
           const isGain = t.type === 'ganho' || t.type === 'alavancagem' || t.description === 'Alavancagem';
           if (isGain) {
             const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;
@@ -172,7 +155,7 @@ export default function ResponsiveDashboard() {
         });
       }
     } else {
-      const savedTxs = localStorage.getItem('ev_tracker_banca_txs');
+      const savedTxs = localStorage.getItem(userTxsKey);
       if (savedTxs) {
         const txs = JSON.parse(savedTxs);
         txs.forEach(t => {
@@ -192,7 +175,7 @@ export default function ResponsiveDashboard() {
   // Load Banca on mount/initial value change
   useEffect(() => {
     fetchTransactions();
-  }, [initialValue]);
+  }, [initialValue, user]);
 
   // Load Opportunities from Supabase
   useEffect(() => {
@@ -288,18 +271,8 @@ export default function ResponsiveDashboard() {
     const num = parseFloat(modalInputVal.replace(',', '.'));
     if (!isNaN(num)) {
       setInitialValue(num);
-      localStorage.setItem('ev_tracker_banca_initial_value', num.toString());
-      
-      if (supabase) {
-        try {
-          await supabase
-            .from('user_settings')
-            .update({ banca: num })
-            .eq('id', 1);
-        } catch (e) {
-          console.warn("Erro ao salvar banca inicial no Supabase:", e);
-        }
-      }
+      const userBancaKey = user ? `ev_tracker_banca_initial_value_${user.id}` : 'ev_tracker_banca_initial_value';
+      localStorage.setItem(userBancaKey, num.toString());
       
       setShowModal(false);
       

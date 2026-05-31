@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Send, CheckCircle2, Trophy, Loader2, Trash2, PiggyBank, AlertTriangle, BarChart3, Target } from 'lucide-react';
 import { calculatePoissonMatchStats, formatPct, formatOdd } from '../../utils/poisson';
 import { supabase } from '../../lib/supabaseClient';
+import { useAuth } from '../../context/AuthContext';
 
 const getLocalDateString = () => {
   const d = new Date();
@@ -289,7 +290,9 @@ const getLiveMatchRadar = (game) => {
   };
 };
 
+
 export default function PalpitesPage() {
+  const { user, isTrialActive } = useAuth();
   const [games, setGames] = useState([]);
   const [loadingId, setLoadingId] = useState(null);
   const [successId, setSuccessId] = useState(null);
@@ -503,6 +506,10 @@ export default function PalpitesPage() {
 
   // Carregar transações para estatísticas e verificação de palpites seguidos
   useEffect(() => {
+    if (!user) return;
+    const userTxsKey = `ev_tracker_banca_txs_${user.id}`;
+    const userTxIdsKey = `ev_tracker_user_tx_ids_${user.id}`;
+
     async function loadTransactions() {
       if (!supabase) {
         fallbackToLocal();
@@ -514,8 +521,12 @@ export default function PalpitesPage() {
           .select('*');
         if (error) throw error;
         
+        // Filtrar apenas as transações deste usuário
+        const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+        const filteredData = (data || []).filter(t => userTxIds.includes(t.id));
+        
         // Sincronizar dados locais pendentes para a nuvem
-        const syncedList = await syncLocalTransactionsToCloud(data || []);
+        const syncedList = await syncLocalTransactionsToCloud(filteredData);
         
         // Auto resolver palpites pendentes
         const resolvedList = await autoResolvePendingBets(syncedList);
@@ -527,7 +538,7 @@ export default function PalpitesPage() {
     }
 
     async function syncLocalTransactionsToCloud(cloudList) {
-      const savedTxs = localStorage.getItem('ev_tracker_banca_txs');
+      const savedTxs = localStorage.getItem(userTxsKey);
       if (!savedTxs) return cloudList;
 
       try {
@@ -559,7 +570,7 @@ export default function PalpitesPage() {
         }
 
         const newCloudList = [...(insertedData || []), ...cloudList];
-        localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(newCloudList));
+        localStorage.setItem(userTxsKey, JSON.stringify(newCloudList));
         console.log("[Sync] Sincronização automática concluída!");
         return newCloudList;
       } catch (e) {
@@ -627,7 +638,7 @@ export default function PalpitesPage() {
         }
 
         if (didUpdate && !supabase) {
-          localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(updatedList));
+          localStorage.setItem(userTxsKey, JSON.stringify(updatedList));
         }
 
         return updatedList;
@@ -638,7 +649,7 @@ export default function PalpitesPage() {
     }
 
     function fallbackToLocal() {
-      const savedTxs = localStorage.getItem('ev_tracker_banca_txs');
+      const savedTxs = localStorage.getItem(userTxsKey);
       if (savedTxs) {
         try {
           const parsed = JSON.parse(savedTxs);
@@ -652,7 +663,7 @@ export default function PalpitesPage() {
     }
 
     loadTransactions();
-  }, []);
+  }, [user]);
 
   const myStats = useMemo(() => {
     // Filtrar apenas transações associadas a palpites da página (iniciam com [Palpite])
@@ -733,6 +744,9 @@ export default function PalpitesPage() {
     let success = false;
     let savedTx = null;
 
+    const userTxsKey = `ev_tracker_banca_txs_${user?.id || 'guest'}`;
+    const userTxIdsKey = `ev_tracker_user_tx_ids_${user?.id || 'guest'}`;
+
     if (supabase) {
       try {
         const { data, error } = await supabase
@@ -744,6 +758,10 @@ export default function PalpitesPage() {
         if (data && data.length > 0) {
           savedTx = data[0];
           success = true;
+          // Guardar ID associado a este usuário
+          const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+          userTxIds.push(savedTx.id);
+          localStorage.setItem(userTxIdsKey, JSON.stringify(userTxIds));
         }
       } catch (err) {
         console.warn("Erro ao salvar no Supabase (usando fallback local):", err);
@@ -752,7 +770,7 @@ export default function PalpitesPage() {
 
     if (!success) {
       savedTx = { id: Date.now(), ...newTx };
-      const savedTxs = localStorage.getItem('ev_tracker_banca_txs');
+      const savedTxs = localStorage.getItem(userTxsKey);
       let txList = [];
       if (savedTxs) {
         try {
@@ -760,7 +778,7 @@ export default function PalpitesPage() {
         } catch (e) {}
       }
       txList = [savedTx, ...txList];
-      localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(txList));
+      localStorage.setItem(userTxsKey, JSON.stringify(txList));
       success = true;
     }
 
@@ -942,6 +960,60 @@ export default function PalpitesPage() {
 
   // Filtro de jogos removido pois a API já traz a data exata
 
+  if (!isTrialActive()) {
+    return (
+      <div style={{
+        padding: '40px 24px',
+        textAlign: 'center',
+        background: '#111116',
+        border: '2px solid rgba(255, 68, 68, 0.3)',
+        borderRadius: '16px',
+        maxWidth: '600px',
+        margin: '60px auto',
+        boxShadow: '0 0 30px rgba(255, 68, 68, 0.05)',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#fff'
+      }}>
+        <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔒</div>
+        <h3 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fff', textTransform: 'uppercase' }}>
+          Seu Teste Grátis de 7 Dias Expirou!
+        </h3>
+        <p style={{ color: '#aaa', fontSize: '0.9rem', marginTop: '12px', lineHeight: 1.5 }}>
+          O período de avaliação gratuita do seu painel de prognósticos Poisson acabou. Assine agora o plano PRO por apenas **R$ 19,90/mês** para liberar acesso instantâneo e ilimitado a todas as previsões e estatísticas avançadas.
+        </p>
+        
+        <div style={{ margin: '30px 0', borderTop: '1px dashed #222', borderBottom: '1px dashed #222', padding: '16px 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ color: 'var(--brand-neon)', fontSize: '1.8rem', fontWeight: 900 }}>PRO</div>
+              <div style={{ color: '#888', fontSize: '0.78rem', marginTop: '4px' }}>R$ 19,90 / mês</div>
+            </div>
+            <div>
+              <div style={{ color: '#b339ff', fontSize: '1.8rem', fontWeight: 900 }}>VIP</div>
+              <div style={{ color: '#888', fontSize: '0.78rem', marginTop: '4px' }}>R$ 49,90 / mês</div>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => window.location.href = '/pricing'}
+          style={{
+            background: 'var(--brand-neon)',
+            color: '#000',
+            border: 'none',
+            padding: '14px 28px',
+            borderRadius: '8px',
+            fontWeight: 'bold',
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            boxShadow: '0 4px 15px rgba(204, 255, 0, 0.2)'
+          }}
+        >
+          Fazer Upgrade Agora ⚡
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="palpites-container">

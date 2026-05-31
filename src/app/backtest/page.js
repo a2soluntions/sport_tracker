@@ -30,6 +30,7 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
+import { useAuth } from '../../context/AuthContext';
 
 const getTeamLogoUrl = (teamName) => {
   if (!teamName) return '';
@@ -127,6 +128,7 @@ const formatOddMobile = (odd) => {
 };
 
 export default function RelatorioApostasPage() {
+  const { user } = useAuth();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -142,7 +144,11 @@ export default function RelatorioApostasPage() {
 
   // Load transactions and sync/resolve on load
   useEffect(() => {
+    if (!user) return;
     setMounted(true);
+
+    const userTxsKey = `ev_tracker_banca_txs_${user.id}`;
+    const userTxIdsKey = `ev_tracker_user_tx_ids_${user.id}`;
 
     async function cleanupPastBets() {
       const cutoffDate = '2026-05-27';
@@ -158,7 +164,7 @@ export default function RelatorioApostasPage() {
         }
       }
 
-      const savedTxs = localStorage.getItem('ev_tracker_banca_txs');
+      const savedTxs = localStorage.getItem(userTxsKey);
       if (savedTxs) {
         try {
           const localList = JSON.parse(savedTxs);
@@ -168,7 +174,7 @@ export default function RelatorioApostasPage() {
               const isPast = t.date < cutoffDate;
               return !(isBet && isPast);
             });
-            localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(filteredList));
+            localStorage.setItem(userTxsKey, JSON.stringify(filteredList));
           }
         } catch (e) {
           console.warn("Erro ao limpar apostas passadas no localStorage:", e);
@@ -187,8 +193,12 @@ export default function RelatorioApostasPage() {
           .select('*');
         if (error) throw error;
         
+        // Filtrar apenas as transações deste usuário
+        const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+        const filteredData = (data || []).filter(t => userTxIds.includes(t.id));
+
         // Sincronizar dados locais pendentes para a nuvem
-        const syncedList = await syncLocalTransactionsToCloud(data || []);
+        const syncedList = await syncLocalTransactionsToCloud(filteredData);
         
         // Auto resolver palpites pendentes
         const resolvedList = await autoResolvePendingBets(syncedList);
@@ -202,7 +212,7 @@ export default function RelatorioApostasPage() {
     }
 
     async function syncLocalTransactionsToCloud(cloudList) {
-      const savedTxs = localStorage.getItem('ev_tracker_banca_txs');
+      const savedTxs = localStorage.getItem(userTxsKey);
       if (!savedTxs) return cloudList;
 
       try {
@@ -233,8 +243,13 @@ export default function RelatorioApostasPage() {
           return cloudList;
         }
 
+        // Adicionar os IDs criados na lista local de IDs do usuário
+        const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+        insertedData.forEach(tx => userTxIds.push(tx.id));
+        localStorage.setItem(userTxIdsKey, JSON.stringify(userTxIds));
+
         const newCloudList = [...(insertedData || []), ...cloudList];
-        localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(newCloudList));
+        localStorage.setItem(userTxsKey, JSON.stringify(newCloudList));
         console.log("[Sync] Sincronização automática concluída!");
         return newCloudList;
       } catch (e) {
@@ -316,7 +331,7 @@ export default function RelatorioApostasPage() {
         }
 
         if (didUpdate && !supabase) {
-          localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(updatedList));
+          localStorage.setItem(userTxsKey, JSON.stringify(updatedList));
         }
 
         return updatedList;
@@ -327,7 +342,7 @@ export default function RelatorioApostasPage() {
     }
 
     function fallbackToLocal() {
-      const savedTxs = localStorage.getItem('ev_tracker_banca_txs');
+      const savedTxs = localStorage.getItem(userTxsKey);
       if (savedTxs) {
         try {
           const parsed = JSON.parse(savedTxs);
@@ -347,12 +362,15 @@ export default function RelatorioApostasPage() {
     }
 
     init();
-  }, []);
+  }, [user]);
 
   const handleDeleteTransaction = async (id) => {
     if (!window.confirm("Deseja realmente excluir este palpite seguido da sua banca?")) return;
     const updated = transactions.filter(t => t.id !== id);
     setTransactions(updated);
+
+    const userTxIdsKey = `ev_tracker_user_tx_ids_${user?.id || 'guest'}`;
+    const userTxsKey = `ev_tracker_banca_txs_${user?.id || 'guest'}`;
 
     if (supabase) {
       try {
@@ -361,13 +379,23 @@ export default function RelatorioApostasPage() {
           .delete()
           .eq('id', id);
         if (error) throw error;
+
+        // Remover da lista de IDs do usuário
+        const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+        const filteredIds = userTxIds.filter(tid => tid !== id);
+        localStorage.setItem(userTxIdsKey, JSON.stringify(filteredIds));
+
         showToast('Aposta excluída da banca!', 'success');
       } catch (err) {
         console.warn("Erro ao deletar no Supabase:", err);
         showToast("Erro ao excluir registro: " + err.message, 'error');
       }
     } else {
-      localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(updated));
+      localStorage.setItem(userTxsKey, JSON.stringify(updated));
+      // Remover da lista de IDs do usuário
+      const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+      const filteredIds = userTxIds.filter(tid => tid !== id);
+      localStorage.setItem(userTxIdsKey, JSON.stringify(filteredIds));
       showToast('Aposta excluída da banca!', 'success');
     }
   };

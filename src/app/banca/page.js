@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { calculatePoissonMatchStats } from '../../utils/poisson';
+import { useAuth } from '../../context/AuthContext';
 
 const getTeamLogoUrl = (teamName) => {
   if (!teamName) return '';
@@ -120,6 +121,7 @@ const formatOddMobile = (odd) => {
 };
 
 export default function GestaoBancaPage() {
+  const { user } = useAuth();
   const [initialValue, setInitialValue] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const [mounted, setMounted] = useState(false);
@@ -154,28 +156,18 @@ export default function GestaoBancaPage() {
   // Load from Supabase (with fallback to LocalStorage)
   useEffect(() => {
     setMounted(true);
-    
-    async function loadInitialValue() {
-      if (supabase) {
-        try {
-          const { data, error } = await supabase
-            .from('user_settings')
-            .select('banca')
-            .eq('id', 1)
-            .single();
-          if (!error && data && data.banca !== undefined) {
-            const val = parseFloat(data.banca);
-            setInitialValue(val);
-            localStorage.setItem('ev_tracker_banca_initial_value', val.toString());
-            return;
-          }
-        } catch (e) {
-          console.warn("Erro ao carregar banca inicial do Supabase:", e);
-        }
-      }
-      const savedInitialValue = localStorage.getItem('ev_tracker_banca_initial_value');
+    if (!user) return;
+    const userBancaKey = `ev_tracker_banca_initial_value_${user.id}`;
+    const userTxsKey = `ev_tracker_banca_txs_${user.id}`;
+    const userTxIdsKey = `ev_tracker_user_tx_ids_${user.id}`;
+
+    function loadInitialValue() {
+      const savedInitialValue = localStorage.getItem(userBancaKey);
       if (savedInitialValue) {
         setInitialValue(parseFloat(savedInitialValue));
+      } else {
+        setInitialValue(1000);
+        localStorage.setItem(userBancaKey, '1000');
       }
     }
 
@@ -193,7 +185,7 @@ export default function GestaoBancaPage() {
         }
       }
 
-      const savedTxs = localStorage.getItem('ev_tracker_banca_txs');
+      const savedTxs = localStorage.getItem(userTxsKey);
       if (savedTxs) {
         try {
           const localList = JSON.parse(savedTxs);
@@ -203,7 +195,7 @@ export default function GestaoBancaPage() {
               const isPast = t.date < cutoffDate;
               return !(isBet && isPast);
             });
-            localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(filteredList));
+            localStorage.setItem(userTxsKey, JSON.stringify(filteredList));
           }
         } catch (e) {
           console.warn("Erro ao limpar apostas passadas no localStorage:", e);
@@ -227,8 +219,12 @@ export default function GestaoBancaPage() {
 
         if (error) throw error;
 
+        // Filtrar apenas transações deste usuário
+        const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+        const filteredData = (data || []).filter(t => userTxIds.includes(t.id));
+
         // Sincronizar dados locais pendentes para a nuvem
-        const syncedList = await syncLocalTransactionsToCloud(data || []);
+        const syncedList = await syncLocalTransactionsToCloud(filteredData);
 
         // Auto resolver palpites pendentes
         const resolvedList = await autoResolvePendingBets(syncedList);
@@ -242,7 +238,7 @@ export default function GestaoBancaPage() {
     }
 
     async function syncLocalTransactionsToCloud(cloudList) {
-      const savedTxs = localStorage.getItem('ev_tracker_banca_txs');
+      const savedTxs = localStorage.getItem(userTxsKey);
       if (!savedTxs) return cloudList;
 
       try {
@@ -273,8 +269,13 @@ export default function GestaoBancaPage() {
           return cloudList;
         }
 
+        // Adicionar IDs sincronizados nas IDs locais do usuário
+        const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+        insertedData.forEach(tx => userTxIds.push(tx.id));
+        localStorage.setItem(userTxIdsKey, JSON.stringify(userTxIds));
+
         const newCloudList = [...(insertedData || []), ...cloudList];
-        localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(newCloudList));
+        localStorage.setItem(userTxsKey, JSON.stringify(newCloudList));
         console.log("[Sync] Sincronização automática concluída!");
         return newCloudList;
       } catch (e) {
@@ -356,7 +357,7 @@ export default function GestaoBancaPage() {
         }
 
         if (didUpdate && !supabase) {
-          localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(updatedList));
+          localStorage.setItem(userTxsKey, JSON.stringify(updatedList));
         }
 
         return updatedList;
@@ -367,7 +368,7 @@ export default function GestaoBancaPage() {
     }
 
     function fallbackToLocal() {
-      const savedTxs = localStorage.getItem('ev_tracker_banca_txs');
+      const savedTxs = localStorage.getItem(userTxsKey);
       if (savedTxs) {
         try {
           const parsed = JSON.parse(savedTxs);
@@ -388,12 +389,13 @@ export default function GestaoBancaPage() {
     }
 
     init();
-  }, []);
+  }, [user]);
 
   // Helpers para salvar dados localmente (fallback)
   const saveTransactionsLocal = (txs) => {
     setTransactions(txs);
-    localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(txs));
+    const userTxsKey = `ev_tracker_banca_txs_${user?.id || 'guest'}`;
+    localStorage.setItem(userTxsKey, JSON.stringify(txs));
   };
 
   const handleTypeChange = (type) => {
@@ -406,6 +408,8 @@ export default function GestaoBancaPage() {
     if (!txAmount || Number(txAmount) <= 0) return;
 
     const todayDate = new Date().toISOString().slice(0, 10);
+    const userTxIdsKey = `ev_tracker_user_tx_ids_${user?.id || 'guest'}`;
+    const userTxsKey = `ev_tracker_banca_txs_${user?.id || 'guest'}`;
     
     // Se for Alavancagem, salvamos na DB como "ganho" para respeitar a constraint,
     // e na descrição como "Alavancagem" para ser mapeada no frontend.
@@ -442,6 +446,11 @@ export default function GestaoBancaPage() {
         if (error) throw error;
 
         if (data && data.length > 0) {
+          // Guardar ID associado a este usuário
+          const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+          userTxIds.push(data[0].id);
+          localStorage.setItem(userTxIdsKey, JSON.stringify(userTxIds));
+
           const updated = [data[0], ...transactions];
           updated.sort((a, b) => new Date(b.date) - new Date(a.date));
           setTransactions(updated);
@@ -469,6 +478,8 @@ export default function GestaoBancaPage() {
 
   // Handler para deletar transação
   const handleDeleteTransaction = async (id) => {
+    const userTxIdsKey = `ev_tracker_user_tx_ids_${user?.id || 'guest'}`;
+
     if (syncStatus === 'cloud' && supabase) {
       try {
         const { error } = await supabase
@@ -478,6 +489,11 @@ export default function GestaoBancaPage() {
 
         if (error) throw error;
 
+        // Remover ID associado a este usuário
+        const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+        const filteredIds = userTxIds.filter(tid => tid !== id);
+        localStorage.setItem(userTxIdsKey, JSON.stringify(filteredIds));
+
         const updated = transactions.filter(t => t.id !== id);
         setTransactions(updated);
         showToast('Transação excluída com sucesso!', 'success');
@@ -486,6 +502,11 @@ export default function GestaoBancaPage() {
         showToast("Erro ao excluir registro na nuvem: " + err.message, 'error');
       }
     } else {
+      // Deletar da lista de IDs do usuário
+      const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+      const filteredIds = userTxIds.filter(tid => tid !== id);
+      localStorage.setItem(userTxIdsKey, JSON.stringify(filteredIds));
+
       const updated = transactions.filter(t => t.id !== id);
       saveTransactionsLocal(updated);
       showToast('Transação excluída com sucesso!', 'success');
@@ -953,23 +974,12 @@ export default function GestaoBancaPage() {
                 Cancelar
               </button>
               <button 
-                onClick={async () => {
+                onClick={() => {
                   const num = parseFloat(modalInputVal.replace(',', '.'));
                   if (!isNaN(num)) {
                     setInitialValue(num);
-                    localStorage.setItem('ev_tracker_banca_initial_value', num.toString());
-                    
-                    if (supabase) {
-                      try {
-                        const { error } = await supabase
-                          .from('user_settings')
-                          .update({ banca: num })
-                          .eq('id', 1);
-                        if (error) throw error;
-                      } catch (e) {
-                        console.warn("Erro ao salvar banca inicial no Supabase:", e);
-                      }
-                    }
+                    const userBancaKey = user ? `ev_tracker_banca_initial_value_${user.id}` : 'ev_tracker_banca_initial_value';
+                    localStorage.setItem(userBancaKey, num.toString());
 
                     showToast('Valor inicial atualizado com sucesso!', 'success');
                     setShowModal(false);

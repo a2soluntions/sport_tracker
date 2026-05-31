@@ -15,6 +15,7 @@ import {
   Trophy
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
+import { useAuth } from '../../context/AuthContext';
 
 const factorial = (n) => {
   if (n === 0 || n === 1) return 1;
@@ -244,6 +245,7 @@ const getPlayersForTeam = (teamName, isHome) => {
 };
 
 export default function CalculatorPage() {
+  const { user } = useAuth();
   const [homeTeam, setHomeTeam] = useState("");
   const [awayTeam, setAwayTeam] = useState("");
   const [homeTeamId, setHomeTeamId] = useState(null);
@@ -316,6 +318,9 @@ export default function CalculatorPage() {
     let success = false;
     let savedTx = null;
 
+    const userTxIdsKey = `ev_tracker_user_tx_ids_${user?.id || 'guest'}`;
+    const userTxsKey = `ev_tracker_banca_txs_${user?.id || 'guest'}`;
+
     if (supabase) {
       try {
         const { data, error } = await supabase
@@ -327,6 +332,11 @@ export default function CalculatorPage() {
         if (data && data.length > 0) {
           savedTx = data[0];
           success = true;
+
+          // Adicionar o ID gerado na lista local do usuário
+          const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+          userTxIds.push(savedTx.id);
+          localStorage.setItem(userTxIdsKey, JSON.stringify(userTxIds));
         }
       } catch (err) {
         console.warn("Erro ao salvar aposta no Supabase:", err);
@@ -335,7 +345,13 @@ export default function CalculatorPage() {
 
     if (!success) {
       savedTx = { id: Date.now(), ...newTx };
-      const savedTxs = localStorage.getItem('ev_tracker_banca_txs');
+
+      // Adicionar o ID gerado na lista local do usuário
+      const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+      userTxIds.push(savedTx.id);
+      localStorage.setItem(userTxIdsKey, JSON.stringify(userTxIds));
+
+      const savedTxs = localStorage.getItem(userTxsKey);
       let txList = [];
       if (savedTxs) {
         try {
@@ -343,7 +359,7 @@ export default function CalculatorPage() {
         } catch (e) {}
       }
       txList = [savedTx, ...txList];
-      localStorage.setItem('ev_tracker_banca_txs', JSON.stringify(txList));
+      localStorage.setItem(userTxsKey, JSON.stringify(txList));
     }
 
     setSelectedSelections([]);

@@ -1,8 +1,9 @@
 import "./globals.css";
-import Sidebar from "@/components/Sidebar";
+import AppContent from "./AppContent";
+import { AuthProvider } from "../context/AuthContext";
 
 export const metadata = {
-  title: "EV Tracker CRM",
+  title: "OddsSentry PRO",
   description: "Dashboard de Inteligência +EV",
 };
 
@@ -10,12 +11,9 @@ export default function RootLayout({ children }) {
   return (
     <html lang="pt-BR">
       <body>
-        <div className="app-container">
-          <Sidebar />
-          <main className="main-content">
-            {children}
-          </main>
-        </div>
+        <AuthProvider>
+          <AppContent>{children}</AppContent>
+        </AuthProvider>
       </body>
     </html>
   );

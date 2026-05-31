@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Settings, Save, BellRing, ShieldCheck, Zap, CheckCircle2 } from 'lucide-react';
+import { Settings, Save, BellRing, ShieldCheck, Zap, CheckCircle2, Info, HelpCircle } from 'lucide-react';
+import Link from 'next/link';
 
 export default function SettingsPage() {
   const [config, setConfig] = useState({
@@ -140,6 +141,25 @@ export default function SettingsPage() {
             <div style={{ color: '#888', fontSize: '0.9rem', marginTop: '16px' }}>
               O robô só enviará alertas automatizados para os clientes se a ODD da casa de apostas for pelo menos <strong>{config.minEV}%</strong> maior que a ODD Justa calculada pelo nosso modelo.
             </div>
+          </div>
+        </div>
+
+        {/* Bloco 4: Informações Institucionais */}
+        <div className="glass-panel" style={{ borderLeft: '4px solid #b339ff' }}>
+          <h2 style={{ fontSize: '1.4rem', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <Info color="#b339ff" size={24} />
+            Sobre a Plataforma
+          </h2>
+          <p style={{ color: '#aaa', fontSize: '0.95rem', lineHeight: '1.6', margin: 0 }}>
+            Esta plataforma é desenvolvida e gerida integralmente pela <strong>A2 Solutions</strong>.
+          </p>
+          <div style={{ display: 'flex', gap: '12px', marginTop: '20px', flexWrap: 'wrap' }}>
+            <Link href="/quem-somos" style={{ background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '10px 20px', borderRadius: '8px', fontSize: '0.9rem', fontWeight: 'bold', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <Info size={16} color="var(--brand-neon)" /> Quem Somos
+            </Link>
+            <Link href="/faq" style={{ background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '10px 20px', borderRadius: '8px', fontSize: '0.9rem', fontWeight: 'bold', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+              <HelpCircle size={16} color="var(--brand-neon)" /> Central de FAQ
+            </Link>
           </div>
         </div>
 

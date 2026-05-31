@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import styles from './OpportunityTable.module.css';
 import { supabase } from '@/lib/supabaseClient';
 import { Search, Zap, Clock, Trophy, LineChart, Calendar } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const getTeamLogoUrl = (teamName) => {
   if (!teamName) return '';
@@ -251,6 +252,60 @@ export default function OpportunityTable() {
     
     return matchesSearch && matchesLeague && matchesMarket && matchesEv && isRecent && matchesDate && !isExcluded;
   });
+
+  if (!isTrialActive()) {
+    return (
+      <div style={{
+        padding: '40px 24px',
+        textAlign: 'center',
+        background: '#111116',
+        border: '2px solid rgba(255, 68, 68, 0.3)',
+        borderRadius: '16px',
+        maxWidth: '600px',
+        margin: '40px auto',
+        boxShadow: '0 0 30px rgba(255, 68, 68, 0.05)',
+        fontFamily: 'system-ui, sans-serif'
+      }}>
+        <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔒</div>
+        <h3 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fff', textTransform: 'uppercase' }}>
+          Seu Teste Grátis de 7 Dias Expirou!
+        </h3>
+        <p style={{ color: '#aaa', fontSize: '0.9rem', marginTop: '12px', lineHeight: 1.5 }}>
+          O período de avaliação gratuita do seu painel de inteligência +EV acabou. Assine agora o plano PRO por apenas **R$ 19,90/mês** para liberar acesso instantâneo e contínuo a todas as assimetrias matemáticas.
+        </p>
+        
+        <div style={{ margin: '30px 0', borderTop: '1px dashed #222', borderBottom: '1px dashed #222', padding: '16px 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ color: 'var(--brand-neon)', fontSize: '1.8rem', fontWeight: 900 }}>PRO</div>
+              <div style={{ color: '#888', fontSize: '0.78rem', marginTop: '4px' }}>R$ 19,90 / mês</div>
+            </div>
+            <div>
+              <div style={{ color: '#b339ff', fontSize: '1.8rem', fontWeight: 900 }}>VIP</div>
+              <div style={{ color: '#888', fontSize: '0.78rem', marginTop: '4px' }}>R$ 49,90 / mês</div>
+            </div>
+          </div>
+        </div>
+
+        <button
+          onClick={() => window.location.href = '/pricing'}
+          style={{
+            background: 'var(--brand-neon)',
+            color: '#000',
+            border: 'none',
+            padding: '14px 28px',
+            borderRadius: '8px',
+            fontWeight: 'bold',
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            boxShadow: '0 4px 15px rgba(204, 255, 0, 0.2)'
+          }}
+        >
+          Fazer Upgrade Agora ⚡
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div>

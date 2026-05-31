@@ -59,7 +59,7 @@ export async function POST(request) {
     message += `💸 *Total Investido:* R$ ${stats.totalInvested.toFixed(2)}\n`;
     message += `🎯 *Taxa de Acerto:* ${stats.hitRate.toFixed(1)}%\n`;
     message += `🔢 *Entradas:* ${stats.greens}G / ${stats.reds}R / ${stats.pending}P\n\n`;
-    message += `_Gerado automaticamente pelo Sports EV Tracker_ 🤖`;
+    message += `_Gerado automaticamente pelo OddsSentry PRO_ 🤖`;
 
     const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
     

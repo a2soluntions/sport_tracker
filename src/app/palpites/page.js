@@ -1779,12 +1779,14 @@ export default function PalpitesPage() {
                 gap: '4px',
                 borderBottom: '1px solid #222',
                 paddingBottom: '2px',
-                marginTop: '4px'
+                marginTop: '4px',
+                width: '100%',
+                justifyContent: 'space-between'
               }}>
                 {[
-                  { id: 'geral', label: '📈 Probabilidades', icon: '📈' },
-                  { id: 'escanteios', label: '📐 Cantos & Cartões', icon: '📐' },
-                  { id: 'confrontos', label: '⚔️ Forma & H2H', icon: '⚔️' }
+                  { id: 'geral', label: 'Probabilidades', icon: '📈' },
+                  { id: 'escanteios', label: 'Cantos & Cartões', icon: '📐' },
+                  { id: 'confrontos', label: 'Forma & H2H', icon: '⚔️' }
                 ].map(t => (
                   <button
                     key={t.id}
@@ -1801,11 +1803,13 @@ export default function PalpitesPage() {
                       transition: 'all 0.2s',
                       display: 'flex',
                       alignItems: 'center',
-                      gap: '6px'
+                      justifyContent: 'center',
+                      gap: '6px',
+                      flex: 1
                     }}
                   >
-                    <span>{t.icon}</span>
-                    <span>{t.label}</span>
+                    <span style={{ fontSize: '1.1rem' }}>{t.icon}</span>
+                    <span className="mobile-hide">{t.label}</span>
                   </button>
                 ))}
               </div>

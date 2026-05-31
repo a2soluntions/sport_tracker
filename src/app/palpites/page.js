@@ -175,6 +175,7 @@ const getH2HStats = (home, away) => {
 
 const getLeagueName = (leagueId) => {
   const mapping = {
+    '1': 'Copa do Mundo',
     '71': 'Brasileirão Série A',
     '72': 'Brasileirão Série B',
     '13': 'Copa Libertadores',
@@ -778,7 +779,7 @@ export default function PalpitesPage() {
       setApiError(null);
       try {
         const leaguesToFetch = selectedLeague === 'all'
-          ? ['71', '72', '13', '12', '39', '140', '135', '78']
+          ? ['71', '72', '13', '12', '39', '140', '135', '78', '1']
           : [selectedLeague];
 
         const fetchPromises = leaguesToFetch.map(async (lgId) => {
@@ -960,24 +961,72 @@ export default function PalpitesPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginBottom: '24px' }}>
             <div className="league-buttons-container">
               {[
-                { id: 'all', name: '⚽ Todas' },
-                { id: '71', name: '🇧🇷 Série A' },
-                { id: '72', name: '🇧🇷 Série B' },
-                { id: '13', name: '🌎 Libertadores' },
-                { id: '12', name: '🌎 Sudamericana' },
-                { id: '39', name: '🇬🇧 Premier' },
-                { id: '140', name: '🇪🇸 La Liga' },
-                { id: '135', name: '🇮🇹 Serie A' },
-                { id: '78', name: '🇩🇪 Bundes' }
-              ].map(lg => (
-                <button
-                  key={lg.id}
-                  onClick={() => setSelectedLeague(lg.id)}
-                  className={`league-button ${selectedLeague === lg.id ? 'active' : ''}`}
-                >
-                  {lg.name}
-                </button>
-              ))}
+                { id: 'all', name: 'Todas', iconType: 'emoji', icon: '⚽' },
+                { id: '1', name: 'Copa do Mundo', iconType: 'emoji', icon: '🏆' },
+                { id: '71', name: 'Série A', iconType: 'image', icon: 'https://flagcdn.com/w40/br.png' },
+                { id: '72', name: 'Série B', iconType: 'image', icon: 'https://flagcdn.com/w40/br.png' },
+                { id: '13', name: 'Libertadores', iconType: 'emoji', icon: '🌎' },
+                { id: '12', name: 'Sudamericana', iconType: 'emoji', icon: '🌍' },
+                { id: '39', name: 'Premier', iconType: 'image', icon: 'https://flagcdn.com/w40/gb.png' },
+                { id: '140', name: 'La Liga', iconType: 'image', icon: 'https://flagcdn.com/w40/es.png' },
+                { id: '135', name: 'Serie A', iconType: 'image', icon: 'https://flagcdn.com/w40/it.png' },
+                { id: '78', name: 'Bundes', iconType: 'image', icon: 'https://flagcdn.com/w40/de.png' }
+              ].map(lg => {
+                const isActive = selectedLeague === lg.id;
+                return (
+                  <button
+                    key={lg.id}
+                    onClick={() => setSelectedLeague(lg.id)}
+                    className={`league-button ${isActive ? 'active' : ''}`}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      borderRadius: '6px',
+                      padding: '8px 14px',
+                      border: isActive ? '1px solid var(--brand-neon)' : '1px solid rgba(255, 255, 255, 0.05)',
+                      background: isActive ? 'var(--brand-neon)' : '#16161a',
+                      color: isActive ? '#000' : '#aaa',
+                      fontSize: '0.85rem',
+                      fontWeight: 'bold',
+                      transition: 'all 0.2s ease',
+                      cursor: 'pointer',
+                      boxShadow: isActive ? '0 0 10px rgba(204, 255, 0, 0.25)' : 'none'
+                    }}
+                    onMouseEnter={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.color = '#fff';
+                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
+                        e.currentTarget.style.background = '#222';
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      if (!isActive) {
+                        e.currentTarget.style.color = '#aaa';
+                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
+                        e.currentTarget.style.background = '#16161a';
+                      }
+                    }}
+                  >
+                    {lg.iconType === 'image' ? (
+                      <img 
+                        src={lg.icon} 
+                        alt={lg.name} 
+                        style={{ 
+                          width: '18px', 
+                          height: '12px', 
+                          objectFit: 'cover', 
+                          borderRadius: '2px', 
+                          border: isActive ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.1)' 
+                        }} 
+                      />
+                    ) : (
+                      <span style={{ fontSize: '0.95rem' }}>{lg.icon}</span>
+                    )}
+                    <span>{lg.name}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {/* Data e Seletor de Rodada Info */}

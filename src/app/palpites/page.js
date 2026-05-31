@@ -1248,6 +1248,88 @@ export default function PalpitesPage() {
                     </div>
                   </div>
 
+                  {/* Bloco 1.5: Campo Compacto de Futebol (Apenas se estiver Ao Vivo) */}
+                  {game.isLive && (() => {
+                    const radar = getLiveMatchRadar(game);
+                    if (!radar) return null;
+                    let glowLeft = '50%';
+                    let glowColor = 'rgba(204, 255, 0, 0.4)';
+                    if (radar.zone === 'away_box') {
+                      glowLeft = '80%';
+                      glowColor = 'rgba(255, 68, 68, 0.5)';
+                    } else if (radar.zone === 'home_box') {
+                      glowLeft = '20%';
+                      glowColor = 'rgba(0, 210, 255, 0.5)';
+                    }
+
+                    return (
+                      <div 
+                        onClick={() => setOpenRadarGameId(game.id)}
+                        style={{ 
+                          position: 'relative', 
+                          width: '120px', 
+                          height: '65px', 
+                          background: '#0d1a0d', 
+                          border: '1px solid rgba(255, 255, 255, 0.12)', 
+                          borderRadius: '8px', 
+                          overflow: 'hidden',
+                          boxShadow: 'inset 0 0 15px rgba(0,0,0,0.6)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease-in-out',
+                          flexShrink: 0,
+                          alignSelf: 'center',
+                          margin: '0 auto'
+                        }}
+                        className="hover-scale-field"
+                        title="Clique para abrir o Radar em tempo real ampliado 🔍"
+                      >
+                        {/* Linha de Meio de Campo */}
+                        <div style={{ position: 'absolute', top: 0, left: '50%', width: '1px', height: '100%', background: 'rgba(255, 255, 255, 0.15)' }}></div>
+                        {/* Círculo Central */}
+                        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '22px', height: '22px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
+                        {/* Ponto Central */}
+                        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '3px', height: '3px', background: 'rgba(255, 255, 255, 0.3)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
+                        
+                        {/* Grande Área Esquerda (Home) */}
+                        <div style={{ position: 'absolute', top: '12px', left: 0, width: '14px', height: '40px', border: '1px solid rgba(255, 255, 255, 0.15)', borderLeft: 'none' }}></div>
+                        {/* Pequena Área Esquerda (Home) */}
+                        <div style={{ position: 'absolute', top: '22px', left: 0, width: '6px', height: '20px', border: '1px solid rgba(255, 255, 255, 0.1)', borderLeft: 'none' }}></div>
+
+                        {/* Grande Área Direita (Away) */}
+                        <div style={{ position: 'absolute', top: '12px', right: 0, width: '14px', height: '40px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRight: 'none' }}></div>
+                        {/* Pequena Área Direita (Away) */}
+                        <div style={{ position: 'absolute', top: '22px', right: 0, width: '6px', height: '20px', border: '1px solid rgba(255, 255, 255, 0.1)', borderRight: 'none' }}></div>
+
+                        {/* Efeito de Brilho de Calor (Heatmap) */}
+                        <div style={{
+                          position: 'absolute',
+                          top: '50%',
+                          left: glowLeft,
+                          width: '36px',
+                          height: '36px',
+                          background: `radial-gradient(circle, ${glowColor} 0%, rgba(0,0,0,0) 70%)`,
+                          borderRadius: '50%',
+                          transform: 'translate(-50%, -50%)',
+                          animation: 'pulseHeat 1.5s infinite ease-in-out',
+                          pointerEvents: 'none'
+                        }}></div>
+                        
+                        {/* Dica visual flutuante */}
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '2px',
+                          right: '6px',
+                          fontSize: '0.55rem',
+                          color: 'rgba(255, 255, 255, 0.4)',
+                          fontFamily: 'monospace',
+                          pointerEvents: 'none'
+                        }}>
+                          🔍 Ampliar
+                        </div>
+                      </div>
+                    );
+                  })()}
+
                   {/* Bloco 2: 1 X 2 Visual */}
                   <div className="game-card-1x2">
                     <div style={{ border: '1px solid #333', padding: '6px 0', textAlign: 'center', borderRadius: '4px', color: '#888', fontWeight: 'bold', background: game.stats.bestTip.selection === 'Casa Vence' ? '#4CAF50' : 'transparent', color: game.stats.bestTip.selection === 'Casa Vence' ? '#fff' : '#888' }}>1</div>
@@ -1311,82 +1393,7 @@ export default function PalpitesPage() {
                         </div>
                       </div>
 
-                      {/* Campo de Futebol Heatmap (Compacto - Clique para Ampliar) */}
-                      <div 
-                        onClick={() => setOpenRadarGameId(game.id)}
-                        style={{ 
-                          position: 'relative', 
-                          width: '100%', 
-                          height: '50px', 
-                          background: '#0d1a0d', 
-                          border: '1px solid rgba(255, 255, 255, 0.12)', 
-                          borderRadius: '8px', 
-                          overflow: 'hidden',
-                          boxShadow: 'inset 0 0 15px rgba(0,0,0,0.6)',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease-in-out',
-                        }}
-                        className="hover-scale-field"
-                        title="Clique para abrir o Radar em tempo real ampliado 🔍"
-                      >
-                        {/* Linha de Meio de Campo */}
-                        <div style={{ position: 'absolute', top: 0, left: '50%', width: '1px', height: '100%', background: 'rgba(255, 255, 255, 0.15)' }}></div>
-                        {/* Círculo Central */}
-                        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '22px', height: '22px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
-                        {/* Ponto Central */}
-                        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '3px', height: '3px', background: 'rgba(255, 255, 255, 0.3)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
-                        
-                        {/* Grande Área Esquerda (Home) */}
-                        <div style={{ position: 'absolute', top: '10px', left: 0, width: '14px', height: '30px', border: '1px solid rgba(255, 255, 255, 0.15)', borderLeft: 'none' }}></div>
-                        {/* Pequena Área Esquerda (Home) */}
-                        <div style={{ position: 'absolute', top: '17px', left: 0, width: '6px', height: '16px', border: '1px solid rgba(255, 255, 255, 0.1)', borderLeft: 'none' }}></div>
 
-                        {/* Grande Área Direita (Away) */}
-                        <div style={{ position: 'absolute', top: '10px', right: 0, width: '14px', height: '30px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRight: 'none' }}></div>
-                        {/* Pequena Área Direita (Away) */}
-                        <div style={{ position: 'absolute', top: '17px', right: 0, width: '6px', height: '16px', border: '1px solid rgba(255, 255, 255, 0.1)', borderRight: 'none' }}></div>
-
-                        {/* Efeito de Brilho de Calor (Heatmap) */}
-                        {(() => {
-                          let glowLeft = '50%';
-                          let glowColor = 'rgba(204, 255, 0, 0.4)';
-                          if (radar.zone === 'away_box') {
-                            glowLeft = '80%';
-                            glowColor = 'rgba(255, 68, 68, 0.5)';
-                          } else if (radar.zone === 'home_box') {
-                            glowLeft = '20%';
-                            glowColor = 'rgba(0, 210, 255, 0.5)';
-                          }
-
-                          return (
-                            <div style={{
-                              position: 'absolute',
-                              top: '50%',
-                              left: glowLeft,
-                              width: '36px',
-                              height: '36px',
-                              background: `radial-gradient(circle, ${glowColor} 0%, rgba(0,0,0,0) 70%)`,
-                              borderRadius: '50%',
-                              transform: 'translate(-50%, -50%)',
-                              animation: 'pulseHeat 1.5s infinite ease-in-out',
-                              pointerEvents: 'none'
-                            }}></div>
-                          );
-                        })()}
-                        
-                        {/* Dica visual flutuante */}
-                        <div style={{
-                          position: 'absolute',
-                          bottom: '2px',
-                          right: '6px',
-                          fontSize: '0.65rem',
-                          color: 'rgba(255, 255, 255, 0.4)',
-                          fontFamily: 'monospace',
-                          pointerEvents: 'none'
-                        }}>
-                          🔍 Clique para ampliar
-                        </div>
-                      </div>
 
                       {/* Texto de Status */}
                       <div style={{ fontSize: '0.8rem', color: '#ccc', fontStyle: 'italic', background: 'rgba(255, 255, 255, 0.02)', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.03)' }}>

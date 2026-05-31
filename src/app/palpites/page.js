@@ -311,6 +311,7 @@ export default function PalpitesPage() {
   const [sendingSummary, setSendingSummary] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const [openStatsId, setOpenStatsId] = useState(null);
+  const [openRadarGameId, setOpenRadarGameId] = useState(null);
   const [activeStatsTab, setActiveStatsTab] = useState('geral');
 
   const showToast = (message, type = 'success') => {
@@ -1310,33 +1311,40 @@ export default function PalpitesPage() {
                         </div>
                       </div>
 
-                      {/* Campo de Futebol Heatmap */}
-                      <div style={{ 
-                        position: 'relative', 
-                        width: '100%', 
-                        height: '110px', 
-                        background: '#0d1a0d', 
-                        border: '1px solid rgba(255, 255, 255, 0.1)', 
-                        borderRadius: '6px', 
-                        overflow: 'hidden',
-                        boxShadow: 'inset 0 0 15px rgba(0,0,0,0.5)'
-                      }}>
+                      {/* Campo de Futebol Heatmap (Compacto - Clique para Ampliar) */}
+                      <div 
+                        onClick={() => setOpenRadarGameId(game.id)}
+                        style={{ 
+                          position: 'relative', 
+                          width: '100%', 
+                          height: '50px', 
+                          background: '#0d1a0d', 
+                          border: '1px solid rgba(255, 255, 255, 0.12)', 
+                          borderRadius: '8px', 
+                          overflow: 'hidden',
+                          boxShadow: 'inset 0 0 15px rgba(0,0,0,0.6)',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease-in-out',
+                        }}
+                        className="hover-scale-field"
+                        title="Clique para abrir o Radar em tempo real ampliado 🔍"
+                      >
                         {/* Linha de Meio de Campo */}
                         <div style={{ position: 'absolute', top: 0, left: '50%', width: '1px', height: '100%', background: 'rgba(255, 255, 255, 0.15)' }}></div>
                         {/* Círculo Central */}
-                        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '36px', height: '36px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
+                        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '22px', height: '22px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
                         {/* Ponto Central */}
-                        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '4px', height: '4px', background: 'rgba(255, 255, 255, 0.3)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
+                        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '3px', height: '3px', background: 'rgba(255, 255, 255, 0.3)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
                         
                         {/* Grande Área Esquerda (Home) */}
-                        <div style={{ position: 'absolute', top: '20px', left: 0, width: '22px', height: '70px', border: '1px solid rgba(255, 255, 255, 0.15)', borderLeft: 'none' }}></div>
+                        <div style={{ position: 'absolute', top: '10px', left: 0, width: '14px', height: '30px', border: '1px solid rgba(255, 255, 255, 0.15)', borderLeft: 'none' }}></div>
                         {/* Pequena Área Esquerda (Home) */}
-                        <div style={{ position: 'absolute', top: '35px', left: 0, width: '8px', height: '40px', border: '1px solid rgba(255, 255, 255, 0.1)', borderLeft: 'none' }}></div>
+                        <div style={{ position: 'absolute', top: '17px', left: 0, width: '6px', height: '16px', border: '1px solid rgba(255, 255, 255, 0.1)', borderLeft: 'none' }}></div>
 
                         {/* Grande Área Direita (Away) */}
-                        <div style={{ position: 'absolute', top: '20px', right: 0, width: '22px', height: '70px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRight: 'none' }}></div>
+                        <div style={{ position: 'absolute', top: '10px', right: 0, width: '14px', height: '30px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRight: 'none' }}></div>
                         {/* Pequena Área Direita (Away) */}
-                        <div style={{ position: 'absolute', top: '35px', right: 0, width: '8px', height: '40px', border: '1px solid rgba(255, 255, 255, 0.1)', borderRight: 'none' }}></div>
+                        <div style={{ position: 'absolute', top: '17px', right: 0, width: '6px', height: '16px', border: '1px solid rgba(255, 255, 255, 0.1)', borderRight: 'none' }}></div>
 
                         {/* Efeito de Brilho de Calor (Heatmap) */}
                         {(() => {
@@ -1355,8 +1363,8 @@ export default function PalpitesPage() {
                               position: 'absolute',
                               top: '50%',
                               left: glowLeft,
-                              width: '60px',
-                              height: '60px',
+                              width: '36px',
+                              height: '36px',
                               background: `radial-gradient(circle, ${glowColor} 0%, rgba(0,0,0,0) 70%)`,
                               borderRadius: '50%',
                               transform: 'translate(-50%, -50%)',
@@ -1365,6 +1373,19 @@ export default function PalpitesPage() {
                             }}></div>
                           );
                         })()}
+                        
+                        {/* Dica visual flutuante */}
+                        <div style={{
+                          position: 'absolute',
+                          bottom: '2px',
+                          right: '6px',
+                          fontSize: '0.65rem',
+                          color: 'rgba(255, 255, 255, 0.4)',
+                          fontFamily: 'monospace',
+                          pointerEvents: 'none'
+                        }}>
+                          🔍 Clique para ampliar
+                        </div>
                       </div>
 
                       {/* Texto de Status */}
@@ -2045,6 +2066,284 @@ export default function PalpitesPage() {
         );
       })()}
 
+      {/* POPUP DO RADAR DE PRESSÃO IN-PLAY DETALHADO */}
+      {openRadarGameId && (() => {
+        const game = games.find(g => g.id === openRadarGameId);
+        if (!game) return null;
+        
+        const radar = getLiveMatchRadar(game);
+        if (!radar) return null;
+
+        return (
+          <div 
+            onClick={() => setOpenRadarGameId(null)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              backgroundColor: 'rgba(0, 0, 0, 0.85)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 10001,
+              animation: 'fadeIn 0.2s ease-out'
+            }}
+          >
+            <div 
+              className="glass-panel" 
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '95%',
+                maxWidth: '650px',
+                background: 'linear-gradient(135deg, #0d0d12, #12121a)',
+                border: '1px solid rgba(255, 68, 68, 0.3)',
+                borderTop: '5px solid #ff4444',
+                borderRadius: '16px',
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '20px',
+                boxShadow: '0 15px 50px rgba(0, 0, 0, 0.9)',
+                position: 'relative',
+                animation: 'scaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)'
+              }}
+            >
+              {/* Botão de Fechar Modal */}
+              <button 
+                onClick={() => setOpenRadarGameId(null)}
+                style={{
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#aaa',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  transition: 'color 0.2s'
+                }}
+                onMouseOver={(e) => e.target.style.color = '#fff'}
+                onMouseOut={(e) => e.target.style.color = '#aaa'}
+              >
+                ✕
+              </button>
+
+              {/* Cabeçalho */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
+                <span style={{ fontSize: '1.8rem', animation: 'pulse 1.2s infinite' }}>🔴</span>
+                <div>
+                  <h3 style={{ fontSize: '1.35rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>
+                    Radar de Pressão In-Play (Tempo Real)
+                  </h3>
+                  <p style={{ fontSize: '0.85rem', color: '#888', margin: '2px 0 0 0' }}>
+                    {getLeagueName(game.sourceLeagueId)} • Rodada {game.round}
+                  </p>
+                </div>
+              </div>
+
+              {/* Informações das Equipes e Placar */}
+              <div style={{
+                background: '#161622',
+                padding: '16px 20px',
+                borderRadius: '12px',
+                border: '1px solid #2d2d3d',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px'
+              }}>
+                {/* Time Casa */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: '8px', textAlign: 'center' }}>
+                  <img 
+                    src={game.homeLogo || `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=40`}
+                    alt={game.home}
+                    style={{ width: '40px', height: '40px', objectFit: 'contain' }}
+                  />
+                  <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff' }}>{game.home}</span>
+                </div>
+
+                {/* Placar e Tempo */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px' }}>
+                  <div style={{
+                    background: '#252535',
+                    padding: '8px 20px',
+                    borderRadius: '8px',
+                    border: '1px solid #3d3d52',
+                    fontSize: '1.8rem',
+                    fontWeight: '800',
+                    color: '#00ffa0',
+                    letterSpacing: '4px'
+                  }}>
+                    {game.goalsHome} - {game.goalsAway}
+                  </div>
+                  <span style={{
+                    background: 'rgba(255, 68, 68, 0.15)',
+                    color: '#ff4444',
+                    padding: '3px 10px',
+                    borderRadius: '20px',
+                    fontSize: '0.8rem',
+                    fontWeight: 'bold',
+                    border: '1px solid rgba(255, 68, 68, 0.3)'
+                  }}>
+                    ⏱️ AO VIVO • {game.minute}'
+                  </span>
+                </div>
+
+                {/* Time Fora */}
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1, gap: '8px', textAlign: 'center' }}>
+                  <img 
+                    src={game.awayLogo || `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=40`}
+                    alt={game.away}
+                    style={{ width: '40px', height: '40px', objectFit: 'contain' }}
+                  />
+                  <span style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff' }}>{game.away}</span>
+                </div>
+              </div>
+
+              {/* Termômetro e Detalhes de Pressão */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', color: '#aaa', fontWeight: 'bold' }}>
+                  <span style={{ color: '#ff4444' }}>Pressão {game.home}: {radar.homePressure}%</span>
+                  <span style={{ color: '#00d2ff' }}>Pressão {game.away}: {radar.awayPressure}%</span>
+                </div>
+                {/* Termômetro Gigante */}
+                <div style={{ display: 'flex', height: '14px', borderRadius: '7px', overflow: 'hidden', background: '#111', border: '1px solid #333' }}>
+                  <div style={{ width: `${radar.homePressure}%`, background: 'linear-gradient(90deg, #ff4444, #ff8800)', transition: 'width 0.5s ease-in-out' }}></div>
+                  <div style={{ width: `${radar.awayPressure}%`, background: 'linear-gradient(90deg, #00d2ff, #00ffa0)', transition: 'width 0.5s ease-in-out' }}></div>
+                </div>
+              </div>
+
+              {/* Campo de Futebol Heatmap - Ampliado */}
+              <div style={{
+                position: 'relative',
+                width: '100%',
+                height: '180px',
+                background: '#0d1a0d',
+                border: '2px solid rgba(255, 255, 255, 0.15)',
+                borderRadius: '12px',
+                overflow: 'hidden',
+                boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5), inset 0 0 25px rgba(0,0,0,0.7)',
+                marginTop: '6px'
+              }}>
+                {/* Linha de Meio de Campo */}
+                <div style={{ position: 'absolute', top: 0, left: '50%', width: '1.5px', height: '100%', background: 'rgba(255, 255, 255, 0.2)' }}></div>
+                {/* Círculo Central */}
+                <div style={{ position: 'absolute', top: '50%', left: '50%', width: '56px', height: '56px', border: '1.5px solid rgba(255, 255, 255, 0.2)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
+                {/* Ponto Central */}
+                <div style={{ position: 'absolute', top: '50%', left: '50%', width: '6px', height: '6px', background: 'rgba(255, 255, 255, 0.4)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
+                
+                {/* Grande Área Esquerda (Home) */}
+                <div style={{ position: 'absolute', top: '35px', left: 0, width: '42px', height: '110px', border: '1.5px solid rgba(255, 255, 255, 0.2)', borderLeft: 'none' }}></div>
+                {/* Pequena Área Esquerda (Home) */}
+                <div style={{ position: 'absolute', top: '55px', left: 0, width: '16px', height: '70px', border: '1px solid rgba(255, 255, 255, 0.15)', borderLeft: 'none' }}></div>
+
+                {/* Grande Área Direita (Away) */}
+                <div style={{ position: 'absolute', top: '35px', right: 0, width: '42px', height: '110px', border: '1.5px solid rgba(255, 255, 255, 0.2)', borderRight: 'none' }}></div>
+                {/* Pequena Área Direita (Away) */}
+                <div style={{ position: 'absolute', top: '55px', right: 0, width: '16px', height: '70px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRight: 'none' }}></div>
+
+                {/* Efeito de Calor Pulsante */}
+                {(() => {
+                  let glowLeft = '50%';
+                  let glowColor = 'rgba(204, 255, 0, 0.45)';
+                  if (radar.zone === 'away_box') {
+                    glowLeft = '80%';
+                    glowColor = 'rgba(255, 68, 68, 0.6)';
+                  } else if (radar.zone === 'home_box') {
+                    glowLeft = '20%';
+                    glowColor = 'rgba(0, 210, 255, 0.6)';
+                  }
+
+                  return (
+                    <div style={{
+                      position: 'absolute',
+                      top: '50%',
+                      left: glowLeft,
+                      width: '100px',
+                      height: '100px',
+                      background: `radial-gradient(circle, ${glowColor} 0%, rgba(0,0,0,0) 70%)`,
+                      borderRadius: '50%',
+                      transform: 'translate(-50%, -50%)',
+                      animation: 'pulseHeat 1.5s infinite ease-in-out',
+                      pointerEvents: 'none'
+                    }}></div>
+                  );
+                })()}
+                
+                {/* Letreiros informativos nas extremidades */}
+                <div style={{ position: 'absolute', top: '6px', left: '12px', fontSize: '0.7rem', color: '#ff4444', fontWeight: 'bold', opacity: 0.6 }}>ÁREA DEFENSIVA CASA</div>
+                <div style={{ position: 'absolute', top: '6px', right: '12px', fontSize: '0.7rem', color: '#00d2ff', fontWeight: 'bold', opacity: 0.6 }}>ÁREA DEFENSIVA FORA</div>
+              </div>
+
+              {/* Status & Insight do Modelo */}
+              <div style={{
+                background: '#111',
+                padding: '16px',
+                borderRadius: '12px',
+                border: '1px solid #222',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
+              }}>
+                <div style={{ fontSize: '0.85rem', color: '#fff', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span>📢</span> Status da Partida:
+                </div>
+                <p style={{ fontSize: '0.85rem', color: '#ccc', margin: 0, fontStyle: 'italic', lineHeight: '1.4' }}>
+                  {radar.statusText}
+                </p>
+                
+                <div style={{
+                  borderTop: '1px solid #222',
+                  paddingTop: '10px',
+                  marginTop: '6px',
+                  fontSize: '0.8rem',
+                  color: '#888',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px'
+                }}>
+                  <span style={{ color: 'var(--brand-neon)' }}>💡</span>
+                  <span>
+                    {radar.zone === 'away_box' && `Alta pressão de ${game.home}. Mercado de Cantos ou Próximo Gol (${game.home}) pode ter valor.`}
+                    {radar.zone === 'home_box' && `Alta pressão de ${game.away}. Mercado de Cantos ou Próximo Gol (${game.away}) pode ter valor.`}
+                    {radar.zone === 'midfield' && 'Jogo travado no meio de campo. Tendência de pouca atividade em gols no momento.'}
+                  </span>
+                </div>
+              </div>
+
+              {/* Botão de Fechar no Rodapé */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+                <button 
+                  onClick={() => setOpenRadarGameId(null)}
+                  style={{
+                    background: '#ff4444',
+                    border: 'none',
+                    color: '#fff',
+                    padding: '10px 24px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '0.9rem',
+                    boxShadow: '0 4px 15px rgba(255, 68, 68, 0.2)',
+                    transition: 'all 0.2s'
+                  }}
+                  onMouseOver={(e) => e.target.style.background = '#ff6666'}
+                  onMouseOut={(e) => e.target.style.background = '#ff4444'}
+                >
+                  Fechar Radar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Toast Notificação Customizada */}
       {toast.show && (
         <div style={{
@@ -2077,6 +2376,11 @@ export default function PalpitesPage() {
         .no-scrollbar {
           -ms-overflow-style: none;
           scrollbar-width: none;
+        }
+        .hover-scale-field:hover {
+          transform: scale(1.008);
+          border-color: rgba(255, 255, 255, 0.25) !important;
+          box-shadow: 0 0 10px rgba(255,255,255,0.05), inset 0 0 15px rgba(0,0,0,0.6) !important;
         }
         @keyframes slideIn {
           from { transform: translateY(100px); opacity: 0; }

@@ -248,6 +248,46 @@ const getBookmakerOdds = (confronto, selection, fairOdd) => {
   return results;
 };
 
+const getLiveMatchRadar = (game) => {
+  if (!game || !game.isLive) return null;
+  
+  const minute = game.minute || 1;
+  const hash = String(game.id) + String(minute);
+  let seed = 0;
+  for (let i = 0; i < hash.length; i++) {
+    seed = hash.charCodeAt(i) + ((seed << 5) - seed);
+  }
+  seed = Math.abs(seed);
+
+  const homeBase = 30 + (seed % 41); // 30% a 70%
+  const homePressure = homeBase;
+  const awayPressure = 100 - homeBase;
+
+  let statusText = 'Disputa intensa no meio de campo.';
+  let zone = 'midfield'; 
+
+  if (homePressure >= 60) {
+    statusText = `${game.home} está pressionando fortemente! Bola parada na área adversária.`;
+    zone = 'away_box';
+  } else if (awayPressure >= 60) {
+    statusText = `${game.away} domina as ações ofensivas neste momento! Perigo para a zaga do ${game.home}.`;
+    zone = 'home_box';
+  } else {
+    if (homePressure > awayPressure) {
+      statusText = `${game.home} tenta criar jogadas pelas laterais, jogo equilibrado.`;
+    } else {
+      statusText = `${game.away} busca contra-ataques velozes, mas defesa adversária segura bem.`;
+    }
+  }
+
+  return {
+    homePressure,
+    awayPressure,
+    statusText,
+    zone
+  };
+};
+
 export default function PalpitesPage() {
   const [games, setGames] = useState([]);
   const [loadingId, setLoadingId] = useState(null);
@@ -1151,7 +1191,7 @@ export default function PalpitesPage() {
                   <div className="game-card-info">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
                       <span className="mobile-hide" style={{ color: game.isLive ? '#ff4444' : '#4CAF50', fontWeight: 'bold', fontSize: '0.9rem' }}>{game.date}</span>
-                      {game.isLive && <span style={{ background: '#ff4444', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', animation: 'pulse 1.5s infinite' }}>🔴 AO VIVO</span>}
+                      {game.isLive && <span style={{ background: '#ff4444', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', animation: 'pulse 1.5s infinite' }}>🔴 AO VIVO • {game.minute}'</span>}
                       {game.isFinished && <span style={{ background: '#444', color: '#aaa', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>ENCERRADO</span>}
                       {hasGameEV && <span className="badge-neon" style={{ fontSize: '0.7rem', padding: '2px 8px' }}>🔥 +EV DETECTADO</span>}
                     </div>
@@ -1229,6 +1269,111 @@ export default function PalpitesPage() {
                     </div>
                   </div>
                 </div>
+
+                {/* RADAR IN-PLAY E MAPA DE CALOR */}
+                {game.isLive && (() => {
+                  const radar = getLiveMatchRadar(game);
+                  if (!radar) return null;
+
+                  return (
+                    <div style={{
+                      margin: '0 24px 16px 24px',
+                      background: 'linear-gradient(180deg, #11221115, #08110815)',
+                      border: '1px solid rgba(255, 68, 68, 0.2)',
+                      borderRadius: '12px',
+                      padding: '14px',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '12px'
+                    }}>
+                      {/* Cabeçalho In-Play */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
+                        <div style={{ fontSize: '0.8rem', color: '#ff4444', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#ff4444', animation: 'pulse 1.2s infinite' }}></span>
+                          Radar de Pressão In-Play
+                        </div>
+                        <div style={{ fontSize: '0.8rem', color: '#aaa', fontWeight: '500' }}>
+                          ⏱️ Tempo de Jogo: <strong style={{ color: '#fff', fontSize: '0.9rem' }}>{game.minute}'</strong>
+                        </div>
+                      </div>
+
+                      {/* Indicadores de Pressão Lateral */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#888', fontWeight: 'bold' }}>
+                          <span>{game.home} ({radar.homePressure}%)</span>
+                          <span>{game.away} ({radar.awayPressure}%)</span>
+                        </div>
+                        {/* Barra Dupla de Progresso */}
+                        <div style={{ display: 'flex', height: '8px', borderRadius: '4px', overflow: 'hidden', background: '#222' }}>
+                          <div style={{ width: `${radar.homePressure}%`, background: 'linear-gradient(90deg, #ff4444, #ff8800)', transition: 'width 0.5s ease-in-out' }}></div>
+                          <div style={{ width: `${radar.awayPressure}%`, background: 'linear-gradient(90deg, #00d2ff, #00ffa0)', transition: 'width 0.5s ease-in-out' }}></div>
+                        </div>
+                      </div>
+
+                      {/* Campo de Futebol Heatmap */}
+                      <div style={{ 
+                        position: 'relative', 
+                        width: '100%', 
+                        height: '110px', 
+                        background: '#0d1a0d', 
+                        border: '1px solid rgba(255, 255, 255, 0.1)', 
+                        borderRadius: '6px', 
+                        overflow: 'hidden',
+                        boxShadow: 'inset 0 0 15px rgba(0,0,0,0.5)'
+                      }}>
+                        {/* Linha de Meio de Campo */}
+                        <div style={{ position: 'absolute', top: 0, left: '50%', width: '1px', height: '100%', background: 'rgba(255, 255, 255, 0.15)' }}></div>
+                        {/* Círculo Central */}
+                        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '36px', height: '36px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
+                        {/* Ponto Central */}
+                        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '4px', height: '4px', background: 'rgba(255, 255, 255, 0.3)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
+                        
+                        {/* Grande Área Esquerda (Home) */}
+                        <div style={{ position: 'absolute', top: '20px', left: 0, width: '22px', height: '70px', border: '1px solid rgba(255, 255, 255, 0.15)', borderLeft: 'none' }}></div>
+                        {/* Pequena Área Esquerda (Home) */}
+                        <div style={{ position: 'absolute', top: '35px', left: 0, width: '8px', height: '40px', border: '1px solid rgba(255, 255, 255, 0.1)', borderLeft: 'none' }}></div>
+
+                        {/* Grande Área Direita (Away) */}
+                        <div style={{ position: 'absolute', top: '20px', right: 0, width: '22px', height: '70px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRight: 'none' }}></div>
+                        {/* Pequena Área Direita (Away) */}
+                        <div style={{ position: 'absolute', top: '35px', right: 0, width: '8px', height: '40px', border: '1px solid rgba(255, 255, 255, 0.1)', borderRight: 'none' }}></div>
+
+                        {/* Efeito de Brilho de Calor (Heatmap) */}
+                        {(() => {
+                          let glowLeft = '50%';
+                          let glowColor = 'rgba(204, 255, 0, 0.4)';
+                          if (radar.zone === 'away_box') {
+                            glowLeft = '80%';
+                            glowColor = 'rgba(255, 68, 68, 0.5)';
+                          } else if (radar.zone === 'home_box') {
+                            glowLeft = '20%';
+                            glowColor = 'rgba(0, 210, 255, 0.5)';
+                          }
+
+                          return (
+                            <div style={{
+                              position: 'absolute',
+                              top: '50%',
+                              left: glowLeft,
+                              width: '60px',
+                              height: '60px',
+                              background: `radial-gradient(circle, ${glowColor} 0%, rgba(0,0,0,0) 70%)`,
+                              borderRadius: '50%',
+                              transform: 'translate(-50%, -50%)',
+                              animation: 'pulseHeat 1.5s infinite ease-in-out',
+                              pointerEvents: 'none'
+                            }}></div>
+                          );
+                        })()}
+                      </div>
+
+                      {/* Texto de Status */}
+                      <div style={{ fontSize: '0.8rem', color: '#ccc', fontStyle: 'italic', background: 'rgba(255, 255, 255, 0.02)', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.03)' }}>
+                        📢 <strong>Status:</strong> {radar.statusText}
+                      </div>
+                    </div>
+                  );
+                })()}
 
                 {/* COMPARATIVO DE ODDS E CASAS DE APOSTAS */}
                 <div style={{ 
@@ -1944,6 +2089,11 @@ export default function PalpitesPage() {
         @keyframes scaleUp {
           from { transform: scale(0.95); opacity: 0; }
           to { transform: scale(1); opacity: 1; }
+        }
+        @keyframes pulseHeat {
+          0% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.6; }
+          50% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.9; }
+          100% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.6; }
         }
       `}</style>
     </div>

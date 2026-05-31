@@ -305,7 +305,7 @@ export default function PalpitesPage() {
 
   // Estados do Controle de Banca integrado
   const [transactions, setTransactions] = useState([]);
-  const [statsMode, setStatsMode] = useState('minhas'); // 'minhas' ou 'modelo'
+  const [statsMode, setStatsMode] = useState('modelo'); // 'minhas' ou 'modelo'
   const [followAmount, setFollowAmount] = useState('50');
   const [followOdd, setFollowOdd] = useState('');
   const [activeFollowId, setActiveFollowId] = useState(null);
@@ -1032,7 +1032,7 @@ export default function PalpitesPage() {
             {/* Data e Seletor de Rodada Info */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
               <div style={{ color: 'var(--brand-neon)', fontWeight: 'bold', fontSize: '0.9rem' }}>
-                {roundInfo ? `Temporada ${roundInfo.season} • Rodada ${roundInfo.round}` : ''}
+                {roundInfo ? `Temporada ${roundInfo.season}` : ''}
               </div>
               
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

@@ -1248,7 +1248,7 @@ export default function PalpitesPage() {
                     </div>
                   </div>
 
-                  {/* Bloco 1.5: Campo Compacto de Futebol (Apenas se estiver Ao Vivo) */}
+                  {/* Bloco 1.5: Campo Compacto de Futebol e Barra de Pressão (Apenas se estiver Ao Vivo) */}
                   {game.isLive && (() => {
                     const radar = getLiveMatchRadar(game);
                     if (!radar) return null;
@@ -1263,68 +1263,87 @@ export default function PalpitesPage() {
                     }
 
                     return (
-                      <div 
-                        onClick={() => setOpenRadarGameId(game.id)}
-                        style={{ 
-                          position: 'relative', 
-                          width: '120px', 
-                          height: '65px', 
-                          background: '#0d1a0d', 
-                          border: '1px solid rgba(255, 255, 255, 0.12)', 
-                          borderRadius: '8px', 
-                          overflow: 'hidden',
-                          boxShadow: 'inset 0 0 15px rgba(0,0,0,0.6)',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease-in-out',
-                          flexShrink: 0,
-                          alignSelf: 'center',
-                          margin: '0 auto'
-                        }}
-                        className="hover-scale-field"
-                        title="Clique para abrir o Radar em tempo real ampliado 🔍"
-                      >
-                        {/* Linha de Meio de Campo */}
-                        <div style={{ position: 'absolute', top: 0, left: '50%', width: '1px', height: '100%', background: 'rgba(255, 255, 255, 0.15)' }}></div>
-                        {/* Círculo Central */}
-                        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '22px', height: '22px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
-                        {/* Ponto Central */}
-                        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '3px', height: '3px', background: 'rgba(255, 255, 255, 0.3)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
-                        
-                        {/* Grande Área Esquerda (Home) */}
-                        <div style={{ position: 'absolute', top: '12px', left: 0, width: '14px', height: '40px', border: '1px solid rgba(255, 255, 255, 0.15)', borderLeft: 'none' }}></div>
-                        {/* Pequena Área Esquerda (Home) */}
-                        <div style={{ position: 'absolute', top: '22px', left: 0, width: '6px', height: '20px', border: '1px solid rgba(255, 255, 255, 0.1)', borderLeft: 'none' }}></div>
+                      <div style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        alignItems: 'center', 
+                        gap: '6px',
+                        margin: '0 auto',
+                        flexShrink: 0
+                      }}>
+                        {/* Campo de Futebol Heatmap (Ampliado um pouco: 150x80px) */}
+                        <div 
+                          onClick={() => setOpenRadarGameId(game.id)}
+                          style={{ 
+                            position: 'relative', 
+                            width: '150px', 
+                            height: '80px', 
+                            background: '#0d1a0d', 
+                            border: '1px solid rgba(255, 255, 255, 0.12)', 
+                            borderRadius: '8px', 
+                            overflow: 'hidden',
+                            boxShadow: 'inset 0 0 15px rgba(0,0,0,0.6)',
+                            cursor: 'pointer',
+                            transition: 'all 0.2s ease-in-out',
+                          }}
+                          className="hover-scale-field"
+                          title="Clique para abrir o Radar em tempo real ampliado 🔍"
+                        >
+                          {/* Linha de Meio de Campo */}
+                          <div style={{ position: 'absolute', top: 0, left: '50%', width: '1px', height: '100%', background: 'rgba(255, 255, 255, 0.15)' }}></div>
+                          {/* Círculo Central */}
+                          <div style={{ position: 'absolute', top: '50%', left: '50%', width: '26px', height: '26px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
+                          {/* Ponto Central */}
+                          <div style={{ position: 'absolute', top: '50%', left: '50%', width: '4px', height: '4px', background: 'rgba(255, 255, 255, 0.3)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
+                          
+                          {/* Grande Área Esquerda (Home) */}
+                          <div style={{ position: 'absolute', top: '15px', left: 0, width: '18px', height: '50px', border: '1px solid rgba(255, 255, 255, 0.15)', borderLeft: 'none' }}></div>
+                          {/* Pequena Área Esquerda (Home) */}
+                          <div style={{ position: 'absolute', top: '27px', left: 0, width: '8px', height: '26px', border: '1px solid rgba(255, 255, 255, 0.1)', borderLeft: 'none' }}></div>
 
-                        {/* Grande Área Direita (Away) */}
-                        <div style={{ position: 'absolute', top: '12px', right: 0, width: '14px', height: '40px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRight: 'none' }}></div>
-                        {/* Pequena Área Direita (Away) */}
-                        <div style={{ position: 'absolute', top: '22px', right: 0, width: '6px', height: '20px', border: '1px solid rgba(255, 255, 255, 0.1)', borderRight: 'none' }}></div>
+                          {/* Grande Área Direita (Away) */}
+                          <div style={{ position: 'absolute', top: '15px', right: 0, width: '18px', height: '50px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRight: 'none' }}></div>
+                          {/* Pequena Área Direita (Away) */}
+                          <div style={{ position: 'absolute', top: '27px', right: 0, width: '8px', height: '26px', border: '1px solid rgba(255, 255, 255, 0.1)', borderRight: 'none' }}></div>
 
-                        {/* Efeito de Brilho de Calor (Heatmap) */}
-                        <div style={{
-                          position: 'absolute',
-                          top: '50%',
-                          left: glowLeft,
-                          width: '36px',
-                          height: '36px',
-                          background: `radial-gradient(circle, ${glowColor} 0%, rgba(0,0,0,0) 70%)`,
-                          borderRadius: '50%',
-                          transform: 'translate(-50%, -50%)',
-                          animation: 'pulseHeat 1.5s infinite ease-in-out',
-                          pointerEvents: 'none'
-                        }}></div>
-                        
-                        {/* Dica visual flutuante */}
-                        <div style={{
-                          position: 'absolute',
-                          bottom: '2px',
-                          right: '6px',
-                          fontSize: '0.55rem',
-                          color: 'rgba(255, 255, 255, 0.4)',
-                          fontFamily: 'monospace',
-                          pointerEvents: 'none'
-                        }}>
-                          🔍 Ampliar
+                          {/* Efeito de Brilho de Calor (Heatmap) */}
+                          <div style={{
+                            position: 'absolute',
+                            top: '50%',
+                            left: glowLeft,
+                            width: '44px',
+                            height: '44px',
+                            background: `radial-gradient(circle, ${glowColor} 0%, rgba(0,0,0,0) 70%)`,
+                            borderRadius: '50%',
+                            transform: 'translate(-50%, -50%)',
+                            animation: 'pulseHeat 1.5s infinite ease-in-out',
+                            pointerEvents: 'none'
+                          }}></div>
+                          
+                          {/* Dica visual flutuante */}
+                          <div style={{
+                            position: 'absolute',
+                            bottom: '2px',
+                            right: '6px',
+                            fontSize: '0.55rem',
+                            color: 'rgba(255, 255, 255, 0.4)',
+                            fontFamily: 'monospace',
+                            pointerEvents: 'none'
+                          }}>
+                            🔍 Ampliar
+                          </div>
+                        </div>
+
+                        {/* Barra de Pressão Compacta (Home vs Away) */}
+                        <div style={{ width: '150px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#aaa', fontWeight: 'bold' }}>
+                            <span style={{ color: '#ff4444' }}>{radar.homePressure}%</span>
+                            <span style={{ color: '#00d2ff' }}>{radar.awayPressure}%</span>
+                          </div>
+                          <div style={{ display: 'flex', height: '5px', borderRadius: '3px', overflow: 'hidden', background: '#222', width: '100%' }}>
+                            <div style={{ width: `${radar.homePressure}%`, background: 'linear-gradient(90deg, #ff4444, #ff8800)', transition: 'width 0.5s ease-in-out' }}></div>
+                            <div style={{ width: `${radar.awayPressure}%`, background: 'linear-gradient(90deg, #00d2ff, #00ffa0)', transition: 'width 0.5s ease-in-out' }}></div>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1353,7 +1372,7 @@ export default function PalpitesPage() {
                   </div>
                 </div>
 
-                {/* RADAR IN-PLAY E MAPA DE CALOR */}
+                {/* STATUS NARRADO DO RADAR (Apenas se Ao Vivo) */}
                 {game.isLive && (() => {
                   const radar = getLiveMatchRadar(game);
                   if (!radar) return null;
@@ -1361,44 +1380,20 @@ export default function PalpitesPage() {
                   return (
                     <div style={{
                       margin: '0 24px 16px 24px',
-                      background: 'linear-gradient(180deg, #11221115, #08110815)',
-                      border: '1px solid rgba(255, 68, 68, 0.2)',
-                      borderRadius: '12px',
-                      padding: '14px',
+                      background: 'rgba(255, 68, 68, 0.03)',
+                      border: '1px solid rgba(255, 68, 68, 0.15)',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
+                      fontSize: '0.8rem', 
+                      color: '#ccc', 
+                      fontStyle: 'italic',
                       display: 'flex',
-                      flexDirection: 'column',
-                      gap: '12px'
+                      alignItems: 'center',
+                      gap: '8px'
                     }}>
-                      {/* Cabeçalho In-Play */}
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
-                        <div style={{ fontSize: '0.8rem', color: '#ff4444', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                          <span style={{ display: 'inline-block', width: '8px', height: '8px', borderRadius: '50%', background: '#ff4444', animation: 'pulse 1.2s infinite' }}></span>
-                          Radar de Pressão In-Play
-                        </div>
-                        <div style={{ fontSize: '0.8rem', color: '#aaa', fontWeight: '500' }}>
-                          ⏱️ Tempo de Jogo: <strong style={{ color: '#fff', fontSize: '0.9rem' }}>{game.minute}'</strong>
-                        </div>
-                      </div>
-
-                      {/* Indicadores de Pressão Lateral */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#888', fontWeight: 'bold' }}>
-                          <span>{game.home} ({radar.homePressure}%)</span>
-                          <span>{game.away} ({radar.awayPressure}%)</span>
-                        </div>
-                        {/* Barra Dupla de Progresso */}
-                        <div style={{ display: 'flex', height: '8px', borderRadius: '4px', overflow: 'hidden', background: '#222' }}>
-                          <div style={{ width: `${radar.homePressure}%`, background: 'linear-gradient(90deg, #ff4444, #ff8800)', transition: 'width 0.5s ease-in-out' }}></div>
-                          <div style={{ width: `${radar.awayPressure}%`, background: 'linear-gradient(90deg, #00d2ff, #00ffa0)', transition: 'width 0.5s ease-in-out' }}></div>
-                        </div>
-                      </div>
-
-
-
-                      {/* Texto de Status */}
-                      <div style={{ fontSize: '0.8rem', color: '#ccc', fontStyle: 'italic', background: 'rgba(255, 255, 255, 0.02)', padding: '8px 12px', borderRadius: '6px', border: '1px solid rgba(255, 255, 255, 0.03)' }}>
-                        📢 <strong>Status:</strong> {radar.statusText}
-                      </div>
+                      <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#ff4444', animation: 'pulse 1.2s infinite', flexShrink: 0 }}></span>
+                      <strong style={{ color: '#ff4444', textTransform: 'uppercase', fontSize: '0.75rem', letterSpacing: '0.5px' }}>In-Play:</strong>
+                      <span>{radar.statusText}</span>
                     </div>
                   );
                 })()}

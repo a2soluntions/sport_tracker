@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Send, CheckCircle2, Trophy, Loader2, Trash2, PiggyBank, AlertTriangle } from 'lucide-react';
+import { Send, CheckCircle2, Trophy, Loader2, Trash2, PiggyBank, AlertTriangle, BarChart3, Target } from 'lucide-react';
 import { calculatePoissonMatchStats, formatPct, formatOdd } from '../../utils/poisson';
 import { supabase } from '../../lib/supabaseClient';
 
@@ -1334,15 +1334,35 @@ export default function PalpitesPage() {
                           </div>
                         </div>
 
-                        {/* Barra de Pressão Compacta (Home vs Away) */}
-                        <div style={{ width: '150px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        {/* Barra de Pressão Compacta (Home vs Away) com Efeito Neon Temperatura */}
+                        <div style={{ width: '150px', display: 'flex', flexDirection: 'column', gap: '3px', marginTop: '4px' }}>
                           <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.68rem', color: '#aaa', fontWeight: 'bold' }}>
                             <span style={{ color: '#ff4444' }}>{radar.homePressure}%</span>
                             <span style={{ color: '#00d2ff' }}>{radar.awayPressure}%</span>
                           </div>
-                          <div style={{ display: 'flex', height: '5px', borderRadius: '3px', overflow: 'hidden', background: '#222', width: '100%' }}>
-                            <div style={{ width: `${radar.homePressure}%`, background: 'linear-gradient(90deg, #ff4444, #ff8800)', transition: 'width 0.5s ease-in-out' }}></div>
-                            <div style={{ width: `${radar.awayPressure}%`, background: 'linear-gradient(90deg, #00d2ff, #00ffa0)', transition: 'width 0.5s ease-in-out' }}></div>
+                          <div style={{ display: 'flex', height: '6px', background: '#14141c', width: '100%', position: 'relative', borderRadius: '3px' }}>
+                            <div style={{ 
+                              width: `${radar.homePressure}%`, 
+                              background: 'linear-gradient(90deg, #ff5e00, #ff0055)', 
+                              boxShadow: '0 0 10px rgba(255, 0, 85, 0.7), 0 0 4px rgba(255, 0, 85, 0.4)', 
+                              transition: 'width 0.5s ease-in-out',
+                              height: '100%',
+                              borderTopLeftRadius: '3px',
+                              borderBottomLeftRadius: '3px',
+                              borderTopRightRadius: radar.awayPressure === 0 ? '3px' : '0px',
+                              borderBottomRightRadius: radar.awayPressure === 0 ? '3px' : '0px'
+                            }}></div>
+                            <div style={{ 
+                              width: `${radar.awayPressure}%`, 
+                              background: 'linear-gradient(90deg, #00bfff, #00ffaa)', 
+                              boxShadow: '0 0 10px rgba(0, 255, 170, 0.7), 0 0 4px rgba(0, 255, 170, 0.4)', 
+                              transition: 'width 0.5s ease-in-out',
+                              height: '100%',
+                              borderTopRightRadius: '3px',
+                              borderBottomRightRadius: '3px',
+                              borderTopLeftRadius: radar.homePressure === 0 ? '3px' : '0px',
+                              borderBottomLeftRadius: radar.homePressure === 0 ? '3px' : '0px'
+                            }}></div>
                           </div>
                         </div>
                       </div>
@@ -1356,18 +1376,128 @@ export default function PalpitesPage() {
                     <div style={{ border: '1px solid #333', padding: '6px 0', textAlign: 'center', borderRadius: '4px', color: '#888', fontWeight: 'bold', background: game.stats.bestTip.selection === 'Fora Vence' ? '#4CAF50' : 'transparent', color: game.stats.bestTip.selection === 'Fora Vence' ? '#fff' : '#888' }}>2</div>
                   </div>
 
-                  {/* Bloco 3: Destaque do Palpite */}
-                  <div className="game-card-highlight">
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '0.8rem', letterSpacing: '2px', color: '#888', marginBottom: '4px' }}>P A L P I T E</div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px', color: '#fff' }}>{game.stats.bestTip.selection}</div>
-                      <div style={{ fontSize: '0.9rem', color: '#aaa' }}>Probabilidade <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>{formatPct(game.stats.bestTip.prob)}%</span></div>
+                  {/* Bloco 3: Destaque do Palpite & Ações */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: '2 1 300px', width: '100%' }}>
+                    {/* Card de Palpite */}
+                    <div className="game-card-highlight" style={{ flex: 'none' }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.8rem', letterSpacing: '2px', color: '#888', marginBottom: '4px' }}>P A L P I T E</div>
+                        <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px', color: '#fff' }}>{game.stats.bestTip.selection}</div>
+                        <div style={{ fontSize: '0.9rem', color: '#aaa' }}>Probabilidade <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>{formatPct(game.stats.bestTip.prob)}%</span></div>
+                      </div>
+                      
+                      {/* ODD Verde Redonda */}
+                      <div style={{ background: '#4CAF50', width: '70px', height: '70px', borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 4px 15px rgba(76, 175, 80, 0.4)', flexShrink: 0 }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>ODD</div>
+                        <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>@{formatOdd(game.stats.bestTip.prob)}</div>
+                      </div>
                     </div>
-                    
-                    {/* ODD Verde Redonda */}
-                    <div style={{ background: '#4CAF50', width: '70px', height: '70px', borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 4px 15px rgba(76, 175, 80, 0.4)', flexShrink: 0 }}>
-                      <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>ODD</div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>@{formatOdd(game.stats.bestTip.prob)}</div>
+
+                    {/* Botões de Ação Reposicionados (Estatísticas, Seguir Palpite, Telegram) */}
+                    <div style={{ display: 'flex', gap: '8px', width: '100%', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => {
+                          if (openStatsId === game.id) {
+                            setOpenStatsId(null);
+                          } else {
+                            setOpenStatsId(game.id);
+                            setActiveStatsTab('geral');
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          background: openStatsId === game.id ? '#333' : 'transparent',
+                          color: openStatsId === game.id ? '#fff' : '#aaa',
+                          border: '1px solid ' + (openStatsId === game.id ? '#666' : '#444'),
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          fontSize: '0.82rem',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          transition: 'all 0.3s'
+                        }}
+                      >
+                        <BarChart3 size={15} />
+                        <span>Estatísticas</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (isFollowed(game)) return;
+                          if (activeFollowId === game.id) {
+                            setActiveFollowId(null);
+                          } else {
+                            setActiveFollowId(game.id);
+                            setFollowAmount('50');
+                            setFollowOdd(bestBmOdd.toFixed(2));
+                          }
+                        }}
+                        disabled={isFollowed(game)}
+                        style={{
+                          flex: 1.2,
+                          background: isFollowed(game) ? 'rgba(76, 175, 80, 0.15)' : activeFollowId === game.id ? '#ff9800' : 'transparent',
+                          color: isFollowed(game) ? '#4CAF50' : activeFollowId === game.id ? '#fff' : '#aaa',
+                          border: isFollowed(game) ? '1px solid rgba(76, 175, 80, 0.3)' : activeFollowId === game.id ? '1px solid #ff9800' : '1px solid #444',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          fontSize: '0.82rem',
+                          fontWeight: 'bold',
+                          cursor: isFollowed(game) ? 'not-allowed' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          transition: 'all 0.3s'
+                        }}
+                      >
+                        {isFollowed(game) ? (
+                          <>✓ Seguido</>
+                        ) : (
+                          <>
+                            <Target size={15} />
+                            <span>{activeFollowId === game.id ? 'Cancelar' : 'Seguir'}</span>
+                          </>
+                        )}
+                      </button>
+
+                      <button 
+                        onClick={() => handleBroadcast(game)}
+                        disabled={loadingId === game.id || sentIds.has(game.id)}
+                        style={{ 
+                          flex: 1.2,
+                          background: sentIds.has(game.id) ? '#333' : successId === game.id ? '#4CAF50' : 'var(--brand-neon)', 
+                          color: sentIds.has(game.id) ? '#888' : '#000', 
+                          padding: '8px 12px', 
+                          borderRadius: '8px', 
+                          fontSize: '0.82rem', 
+                          fontWeight: 'bold', 
+                          border: 'none', 
+                          cursor: (loadingId === game.id || sentIds.has(game.id)) ? 'not-allowed' : 'pointer', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          gap: '6px',
+                          transition: 'all 0.3s',
+                          opacity: sentIds.has(game.id) ? 0.7 : 1
+                        }}
+                      >
+                        {loadingId === game.id ? (
+                          <><Loader2 size={14} className="spin" />...</>
+                        ) : sentIds.has(game.id) ? (
+                          <><CheckCircle2 size={14} /> Enviado</>
+                        ) : successId === game.id ? (
+                          <><CheckCircle2 size={14} /> Enviado!</>
+                        ) : (
+                          <>
+                            <Send size={14} />
+                            <span>Enviar</span>
+                          </>
+                        )}
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -1458,110 +1588,7 @@ export default function PalpitesPage() {
                   </div>
                 </div>
 
-                {/* Expansão e Área de Disparo */}
-                <div style={{ borderTop: '1px solid #222', padding: '16px 24px', background: '#0a0a0a', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-                  <div style={{ color: '#aaa', fontSize: '0.9rem', flex: '1 1 300px' }}>
-                    O nosso <strong>algoritmo de Poisson</strong> validou esta entrada (Base: xG {game.homeXG} vs {game.awayXG}).
-                  </div>
-                  
-                  <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                    {/* Botão Estatísticas Avançadas */}
-                    <button
-                      onClick={() => {
-                        if (openStatsId === game.id) {
-                          setOpenStatsId(null);
-                        } else {
-                          setOpenStatsId(game.id);
-                          setActiveStatsTab('geral');
-                        }
-                      }}
-                      style={{
-                        background: openStatsId === game.id ? '#333' : 'transparent',
-                        color: openStatsId === game.id ? '#fff' : '#aaa',
-                        border: '1px solid ' + (openStatsId === game.id ? '#666' : '#444'),
-                        padding: '10px 16px',
-                        borderRadius: '8px',
-                        fontSize: '0.95rem',
-                        fontWeight: 'bold',
-                        cursor: 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        transition: 'all 0.3s'
-                      }}
-                    >
-                      <span>📊 Estatísticas</span>
-                    </button>
 
-                    {/* Botão Seguir Palpite */}
-                    <button
-                      onClick={() => {
-                        if (isFollowed(game)) return;
-                        if (activeFollowId === game.id) {
-                          setActiveFollowId(null);
-                        } else {
-                          setActiveFollowId(game.id);
-                          setFollowAmount('50');
-                          setFollowOdd(bestBmOdd.toFixed(2));
-                        }
-                      }}
-                      disabled={isFollowed(game)}
-                      style={{
-                        background: isFollowed(game) ? 'rgba(76, 175, 80, 0.15)' : activeFollowId === game.id ? '#ff9800' : 'transparent',
-                        color: isFollowed(game) ? '#4CAF50' : activeFollowId === game.id ? '#fff' : '#aaa',
-                        border: isFollowed(game) ? '1px solid rgba(76, 175, 80, 0.3)' : activeFollowId === game.id ? '1px solid #ff9800' : '1px solid #444',
-                        padding: '10px 20px',
-                        borderRadius: '8px',
-                        fontSize: '0.95rem',
-                        fontWeight: 'bold',
-                        cursor: isFollowed(game) ? 'not-allowed' : 'pointer',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                        transition: 'all 0.3s'
-                      }}
-                    >
-                      {isFollowed(game) ? (
-                        <>✓ Seguido (Banca)</>
-                      ) : activeFollowId === game.id ? (
-                        <>Cancelar ✕</>
-                      ) : (
-                        <>Seguir Palpite 🎯</>
-                      )}
-                    </button>
-
-                    {/* Botão Enviar p/ Telegram */}
-                    <button 
-                      onClick={() => handleBroadcast(game)}
-                      disabled={loadingId === game.id || sentIds.has(game.id)}
-                      style={{ 
-                        background: sentIds.has(game.id) ? '#333' : successId === game.id ? '#4CAF50' : 'var(--brand-neon)', 
-                        color: sentIds.has(game.id) ? '#888' : '#000', 
-                        padding: '10px 24px', 
-                        borderRadius: '8px', 
-                        fontSize: '0.95rem', 
-                        fontWeight: 'bold', 
-                        border: 'none', 
-                        cursor: (loadingId === game.id || sentIds.has(game.id)) ? 'not-allowed' : 'pointer', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '8px',
-                        transition: 'all 0.3s',
-                        opacity: sentIds.has(game.id) ? 0.7 : 1
-                      }}
-                    >
-                      {loadingId === game.id ? (
-                        <><Loader2 size={18} className="spin" /> Disparando...</>
-                      ) : sentIds.has(game.id) ? (
-                        <><CheckCircle2 size={18} /> Já Enviado ✅</>
-                      ) : successId === game.id ? (
-                        <><CheckCircle2 size={18} /> Enviado!</>
-                      ) : (
-                        <><Send size={18} /> Enviar p/ Telegram</>
-                      )}
-                    </button>
-                  </div>
-                </div>
 
 
 

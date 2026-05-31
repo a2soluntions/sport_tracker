@@ -1127,16 +1127,23 @@ export default function PalpitesPage() {
             {!pageLoading && !apiError && games.length === 0 && (
               <div style={{ color: '#888', fontStyle: 'italic', padding: '24px', background: '#111', borderRadius: '12px', textAlign: 'center' }}>Nenhum jogo encontrado para este dia.</div>
             )}
-            {games.map(game => (
-              <div key={game.id} style={{ 
-                background: '#111', 
-                borderRadius: '16px', 
-                border: game.isLive ? '1px solid #ff4444' : '1px solid #333', 
-                borderLeft: game.isLive ? '6px solid #ff4444' : game.isFinished ? '6px solid #666' : '6px solid #4CAF50',
-                overflow: 'hidden',
-                opacity: game.isFinished ? 0.7 : 1,
-                flexShrink: 0
-              }}>
+            {games.map(game => {
+              const fairOddVal = game.stats.bestTip.prob ? (1 / game.stats.bestTip.prob).toFixed(2) : '2.00';
+              const bmOdds = getBookmakerOdds(game.home + game.away, game.stats.bestTip.selection, fairOddVal);
+              const bestBmOdd = bmOdds.find(o => o.isBest)?.odd || Number(fairOddVal);
+              const hasGameEV = bestBmOdd > Number(fairOddVal) && !game.isFinished;
+
+              return (
+                <div key={game.id} style={{ 
+                  background: '#111', 
+                  borderRadius: '16px', 
+                  border: game.isLive ? '1px solid #ff4444' : hasGameEV ? '1px solid var(--brand-neon)' : '1px solid #333', 
+                  borderLeft: game.isLive ? '6px solid #ff4444' : game.isFinished ? '6px solid #666' : hasGameEV ? '6px solid var(--brand-neon)' : '6px solid #4CAF50',
+                  boxShadow: hasGameEV ? '0 0 15px rgba(204, 255, 0, 0.08)' : 'none',
+                  overflow: 'hidden',
+                  opacity: game.isFinished ? 0.7 : 1,
+                  flexShrink: 0
+                }}>
                 {/* Linha Principal do Card */}
                 <div className="game-card-main-row">
                   
@@ -1146,6 +1153,7 @@ export default function PalpitesPage() {
                       <span className="mobile-hide" style={{ color: game.isLive ? '#ff4444' : '#4CAF50', fontWeight: 'bold', fontSize: '0.9rem' }}>{game.date}</span>
                       {game.isLive && <span style={{ background: '#ff4444', color: '#fff', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold', animation: 'pulse 1.5s infinite' }}>🔴 AO VIVO</span>}
                       {game.isFinished && <span style={{ background: '#444', color: '#aaa', padding: '2px 8px', borderRadius: '4px', fontSize: '0.7rem', fontWeight: 'bold' }}>ENCERRADO</span>}
+                      {hasGameEV && <span className="badge-neon" style={{ fontSize: '0.7rem', padding: '2px 8px' }}>🔥 +EV DETECTADO</span>}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: '4px', textTransform: 'uppercase' }}>Futebol</div>
                     <div style={{ fontWeight: 'bold', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -1235,8 +1243,8 @@ export default function PalpitesPage() {
                     <span>⚖️</span> Onde Apostar (Melhores Odds para {game.stats.bestTip.selection}):
                   </div>
                   <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-                    {getBookmakerOdds(game.home + game.away, game.stats.bestTip.selection, (1 / game.stats.bestTip.prob).toFixed(2)).map(bm => {
-                      const fairOdd = game.stats.bestTip.prob ? (1 / game.stats.bestTip.prob) : 2.0;
+                    {bmOdds.map(bm => {
+                      const fairOdd = Number(fairOddVal);
                       const isEV = bm.odd > fairOdd;
                       return (
                         <div 
@@ -1326,9 +1334,6 @@ export default function PalpitesPage() {
                         } else {
                           setActiveFollowId(game.id);
                           setFollowAmount('50');
-                          const fairOddVal = game.stats.bestTip.prob ? (1 / game.stats.bestTip.prob).toFixed(2) : '2.00';
-                          const bmOdds = getBookmakerOdds(game.home + game.away, game.stats.bestTip.selection, fairOddVal);
-                          const bestBmOdd = bmOdds.find(o => o.isBest)?.odd || Number(fairOddVal);
                           setFollowOdd(bestBmOdd.toFixed(2));
                         }
                       }}
@@ -1483,7 +1488,8 @@ export default function PalpitesPage() {
                   </div>
                 )}
               </div>
-            ))}
+            );
+            })}
           </div>
         </>
 

@@ -186,6 +186,7 @@ const getLeagueName = (leagueId) => {
     '1': 'Copa do Mundo',
     '71': 'Brasileirão Série A',
     '72': 'Brasileirão Série B',
+    '73': 'Brasileirão Série C',
     '13': 'Copa Libertadores',
     '12': 'Copa Sudamericana',
     '39': 'Premier League',
@@ -971,7 +972,7 @@ export default function PalpitesPage() {
       setApiError(null);
       try {
         const leaguesToFetch = selectedLeague === 'all'
-          ? ['71', '72', '13', '12', '39', '140', '135', '78', '1']
+          ? ['71', '72', '73', '13', '12', '39', '140', '135', '78', '1']
           : [selectedLeague];
 
         const fetchPromises = leaguesToFetch.map(async (lgId) => {
@@ -1217,6 +1218,7 @@ export default function PalpitesPage() {
                 { id: '1', name: 'Copa do Mundo', iconType: 'emoji', icon: '🏆' },
                 { id: '71', name: 'Série A', iconType: 'image', icon: 'https://flagcdn.com/w40/br.png' },
                 { id: '72', name: 'Série B', iconType: 'image', icon: 'https://flagcdn.com/w40/br.png' },
+                { id: '73', name: 'Série C', iconType: 'image', icon: 'https://flagcdn.com/w40/br.png' },
                 { id: '13', name: 'Libertadores', iconType: 'emoji', icon: '🌎' },
                 { id: '12', name: 'Sudamericana', iconType: 'emoji', icon: '🌍' },
                 { id: '39', name: 'Premier', iconType: 'image', icon: 'https://flagcdn.com/w40/gb.png' },
@@ -1319,59 +1321,36 @@ export default function PalpitesPage() {
                   fontSize: '0.9rem'
                 }}
               />
+
+              {currentRoundBets.length > 0 && (
+                <button
+                  onClick={handleSendRoundSummary}
+                  disabled={sendingSummary}
+                  style={{
+                    background: 'var(--brand-neon)',
+                    color: '#000',
+                    border: 'none',
+                    padding: '8px 14px',
+                    borderRadius: '4px',
+                    fontWeight: 'bold',
+                    fontSize: '0.8rem',
+                    cursor: sendingSummary ? 'not-allowed' : 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    boxShadow: '0 2px 8px rgba(204, 255, 0, 0.2)'
+                  }}
+                  title={`Você seguiu ${currentRoundBets.length} palpites nesta rodada. Clique para enviar o balanço parcial/final no Telegram.`}
+                >
+                  {sendingSummary ? (
+                    <>Enviando...</>
+                  ) : (
+                    <>Enviar Balanço da Rodada ({currentRoundBets.length}) 🤖</>
+                  )}
+                </button>
+              )}
             </div>
           </div>
-
-          {/* Banner Balanço da Rodada */}
-          {currentRoundBets.length > 0 && (
-            <div style={{ 
-              background: 'linear-gradient(90deg, #111115, #1c1c24)', 
-              border: '1px solid #333', 
-              borderLeft: '4px solid var(--brand-neon)',
-              borderRadius: '12px', 
-              padding: '14px 20px', 
-              marginBottom: '24px', 
-              display: 'flex', 
-              alignItems: 'center', 
-              justifyContent: 'space-between',
-              flexWrap: 'wrap',
-              gap: '16px'
-            }}>
-              <div>
-                <div style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff' }}>
-                  🏁 Rodada {roundInfo?.round} em Andamento/Finalizada
-                </div>
-                <div style={{ fontSize: '0.8rem', color: '#888', marginTop: '2px' }}>
-                  Você seguiu {currentRoundBets.length} palpites nesta rodada. Deseja enviar o balanço parcial/final para os seus clientes no Telegram?
-                </div>
-              </div>
-              
-              <button
-                onClick={handleSendRoundSummary}
-                disabled={sendingSummary}
-                style={{
-                  background: 'var(--brand-neon)',
-                  color: '#000',
-                  border: 'none',
-                  padding: '8px 18px',
-                  borderRadius: '0px',
-                  fontWeight: 'bold',
-                  fontSize: '0.85rem',
-                  cursor: sendingSummary ? 'not-allowed' : 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  boxShadow: '0 2px 8px rgba(204, 255, 0, 0.2)'
-                }}
-              >
-                {sendingSummary ? (
-                  <>Enviando...</>
-                ) : (
-                  <>Enviar Balanço da Rodada 🤖</>
-                )}
-              </button>
-            </div>
-          )}
 
 
 

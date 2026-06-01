@@ -106,6 +106,7 @@ const getLeagueName = (leagueId) => {
     '1': 'Copa do Mundo',
     '71': 'Brasileirão Série A',
     '72': 'Brasileirão Série B',
+    '73': 'Brasileirão Série C',
     '13': 'Copa Libertadores',
     '12': 'Copa Sudamericana',
     '39': 'Premier League',
@@ -195,7 +196,7 @@ export default function OpportunityTable() {
     // 1. Definição do gerador dinâmico de fallback
     const generateDynamicOpportunities = async () => {
       try {
-        const leaguesToFetch = ['71', '72', '13', '12', '39', '140', '135', '78', '1'];
+        const leaguesToFetch = ['71', '72', '73', '13', '12', '39', '140', '135', '78', '1'];
         const getLocalDateString = (offset = 0) => {
           const d = new Date();
           d.setDate(d.getDate() + offset);

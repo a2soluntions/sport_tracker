@@ -389,11 +389,12 @@ export default function CalculatorPage() {
     const userTxIdsKey = `ev_tracker_user_tx_ids_${user?.id || 'guest'}`;
     const userTxsKey = `ev_tracker_banca_txs_${user?.id || 'guest'}`;
 
-    if (supabase) {
+    if (supabase && user) {
       try {
+        const txToUpload = { ...newTx, user_id: user.id };
         const { data, error } = await supabase
           .from('banca_transactions')
-          .insert([newTx])
+          .insert([txToUpload])
           .select();
 
         if (error) throw error;

@@ -379,11 +379,12 @@ export default function PalpitesPage() {
     const userTxsKey = `ev_tracker_banca_txs_${user?.id || 'guest'}`;
     const userTxIdsKey = `ev_tracker_user_tx_ids_${user?.id || 'guest'}`;
 
-    if (supabase) {
+    if (supabase && user) {
       try {
+        const txToUpload = { ...newTx, user_id: user.id };
         const { data, error } = await supabase
           .from('banca_transactions')
-          .insert([newTx])
+          .insert([txToUpload])
           .select();
 
         if (error) throw error;
@@ -690,12 +691,11 @@ export default function PalpitesPage() {
       try {
         const { data, error } = await supabase
           .from('banca_transactions')
-          .select('*');
+          .select('*')
+          .eq('user_id', user.id);
         if (error) throw error;
         
-        // Filtrar apenas as transações deste usuário
-        const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
-        const filteredData = (data || []).filter(t => userTxIds.includes(t.id));
+        const filteredData = data || [];
         
         // Sincronizar dados locais pendentes para a nuvem
         const syncedList = await syncLocalTransactionsToCloud(filteredData);
@@ -724,6 +724,7 @@ export default function PalpitesPage() {
           const key = `${localTx.date}_${localTx.type}_${localTx.amount}_${localTx.description}`;
           if (!cloudKeys.has(key)) {
             const { id, ...txToUpload } = localTx;
+            txToUpload.user_id = user.id; // Vincular ao usuário logado
             unsyncedList.push(txToUpload);
           }
         }
@@ -919,11 +920,12 @@ export default function PalpitesPage() {
     const userTxsKey = `ev_tracker_banca_txs_${user?.id || 'guest'}`;
     const userTxIdsKey = `ev_tracker_user_tx_ids_${user?.id || 'guest'}`;
 
-    if (supabase) {
+    if (supabase && user) {
       try {
+        const txToUpload = { ...newTx, user_id: user.id };
         const { data, error } = await supabase
           .from('banca_transactions')
-          .insert([newTx])
+          .insert([txToUpload])
           .select();
 
         if (error) throw error;

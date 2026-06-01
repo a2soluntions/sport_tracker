@@ -140,11 +140,12 @@ export default function ResponsiveDashboard() {
 
     let currentBanca = initial;
     if (supabase) {
-      const { data } = await supabase.from('banca_transactions').select('*');
+      const { data } = await supabase
+        .from('banca_transactions')
+        .select('*')
+        .eq('user_id', user.id);
       if (data) {
-        const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
-        const filtered = data.filter(t => userTxIds.includes(t.id));
-        filtered.forEach(t => {
+        data.forEach(t => {
           const isGain = t.type === 'ganho' || t.type === 'alavancagem' || t.description === 'Alavancagem';
           if (isGain) {
             const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;

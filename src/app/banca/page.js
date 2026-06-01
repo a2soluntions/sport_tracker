@@ -252,14 +252,13 @@ export default function GestaoBancaPage() {
         const { data, error } = await supabase
           .from('banca_transactions')
           .select('*')
+          .eq('user_id', user.id)
           .order('date', { ascending: false })
           .order('id', { ascending: false });
 
         if (error) throw error;
 
-        // Filtrar apenas transações deste usuário
-        const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
-        const filteredData = (data || []).filter(t => userTxIds.includes(t.id));
+        const filteredData = data || [];
 
         // Sincronizar dados locais pendentes para a nuvem
         const syncedList = await syncLocalTransactionsToCloud(filteredData);
@@ -293,6 +292,7 @@ export default function GestaoBancaPage() {
           const key = `${localTx.date}_${localTx.type}_${localTx.amount}_${localTx.description}`;
           if (!cloudKeys.has(key)) {
             const { id, ...txToUpload } = localTx;
+            txToUpload.user_id = user.id; // Vincular ao usuário logado
             unsyncedList.push(txToUpload);
           }
         }
@@ -468,7 +468,8 @@ export default function GestaoBancaPage() {
             type: dbType,
             amount: Number(txAmount),
             description: desc,
-            odd: oddVal
+            odd: oddVal,
+            user_id: user.id
           }])
           .select();
 

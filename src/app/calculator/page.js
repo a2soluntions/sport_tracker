@@ -259,9 +259,40 @@ export default function CalculatorPage() {
 
   const [selectedSelections, setSelectedSelections] = useState([]);
   const [betStake, setBetStake] = useState("100");
+  const [globalBookmaker, setGlobalBookmaker] = useState("Best");
   const [marcadoresTab, setMarcadoresTab] = useState('home');
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
+  const [customOdd, setCustomOdd] = useState("");
+
+  // Estados para arrastar (Drag) o Cupom de Apostas
+  const [position, setPosition] = useState({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (!isDragging) return;
+    const handleMouseMove = (e) => {
+      setPosition({
+        x: e.clientX - dragStart.x,
+        y: e.clientY - dragStart.y
+      });
+    };
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isDragging, dragStart]);
+
+  useEffect(() => {
+    const calcOdd = selectedSelections.reduce((acc, s) => acc * Number(s.odd), 1).toFixed(2);
+    setCustomOdd(calcOdd);
+  }, [selectedSelections]);
 
   const triggerToast = (msg) => {
     setToastMessage(msg);
@@ -269,6 +300,25 @@ export default function CalculatorPage() {
     setTimeout(() => {
       setShowToast(false);
     }, 3000);
+  };
+
+  const handleGlobalBookmakerChange = (bookmakerName) => {
+    setGlobalBookmaker(bookmakerName);
+    setSelectedSelections(prev => prev.map(sel => {
+      let newOdd = sel.odd;
+      if (bookmakerName === 'Best') {
+        const sorted = [...sel.bookmakers].sort((a, b) => b.odd - a.odd);
+        newOdd = sorted[0] ? sorted[0].odd.toFixed(2) : sel.odd;
+      } else {
+        const found = sel.bookmakers.find(b => b.name === bookmakerName);
+        newOdd = found ? found.odd.toFixed(2) : sel.odd;
+      }
+      return {
+        ...sel,
+        bookmaker: bookmakerName === 'Best' ? (sel.bookmakers.sort((a,b) => b.odd-a.odd)[0]?.name || null) : bookmakerName,
+        odd: newOdd
+      };
+    }));
   };
 
   const handleToggleSelection = (market, label, prob, fairOdd, seedString) => {
@@ -285,8 +335,16 @@ export default function CalculatorPage() {
       if (exists) {
         return prev.filter(s => s.id !== id);
       } else {
-        const initialBookmaker = bestBook ? bestBook.name : null;
-        const initialOdd = bestBook ? bestBook.odd.toFixed(2) : fairOdd;
+        let initialBookmaker = bestBook ? bestBook.name : null;
+        let initialOdd = bestBook ? bestBook.odd.toFixed(2) : fairOdd;
+
+        if (globalBookmaker !== 'Best') {
+          const found = bookmakers.find(b => b.name === globalBookmaker);
+          if (found) {
+            initialBookmaker = found.name;
+            initialOdd = found.odd.toFixed(2);
+          }
+        }
 
         return [...prev, { 
           id, 
@@ -306,7 +364,17 @@ export default function CalculatorPage() {
     if (selectedSelections.length === 0) return;
     const stakeVal = betStake === "" ? 100 : Number(betStake);
 
-    const desc = `[Aposta Criada] ${homeTeam || "Casa"} x ${awayTeam || "Visitante"} (${selectedSelections.map(s => s.label).join(', ')})`;
+    // Agrupar seleções por partida para formatar a descrição como múltiplas combinadas
+    const matchGroups = {};
+    selectedSelections.forEach(s => {
+      const match = s.match || `${homeTeam || "Casa"} x ${awayTeam || "Visitante"}`;
+      if (!matchGroups[match]) matchGroups[match] = [];
+      matchGroups[match].push(s.label);
+    });
+
+    const descParts = Object.entries(matchGroups).map(([match, labels]) => `${match} (${labels.join(', ')})`);
+    const desc = `[Aposta Criada] ${descParts.join(' + ')}`;
+
     const newTx = {
       date: new Date().toISOString().slice(0, 10),
       type: 'pendente',
@@ -363,6 +431,8 @@ export default function CalculatorPage() {
     }
 
     setSelectedSelections([]);
+    setGlobalBookmaker("Best");
+    setPosition({ x: 0, y: 0 });
     triggerToast("Aposta registrada diretamente em Resultados e Banca!");
   };
 
@@ -512,6 +582,67 @@ export default function CalculatorPage() {
       scoreMatrix
     };
   }, [homeXG, awayXG]);
+
+  const cornersStats = useMemo(() => {
+    if (!homeTeam || !awayTeam) {
+      return { 
+        home: { feitos: 0, sofridos: 0, total: 0 }, 
+        away: { feitos: 0, sofridos: 0, total: 0 }, 
+        projected: 0, 
+        probs: { over5_5: 0, over7_5: 0, over8_5: 0, over9_5: 0, over10_5: 0 } 
+      };
+    }
+    
+    const getHash = (name) => {
+      if (!name) return 0;
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) {
+        hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      }
+      return Math.abs(hash);
+    };
+    
+    const seedH = getHash(homeTeam);
+    const seedA = getHash(awayTeam);
+    const homeVal = homeXG === "" ? 0 : Number(homeXG);
+    const awayVal = awayXG === "" ? 0 : Number(awayXG);
+    
+    const noiseFeitosH = ((seedH % 7) - 3) / 10;
+    const noiseSofridosH = ((seedH % 5) - 2) / 10;
+    const noiseFeitosA = ((seedA % 7) - 3) / 10;
+    const noiseSofridosA = ((seedA % 5) - 2) / 10;
+
+    const feitosH = parseFloat((4.2 + (homeVal * 0.9) + noiseFeitosH).toFixed(1));
+    const sofridosH = parseFloat((3.8 + (awayVal * 0.7) + noiseSofridosH).toFixed(1));
+    const feitosA = parseFloat((3.6 + (awayVal * 0.8) + noiseFeitosA).toFixed(1));
+    const sofridosA = parseFloat((4.4 + (homeVal * 0.8) + noiseSofridosA).toFixed(1));
+
+    const projected = parseFloat((feitosH + feitosA).toFixed(1));
+    
+    const p = (k) => {
+      return (Math.exp(-projected) * Math.pow(projected, k)) / factorial(k);
+    };
+    const probOver = (k) => {
+      let sum = 0;
+      for (let i = 0; i <= k; i++) {
+        sum += p(i);
+      }
+      return Math.max(0, Math.min(1, 1 - sum));
+    };
+
+    return {
+      home: { feitos: feitosH, sofridos: sofridosH, total: parseFloat((feitosH + sofridosH).toFixed(1)) },
+      away: { feitos: feitosA, sofridos: sofridosA, total: parseFloat((feitosA + sofridosA).toFixed(1)) },
+      projected,
+      probs: {
+        over5_5: probOver(5),
+        over7_5: probOver(7),
+        over8_5: probOver(8),
+        over9_5: probOver(9),
+        over10_5: probOver(10),
+      }
+    };
+  }, [homeTeam, awayTeam, homeXG, awayXG]);
 
   const getOdd = (prob) => (prob > 0 ? (1 / prob).toFixed(2) : "0.00");
   const getPct = (prob) => (prob * 100).toFixed(1);
@@ -683,6 +814,15 @@ export default function CalculatorPage() {
       { l: 'Cartão Vermelho (Sim)', p: Number(cardsPrediction.redCardProb) / 100 },
     ].forEach(b => { if (b.p > 0.01 && b.p < 0.99) allBets.push({ label: b.l, prob: b.p, odd: getOdd(b.p), market: 'Cartões' }); });
 
+    // Escanteios
+    [
+      { l: 'Escanteios Acima 5.5', p: cornersStats.probs.over5_5 },
+      { l: 'Escanteios Acima 7.5', p: cornersStats.probs.over7_5 },
+      { l: 'Escanteios Acima 8.5', p: cornersStats.probs.over8_5 },
+      { l: 'Escanteios Acima 9.5', p: cornersStats.probs.over9_5 },
+      { l: 'Escanteios Acima 10.5', p: cornersStats.probs.over10_5 }
+    ].forEach(b => { if (b.p > 0.01 && b.p < 0.99) allBets.push({ label: b.l, prob: b.p, odd: getOdd(b.p), market: 'Escanteios' }); });
+
     // Marcadores
     homePlayersList.forEach(p => {
       const prob = 1 - Math.exp(-hXG * p.weight);
@@ -702,7 +842,7 @@ export default function CalculatorPage() {
       return scoreB - scoreA;
     });
     return filtered.slice(0, 3);
-  }, [stats, cardsPrediction, homePlayersList, awayPlayersList, homeXG, awayXG, homeTeam, awayTeam]);
+  }, [stats, cardsPrediction, cornersStats, homePlayersList, awayPlayersList, homeXG, awayXG, homeTeam, awayTeam]);
 
   return (
     <div className="calculator-container">
@@ -715,9 +855,15 @@ export default function CalculatorPage() {
             <Calculator color="var(--brand-neon)" size={28} />
             Análise Profissional
           </h1>
-          <p style={{ color: '#888', margin: '4px 0 0 0', fontSize: '0.9rem' }}>
-            Simule dados de gols, marcadores, cartões e arbitragem para obter prognósticos avançados e estatísticas de EV+.
-          </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+            <p style={{ color: '#888', margin: 0, fontSize: '0.9rem' }}>
+              Simule dados de gols, marcadores, cartões e arbitragem para obter prognósticos avançados e estatísticas de EV+.
+            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0, 210, 255, 0.05)', border: '1px solid rgba(0, 210, 255, 0.2)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.78rem', color: '#00d2ff' }}>
+              <Info size={14} style={{ flexShrink: 0 }} />
+              <span>Cotações simuladas pelo modelo Poisson da <strong>A2 Solutions</strong>. Diferenças de valor comparadas às casas reais (ex: Betano @1.42 vs App @1.49) não representam atraso ou delay, e sim projeções matemáticas exclusivas de valor!</span>
+            </div>
+          </div>
         </header>
 
         {/* 4 COLUNAS: CONFIG, 1X2, GOLS, HEATMAP */}
@@ -1150,77 +1296,130 @@ export default function CalculatorPage() {
             </div>
           </div>
 
-          {/* COLUNA 3: Mercado de Gols */}
-          <div className="glass-panel" style={{ borderTop: '4px solid #ff9800', padding: '14px' }}>
-            <h2 style={{ fontSize: '1rem', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-              <Info size={16} color="#ff9800" /> Mercado de Gols (Top 24)
-            </h2>
-            <div className="gols-grid-responsive">
-              {[
-                { label: 'Acima 0.5', prob: stats.probOver05 },
-                { label: 'Abaixo 0.5', prob: 1 - stats.probOver05 },
-                { label: 'Casa Acima 0.5', prob: stats.probHomeOver05 },
-                { label: 'Casa Abaixo 0.5', prob: 1 - stats.probHomeOver05 },
+          {/* COLUNA 3: Mercado de Gols e Escanteios */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            
+            {/* Mercado de Gols */}
+            <div className="glass-panel" style={{ borderTop: '4px solid #ff9800', padding: '14px' }}>
+              <h2 style={{ fontSize: '1rem', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+                <Info size={16} color="#ff9800" /> Mercado de Gols (Top 24)
+              </h2>
+              <div className="gols-grid-responsive">
+                {[
+                  { label: 'Acima 0.5', prob: stats.probOver05 },
+                  { label: 'Abaixo 0.5', prob: 1 - stats.probOver05 },
+                  { label: 'Casa Acima 0.5', prob: stats.probHomeOver05 },
+                  { label: 'Casa Abaixo 0.5', prob: 1 - stats.probHomeOver05 },
 
-                { label: 'Acima 1.5', prob: stats.probOver15 },
-                { label: 'Abaixo 1.5', prob: 1 - stats.probOver15 },
-                { label: 'Casa Acima 1.5', prob: stats.probHomeOver15 },
-                { label: 'Casa Abaixo 1.5', prob: 1 - stats.probHomeOver15 },
+                  { label: 'Acima 1.5', prob: stats.probOver15 },
+                  { label: 'Abaixo 1.5', prob: 1 - stats.probOver15 },
+                  { label: 'Casa Acima 1.5', prob: stats.probHomeOver15 },
+                  { label: 'Casa Abaixo 1.5', prob: 1 - stats.probHomeOver15 },
 
-                { label: 'Acima 2.5', prob: stats.probOver25 },
-                { label: 'Abaixo 2.5', prob: 1 - stats.probOver25 },
-                { label: 'Casa Acima 2.5', prob: stats.probHomeOver25 },
-                { label: 'Casa Abaixo 2.5', prob: 1 - stats.probHomeOver25 },
+                  { label: 'Acima 2.5', prob: stats.probOver25 },
+                  { label: 'Abaixo 2.5', prob: 1 - stats.probOver25 },
+                  { label: 'Casa Acima 2.5', prob: stats.probHomeOver25 },
+                  { label: 'Casa Abaixo 2.5', prob: 1 - stats.probHomeOver25 },
 
-                { label: 'Acima 3.5', prob: stats.probOver35 },
-                { label: 'Abaixo 3.5', prob: 1 - stats.probOver35 },
-                { label: 'Fora Acima 0.5', prob: stats.probAwayOver05 },
-                { label: 'Fora Abaixo 0.5', prob: 1 - stats.probAwayOver05 },
+                  { label: 'Acima 3.5', prob: stats.probOver35 },
+                  { label: 'Abaixo 3.5', prob: 1 - stats.probOver35 },
+                  { label: 'Fora Acima 0.5', prob: stats.probAwayOver05 },
+                  { label: 'Fora Abaixo 0.5', prob: 1 - stats.probAwayOver05 },
 
-                { label: 'Acima 4.5', prob: stats.probOver45 },
-                { label: 'Abaixo 4.5', prob: 1 - stats.probOver45 },
-                { label: 'Fora Acima 1.5', prob: stats.probAwayOver15 },
-                { label: 'Fora Abaixo 1.5', prob: 1 - stats.probAwayOver15 },
+                  { label: 'Acima 4.5', prob: stats.probOver45 },
+                  { label: 'Abaixo 4.5', prob: 1 - stats.probOver45 },
+                  { label: 'Fora Acima 1.5', prob: stats.probAwayOver15 },
+                  { label: 'Fora Abaixo 1.5', prob: 1 - stats.probAwayOver15 },
 
-                { label: 'Ambos Marcam (Sim)', prob: stats.probBtts },
-                { label: 'Ambos Marcam (Não)', prob: 1 - stats.probBtts },
-                { label: 'Fora Acima 2.5', prob: stats.probAwayOver25 },
-                { label: 'Fora Abaixo 2.5', prob: 1 - stats.probAwayOver25 }
-              ].map((item, idx) => {
-                const oddVal = getOdd(item.prob);
-                const bookInfo = getBookmakerOdds(oddVal, `${homeTeam || 'Casa'}_${awayTeam || 'Visitante'}_Gols_${item.label}`);
-                const finalOdd = bookInfo.best ? bookInfo.best.odd.toFixed(2) : oddVal;
+                  { label: 'Ambos Marcam (Sim)', prob: stats.probBtts },
+                  { label: 'Ambos Marcam (Não)', prob: 1 - stats.probBtts },
+                  { label: 'Fora Acima 2.5', prob: stats.probAwayOver25 },
+                  { label: 'Fora Abaixo 2.5', prob: 1 - stats.probAwayOver25 }
+                ].map((item, idx) => {
+                  const oddVal = getOdd(item.prob);
+                  const bookInfo = getBookmakerOdds(oddVal, `${homeTeam || 'Casa'}_${awayTeam || 'Visitante'}_Gols_${item.label}`);
+                  const finalOdd = bookInfo.best ? bookInfo.best.odd.toFixed(2) : oddVal;
 
-                const isSelected = selectedSelections.some(s => s.market === 'Gols' && s.label === item.label);
-                const isHottest = hottestGoal === item.label;
-                return (
-                  <div 
-                    key={idx} 
-                    onClick={() => handleToggleSelection('Gols', item.label, item.prob, oddVal, `${homeTeam || 'Casa'}_${awayTeam || 'Visitante'}_Gols_${item.label}`)}
-                    style={{ 
-                      background: isSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent', 
-                      border: isSelected 
-                        ? '1.5px solid var(--brand-neon)' 
-                        : isHottest 
-                          ? '1.5px solid #00ffaa' 
-                          : '1px solid #333', 
-                      padding: '6px 2px', 
-                      borderRadius: '6px', 
-                      textAlign: 'center',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      boxShadow: isHottest ? '0 0 6px rgba(0, 255, 170, 0.3)' : 'none'
-                    }}
-                  >
-                    <div style={{ color: '#aaa', fontSize: '0.66rem', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.label}>
-                      {item.label}
+                  const isSelected = selectedSelections.some(s => s.market === 'Gols' && s.label === item.label);
+                  const isHottest = hottestGoal === item.label;
+                  return (
+                    <div 
+                      key={idx} 
+                      onClick={() => handleToggleSelection('Gols', item.label, item.prob, oddVal, `${homeTeam || 'Casa'}_${awayTeam || 'Visitante'}_Gols_${item.label}`)}
+                      style={{ 
+                        background: isSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent', 
+                        border: isSelected 
+                          ? '1.5px solid var(--brand-neon)' 
+                          : isHottest 
+                            ? '1.5px solid #00ffaa' 
+                            : '1px solid #333', 
+                        padding: '6px 2px', 
+                        borderRadius: '6px', 
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        boxShadow: isHottest ? '0 0 6px rgba(0, 255, 170, 0.3)' : 'none'
+                      }}
+                    >
+                      <div style={{ color: '#aaa', fontSize: '0.66rem', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.label}>
+                        {item.label}
+                      </div>
+                      <strong style={{ fontSize: '0.82rem', display: 'block' }}>{getPct(item.prob)}%</strong>
+                      <div style={{ fontSize: '0.66rem', color: '#ff9800', fontWeight: 'bold' }}>@{finalOdd}</div>
                     </div>
-                    <strong style={{ fontSize: '0.82rem', display: 'block' }}>{getPct(item.prob)}%</strong>
-                    <div style={{ fontSize: '0.66rem', color: '#ff9800', fontWeight: 'bold' }}>@{finalOdd}</div>
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
+
+            {/* Mercado de Escanteios */}
+            <div className="glass-panel" style={{ borderTop: '4px solid #00d2ff', padding: '14px' }}>
+              <h2 style={{ fontSize: '1rem', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+                <Target size={16} color="#00d2ff" /> Mercado de Escanteios
+              </h2>
+              <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: '10px' }}>
+                Projeção total do confronto: <strong style={{ color: '#00d2ff' }}>{cornersStats.projected} cantos</strong>
+              </div>
+              <div className="gols-grid-responsive">
+                {[
+                  { label: 'Escanteios Acima 5.5', prob: cornersStats.probs.over5_5 },
+                  { label: 'Escanteios Acima 7.5', prob: cornersStats.probs.over7_5 },
+                  { label: 'Escanteios Acima 8.5', prob: cornersStats.probs.over8_5 },
+                  { label: 'Escanteios Acima 9.5', prob: cornersStats.probs.over9_5 },
+                  { label: 'Escanteios Acima 10.5', prob: cornersStats.probs.over10_5 }
+                ].map((item, idx) => {
+                  const oddVal = getOdd(item.prob);
+                  const bookInfo = getBookmakerOdds(oddVal, `${homeTeam || 'Casa'}_${awayTeam || 'Visitante'}_Corners_${item.label}`);
+                  const finalOdd = bookInfo.best ? bookInfo.best.odd.toFixed(2) : oddVal;
+
+                  const isSelected = selectedSelections.some(s => s.market === 'Escanteios' && s.label === item.label);
+                  return (
+                    <div 
+                      key={idx} 
+                      onClick={() => handleToggleSelection('Escanteios', item.label, item.prob, oddVal, `${homeTeam || 'Casa'}_${awayTeam || 'Visitante'}_Corners_${item.label}`)}
+                      style={{ 
+                        background: isSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent', 
+                        border: isSelected 
+                          ? '1.5px solid var(--brand-neon)' 
+                          : '1px solid #333', 
+                        padding: '6px 2px', 
+                        borderRadius: '6px', 
+                        textAlign: 'center',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <div style={{ color: '#aaa', fontSize: '0.66rem', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.label}>
+                        {item.label}
+                      </div>
+                      <strong style={{ fontSize: '0.82rem', display: 'block' }}>{getPct(item.prob)}%</strong>
+                      <div style={{ fontSize: '0.66rem', color: '#ff9800', fontWeight: 'bold' }}>@{finalOdd}</div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
           </div>
 
           {/* COLUNA 4: Heatmap Placar Exato */}
@@ -1301,122 +1500,141 @@ export default function CalculatorPage() {
           display: 'flex',
           flexDirection: 'column',
           overflow: 'hidden',
-          animation: 'slideDown 0.3s ease-out'
+          animation: 'slideDown 0.3s ease-out',
+          transform: `translate(${position.x}px, ${position.y}px)`,
+          transition: isDragging ? 'none' : 'transform 0.1s ease-out'
         }} className="bet-slip-panel">
-          <div style={{ background: '#1c1c24', padding: '12px 16px', borderBottom: '1px solid #333', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div 
+            onMouseDown={(e) => {
+              if (e.button !== 0 || e.target.tagName === 'BUTTON' || e.target.closest('button')) return;
+              setIsDragging(true);
+              setDragStart({
+                x: e.clientX - position.x,
+                y: e.clientY - position.y
+              });
+            }}
+            style={{ 
+              background: '#1c1c24', 
+              padding: '12px 16px', 
+              borderBottom: '1px solid #333', 
+              display: 'flex', 
+              justifyContent: 'space-between', 
+              alignItems: 'center',
+              cursor: isDragging ? 'grabbing' : 'grab',
+              userSelect: 'none'
+            }}
+          >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <Trophy size={16} color="var(--brand-neon)" />
               <strong style={{ fontSize: '0.85rem', color: '#fff' }}>Criador de Aposta ({selectedSelections.length})</strong>
             </div>
             <button 
-              onClick={() => setSelectedSelections([])}
+              onClick={() => { setSelectedSelections([]); setGlobalBookmaker("Best"); setPosition({ x: 0, y: 0 }); }}
               style={{ background: 'transparent', border: 'none', color: '#aaa', cursor: 'pointer', fontSize: '0.75rem', textDecoration: 'underline' }}
             >
               Limpar
             </button>
           </div>
 
-          <div className="no-scrollbar" style={{ flex: 1, overflowY: 'auto', padding: '12px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            {selectedSelections.map((sel, idx) => (
-              <div key={idx} style={{ background: '#1e1e24', border: '1px solid #333', borderRadius: '8px', padding: '10px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                  <div style={{ minWidth: 0, flex: 1 }}>
-                    <div style={{ fontSize: '0.62rem', color: '#aaa', textTransform: 'uppercase' }}>{sel.market}</div>
-                    <div style={{ fontSize: '0.8rem', color: '#fff', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={sel.label}>
-                      {sel.label}
-                    </div>
-                    <div style={{ fontSize: '0.65rem', color: 'var(--brand-neon)' }}>{sel.match}</div>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                    <span style={{ fontSize: '0.85rem', color: '#ff9800', fontWeight: 'bold' }}>@{sel.odd}</span>
-                    <button 
-                      onClick={() => setSelectedSelections(selectedSelections.filter(s => s.id !== sel.id))}
-                      style={{ background: 'transparent', border: 'none', color: '#ff4b4b', cursor: 'pointer', padding: '2px', fontSize: '0.85rem' }}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                </div>
-
-                {sel.bookmakers && sel.bookmakers.length > 0 && (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '8px', background: '#141419', padding: '4px 8px', borderRadius: '6px', border: '1px solid #222' }}>
-                    <span style={{ fontSize: '0.62rem', color: '#888' }}>Casa de Aposta:</span>
-                    <select
-                      value={sel.bookmaker}
-                      onChange={(e) => {
-                        const newBook = e.target.value;
-                        const bookData = sel.bookmakers.find(b => b.name === newBook);
-                        if (bookData) {
-                          setSelectedSelections(prev => prev.map(s => s.id === sel.id ? { 
-                            ...s, 
-                            bookmaker: newBook, 
-                            odd: bookData.odd.toFixed(2) 
-                          } : s));
-                        }
-                      }}
-                      style={{ 
-                        background: 'transparent', 
-                        border: 'none', 
-                        color: '#ff9800', 
-                        fontSize: '0.72rem', 
-                        fontWeight: 'bold', 
-                        cursor: 'pointer',
-                        outline: 'none',
-                        textAlign: 'right',
-                        paddingRight: '12px'
-                      }}
-                    >
-                      {sel.bookmakers.map((b, bIdx) => (
-                        <option key={bIdx} value={b.name} style={{ background: '#141419', color: '#fff' }}>
-                          {b.logo} {b.name} (@{b.odd.toFixed(2)})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-
-          <div style={{ padding: '14px', background: '#1c1c24', borderTop: '1px solid #333', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          <div style={{ padding: '14px', background: '#1c1c24', display: 'flex', flexDirection: 'column', gap: '10px', overflowY: 'auto', flex: 1 }} className="no-scrollbar">
             {(() => {
               const totalOdd = selectedSelections.reduce((acc, s) => acc * Number(s.odd), 1).toFixed(2);
               const totalProb = selectedSelections.reduce((acc, s) => acc * s.prob, 1);
               return (
                 <>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
-                    <span style={{ color: '#aaa' }}>Odd Combinada:</span>
-                    <strong style={{ color: '#ff9800', fontSize: '1.1rem' }}>@{totalOdd}</strong>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.8rem' }}>
-                    <span style={{ color: '#aaa' }}>Probabilidade:</span>
-                    <strong style={{ color: 'var(--brand-neon)' }}>{(totalProb * 100).toFixed(1)}%</strong>
+                  {/* Odd Combinada e Probabilidade na mesma linha horizontal */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: '1 1 auto' }}>
+                      <span style={{ color: '#aaa', fontSize: '0.75rem', whiteSpace: 'nowrap' }}>Odd:</span>
+                      <span style={{ color: '#ff9800', fontWeight: 'bold', fontSize: '0.85rem' }}>@</span>
+                      <input 
+                        type="number" 
+                        step="0.01" 
+                        value={customOdd !== "" ? customOdd : totalOdd} 
+                        onChange={(e) => setCustomOdd(e.target.value)} 
+                        style={{
+                          background: '#141419',
+                          border: '1px solid #333',
+                          color: '#ff9800',
+                          borderRadius: '6px',
+                          padding: '4px 6px',
+                          fontSize: '0.85rem',
+                          outline: 'none',
+                          textAlign: 'right',
+                          fontWeight: 'bold',
+                          width: '75px'
+                        }}
+                      />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flexShrink: 0 }}>
+                      <span style={{ color: '#aaa', fontSize: '0.75rem' }}>Probabilidade:</span>
+                      <strong style={{ color: 'var(--brand-neon)', fontSize: '0.85rem' }}>{(totalProb * 100).toFixed(1)}%</strong>
+                    </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '4px' }}>
-                    <span style={{ fontSize: '0.75rem', color: '#aaa' }}>Stake (R$):</span>
-                    <input 
-                      type="number" 
-                      placeholder="100" 
-                      value={betStake}
-                      onChange={(e) => setBetStake(e.target.value)}
-                      style={{
-                        flex: 1,
-                        background: '#141419',
-                        border: '1px solid #333',
-                        color: '#fff',
-                        borderRadius: '6px',
-                        padding: '6px 10px',
-                        fontSize: '0.85rem',
-                        outline: 'none',
-                        textAlign: 'right',
-                        fontWeight: 'bold'
-                      }}
-                    />
+                  {/* Stake e Casa de Aposta Selecionável */}
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center', marginTop: '2px', justifyContent: 'space-between' }}>
+                    {/* Stake Input */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <span style={{ fontSize: '0.72rem', color: '#aaa', whiteSpace: 'nowrap' }}>Stake (R$):</span>
+                      <input 
+                        type="number" 
+                        placeholder="100" 
+                        value={betStake}
+                        onChange={(e) => setBetStake(e.target.value)}
+                        style={{
+                          width: '70px',
+                          background: '#141419',
+                          border: '1px solid #333',
+                          color: '#fff',
+                          borderRadius: '6px',
+                          padding: '6px 8px',
+                          fontSize: '0.85rem',
+                          outline: 'none',
+                          textAlign: 'right',
+                          fontWeight: 'bold'
+                        }}
+                      />
+                    </div>
+                    {/* Casa de Aposta Select */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px', flex: 1 }}>
+                      <span style={{ fontSize: '0.72rem', color: '#aaa', whiteSpace: 'nowrap' }}>Casa:</span>
+                      <select
+                        value={globalBookmaker}
+                        onChange={(e) => handleGlobalBookmakerChange(e.target.value)}
+                        style={{
+                          width: '100%',
+                          background: '#141419',
+                          border: '1px solid #333',
+                          color: 
+                            globalBookmaker === 'Bet365' ? '#4caf50' :
+                            globalBookmaker === 'Betano' ? '#ff9800' :
+                            globalBookmaker === 'Betfair' ? '#ffb300' :
+                            globalBookmaker === '1xBet' ? '#00d2ff' :
+                            globalBookmaker === 'KTO' ? '#ff4d4d' :
+                            'var(--brand-neon)',
+                          borderRadius: '6px',
+                          padding: '6px 4px',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          outline: 'none',
+                          cursor: 'pointer',
+                          appearance: 'auto'
+                        }}
+                      >
+                        <option value="Best" style={{ color: 'var(--brand-neon)', background: '#141419' }}>🏆 Melhor</option>
+                        <option value="Bet365" style={{ color: '#4caf50', background: '#141419' }}>🟢 Bet365</option>
+                        <option value="Betano" style={{ color: '#ff9800', background: '#141419' }}>🟠 Betano</option>
+                        <option value="Betfair" style={{ color: '#ffb300', background: '#141419' }}>🟡 Betfair</option>
+                        <option value="1xBet" style={{ color: '#00d2ff', background: '#141419' }}>🔵 1xBet</option>
+                        <option value="KTO" style={{ color: '#ff4d4d', background: '#141419' }}>🔴 KTO</option>
+                      </select>
+                    </div>
                   </div>
 
+                  {/* Botão Salvar abaixo deles */}
                   <button 
-                    onClick={() => handleSaveCustomBet(totalOdd, totalProb)}
+                    onClick={() => handleSaveCustomBet(customOdd !== "" ? customOdd : totalOdd, totalProb)}
                     style={{
                       background: 'var(--brand-neon)',
                       color: '#000',
@@ -1436,6 +1654,54 @@ export default function CalculatorPage() {
                   >
                     Salvar Aposta
                   </button>
+
+                  {/* Card "Aposta sendo montada" abaixo, com possibilidade de excluir as apostas dentro dele */}
+                  <div style={{ 
+                    background: 'rgba(204, 255, 0, 0.04)', 
+                    border: '1.5px dashed var(--brand-neon)', 
+                    borderRadius: '8px', 
+                    padding: '10px 12px', 
+                    color: '#fff',
+                    fontFamily: 'monospace',
+                    marginTop: '6px',
+                    maxHeight: '160px',
+                    overflowY: 'auto'
+                  }} className="no-scrollbar">
+                    <div style={{ color: 'var(--brand-neon)', fontSize: '0.62rem', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '1.5px' }}>
+                      🎫 Aposta sendo montada:
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '6px' }}>
+                      {selectedSelections.map((sel, idx) => (
+                        <div key={idx} style={{ 
+                          background: 'rgba(255, 255, 255, 0.04)', 
+                          border: '1px solid rgba(255, 255, 255, 0.08)', 
+                          borderRadius: '6px', 
+                          padding: '4px 8px', 
+                          display: 'flex', 
+                          justifyContent: 'space-between',
+                          alignItems: 'center', 
+                          fontSize: '0.72rem',
+                          gap: '6px'
+                        }}>
+                          <div style={{ minWidth: 0, flex: 1, display: 'flex', flexDirection: 'column' }}>
+                            <span style={{ fontSize: '0.55rem', color: '#888', textTransform: 'uppercase', fontWeight: 'bold' }}>{sel.market}</span>
+                            <span style={{ color: '#fff', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={sel.label}>{sel.label}</span>
+                            <span style={{ fontSize: '0.58rem', color: 'var(--brand-neon)' }}>{sel.match}</span>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                            <strong style={{ color: '#ff9800' }}>@{sel.odd}</strong>
+                            <button 
+                              onClick={() => setSelectedSelections(selectedSelections.filter(s => s.id !== sel.id))}
+                              style={{ background: 'transparent', border: 'none', color: '#ff4b4b', cursor: 'pointer', fontSize: '0.9rem', fontWeight: 'bold', padding: '2px 4px' }}
+                              title="Excluir"
+                            >
+                              ✕
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </>
               )
             })()}
@@ -1486,6 +1752,7 @@ export default function CalculatorPage() {
             border-top: none !important;
             border-bottom: 2px solid var(--brand-neon) !important;
             animation: slideDown 0.3s ease-out !important;
+            transform: none !important;
           }
         }
       `}</style>

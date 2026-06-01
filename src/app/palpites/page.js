@@ -1,7 +1,14 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Send, CheckCircle2, Trophy, Loader2, Trash2, PiggyBank, AlertTriangle, BarChart3, Target } from 'lucide-react';
+import { Send, CheckCircle2, Trophy, Loader2, Trash2, PiggyBank, AlertTriangle, BarChart3, Target, Calculator, PlusCircle } from 'lucide-react';
+
+const factorial = (n) => {
+  if (n === 0 || n === 1) return 1;
+  let result = 1;
+  for (let i = 2; i <= n; i++) result *= i;
+  return result;
+};
 import { calculatePoissonMatchStats, formatPct, formatOdd } from '../../utils/poisson';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
@@ -317,6 +324,171 @@ export default function PalpitesPage() {
   const [openStatsId, setOpenStatsId] = useState(null);
   const [openRadarGameId, setOpenRadarGameId] = useState(null);
   const [activeStatsTab, setActiveStatsTab] = useState('geral');
+
+  // Bet Builder states
+  const [openBuilderGameId, setOpenBuilderGameId] = useState(null);
+  const [builderSelections, setBuilderSelections] = useState([]);
+  const [builderStake, setBuilderStake] = useState('50');
+  const [builderCustomOdd, setBuilderCustomOdd] = useState('');
+
+  useEffect(() => {
+    const calcOdd = builderSelections.reduce((acc, s) => acc * Number(s.odd), 1).toFixed(2);
+    setBuilderCustomOdd(calcOdd);
+  }, [builderSelections]);
+
+  const handleToggleBuilderSelection = (item, matchName) => {
+    const id = `${matchName}_${item.market}_${item.label}`;
+    const bmOdds = getBookmakerOdds(matchName, item.label, item.odd);
+    const bestOdd = bmOdds.find(o => o.isBest)?.odd || item.odd;
+
+    setBuilderSelections(prev => {
+      const exists = prev.some(s => s.id === id);
+      if (exists) {
+        return prev.filter(s => s.id !== id);
+      } else {
+        return [...prev, {
+          id,
+          market: item.market,
+          label: item.label,
+          prob: item.prob,
+          odd: bestOdd
+        }];
+      }
+    });
+  };
+
+  const handleSaveBuilderBet = async (game) => {
+    if (builderSelections.length === 0) return;
+    if (!builderStake || Number(builderStake) <= 0) return;
+
+    const stakeVal = Number(builderStake);
+    const oddVal = builderCustomOdd ? Number(builderCustomOdd) : builderSelections.reduce((acc, s) => acc * Number(s.odd), 1);
+    
+    const desc = `[Aposta Criada] ${game.home} x ${game.away} (${builderSelections.map(s => s.label).join(', ')})`;
+    const newTx = {
+      date: getLocalDateString(),
+      type: 'pendente',
+      amount: stakeVal,
+      description: desc,
+      odd: Number(oddVal.toFixed(2))
+    };
+
+    let success = false;
+    let savedTx = null;
+
+    const userTxsKey = `ev_tracker_banca_txs_${user?.id || 'guest'}`;
+    const userTxIdsKey = `ev_tracker_user_tx_ids_${user?.id || 'guest'}`;
+
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('banca_transactions')
+          .insert([newTx])
+          .select();
+
+        if (error) throw error;
+        if (data && data.length > 0) {
+          savedTx = data[0];
+          success = true;
+          const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+          userTxIds.push(savedTx.id);
+          localStorage.setItem(userTxIdsKey, JSON.stringify(userTxIds));
+        }
+      } catch (err) {
+        console.warn("Erro ao salvar aposta no Supabase:", err);
+      }
+    }
+
+    if (!success) {
+      savedTx = { id: Date.now(), ...newTx };
+      const savedTxs = localStorage.getItem(userTxsKey);
+      let txList = [];
+      if (savedTxs) {
+        try {
+          txList = JSON.parse(savedTxs);
+        } catch (e) {}
+      }
+      txList = [savedTx, ...txList];
+      localStorage.setItem(userTxsKey, JSON.stringify(txList));
+      success = true;
+    }
+
+    if (success && savedTx) {
+      setTransactions(prev => [savedTx, ...prev]);
+      showToast('Aposta salva com sucesso na sua Banca! 🚀', 'success');
+    }
+
+    setOpenBuilderGameId(null);
+    setBuilderSelections([]);
+  };
+
+  const getBuilderMarkets = (game) => {
+    if (!game) return [];
+    
+    const stats = game.stats;
+    const corn = getCornersStats(game.home, game.away, game.homeXG, game.awayXG);
+    const cards = getCardsStats(game.home, game.away);
+    const getOdd = (p) => p > 0 ? parseFloat((1 / p).toFixed(2)) : 1.01;
+    
+    const pCorn = (k) => (Math.exp(-corn.projected) * Math.pow(corn.projected, k)) / factorial(k);
+    const probCornOver = (k) => {
+      let sum = 0;
+      for (let i = 0; i <= k; i++) {
+        sum += pCorn(i);
+      }
+      return Math.max(0, Math.min(1, 1 - sum));
+    };
+
+    const pCards = (k) => (Math.exp(-cards.totalYellow) * Math.pow(cards.totalYellow, k)) / factorial(k);
+    const probCardsOver = (k) => {
+      let sum = 0;
+      for (let i = 0; i <= k; i++) {
+        sum += pCards(i);
+      }
+      return Math.max(0, Math.min(1, 1 - sum));
+    };
+
+    const redCardProb = 1 - Math.exp(-cards.totalRed);
+
+    return [
+      {
+        category: 'Resultado Final (1X2)',
+        items: [
+          { label: 'Casa Vence', prob: stats.probHome, odd: getOdd(stats.probHome), market: '1X2' },
+          { label: 'Empate', prob: stats.probDraw, odd: getOdd(stats.probDraw), market: '1X2' },
+          { label: 'Fora Vence', prob: stats.probAway, odd: getOdd(stats.probAway), market: '1X2' }
+        ]
+      },
+      {
+        category: 'Total de Gols (FT)',
+        items: [
+          { label: 'Mais de 0.5 Gols', prob: stats.probOver05, odd: getOdd(stats.probOver05), market: 'Gols' },
+          { label: 'Mais de 1.5 Gols', prob: stats.probOver15, odd: getOdd(stats.probOver15), market: 'Gols' },
+          { label: 'Mais de 2.5 Gols', prob: stats.probOver25, odd: getOdd(stats.probOver25), market: 'Gols' },
+          { label: 'Mais de 3.5 Gols', prob: stats.probOver35, odd: getOdd(stats.probOver35), market: 'Gols' },
+          { label: 'Ambos Marcam (Sim)', prob: stats.probBtts, odd: getOdd(stats.probBtts), market: 'Gols' }
+        ]
+      },
+      {
+        category: 'Escanteios (Cantos)',
+        items: [
+          { label: 'Mais de 5.5 Escanteios', prob: probCornOver(5), odd: getOdd(probCornOver(5)), market: 'Escanteios' },
+          { label: 'Mais de 7.5 Escanteios', prob: probCornOver(7), odd: getOdd(probCornOver(7)), market: 'Escanteios' },
+          { label: 'Mais de 8.5 Escanteios', prob: probCornOver(8), odd: getOdd(probCornOver(8)), market: 'Escanteios' },
+          { label: 'Mais de 9.5 Escanteios', prob: probCornOver(9), odd: getOdd(probCornOver(9)), market: 'Escanteios' },
+          { label: 'Mais de 10.5 Escanteios', prob: probCornOver(10), odd: getOdd(probCornOver(10)), market: 'Escanteios' }
+        ]
+      },
+      {
+        category: 'Cartões',
+        items: [
+          { label: 'Amarelos Acima de 3.5', prob: probCardsOver(3), odd: getOdd(probCardsOver(3)), market: 'Cartões' },
+          { label: 'Amarelos Acima de 4.5', prob: probCardsOver(4), odd: getOdd(probCardsOver(4)), market: 'Cartões' },
+          { label: 'Cartão Vermelho (Sim)', prob: redCardProb, odd: getOdd(redCardProb), market: 'Cartões' }
+        ]
+      }
+    ];
+  };
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -1023,9 +1195,15 @@ export default function PalpitesPage() {
           <Trophy color="#FFD700" size={28} style={{ flexShrink: 0 }} />
           <h1 className="page-title" style={{ fontSize: '1.8rem', margin: 0 }}>Central de Palpites</h1>
         </div>
-        <p style={{ color: '#888', marginTop: '8px', fontSize: '0.95rem', lineHeight: '1.4' }}>
-          Gerencie e acompanhe prognósticos automáticos e suas próprias apostas criadas via Poisson.
-        </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+          <p style={{ color: '#888', margin: 0, fontSize: '0.95rem', lineHeight: '1.4' }}>
+            Gerencie e acompanhe prognósticos automáticos e suas próprias apostas criadas via Poisson.
+          </p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0, 210, 255, 0.05)', border: '1px solid rgba(0, 210, 255, 0.2)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.78rem', color: '#00d2ff' }}>
+            <Calculator size={14} style={{ flexShrink: 0 }} />
+            <span>Cotações simuladas pelo modelo Poisson da <strong>A2 Solutions</strong>. Diferenças de valor comparadas às casas reais (ex: Betano @1.42 vs App @1.49) não representam atraso ou delay, e sim projeções matemáticas exclusivas de valor!</span>
+          </div>
+        </div>
       </header>
 
       <>
@@ -1102,31 +1280,43 @@ export default function PalpitesPage() {
             </div>
 
             {/* Data e Seletor de Rodada Info */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', justifyContent: 'flex-start', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
               <div style={{ color: 'var(--brand-neon)', fontWeight: 'bold', fontSize: '0.9rem' }}>
                 {roundInfo ? `Temporada ${roundInfo.season}` : ''}
               </div>
               
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span style={{ fontSize: '0.85rem', color: '#888', fontWeight: 'bold' }}>Filtro de Data:</span>
-                <input 
-                  type="date" 
-                  value={selectedDate}
-                  onChange={(e) => setSelectedDate(e.target.value)}
-                  style={{
-                    padding: '8px 12px',
-                    background: '#222',
-                    border: 'none',
-                    color: 'var(--brand-neon)',
-                    borderRadius: '0px',
-                    cursor: 'pointer',
-                    colorScheme: 'dark',
-                    fontWeight: 'bold',
-                    outline: 'none',
-                    fontSize: '0.9rem'
-                  }}
-                />
+              <div className="stats-selector-container" style={{ margin: 0 }}>
+                <button 
+                  onClick={() => setStatsMode('minhas')}
+                  className={`stats-selector-button ${statsMode === 'minhas' ? 'active' : ''}`}
+                >
+                  Minhas Apostas
+                </button>
+                <button 
+                  onClick={() => setStatsMode('modelo')}
+                  className={`stats-selector-button ${statsMode === 'modelo' ? 'active' : ''}`}
+                >
+                  Histórico do Modelo
+                </button>
               </div>
+              
+              <input 
+                type="date" 
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                style={{
+                  padding: '8px 12px',
+                  background: '#222',
+                  border: 'none',
+                  color: 'var(--brand-neon)',
+                  borderRadius: '0px',
+                  cursor: 'pointer',
+                  colorScheme: 'dark',
+                  fontWeight: 'bold',
+                  outline: 'none',
+                  fontSize: '0.9rem'
+                }}
+              />
             </div>
           </div>
 
@@ -1181,24 +1371,7 @@ export default function PalpitesPage() {
             </div>
           )}
 
-          {/* Seletor de Estatísticas */}
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
-            <h3 style={{ fontSize: '1rem', color: '#ccc', margin: 0, fontWeight: 'bold' }}>Estatísticas de Desempenho</h3>
-            <div className="stats-selector-container">
-              <button 
-                onClick={() => setStatsMode('minhas')}
-                className={`stats-selector-button ${statsMode === 'minhas' ? 'active' : ''}`}
-              >
-                Minhas Apostas
-              </button>
-              <button 
-                onClick={() => setStatsMode('modelo')}
-                className={`stats-selector-button ${statsMode === 'modelo' ? 'active' : ''}`}
-              >
-                Histórico do Modelo
-              </button>
-            </div>
-          </div>
+
 
           {/* Estatísticas de Acertos (KPI Cards) */}
           {(() => {
@@ -1299,8 +1472,8 @@ export default function PalpitesPage() {
                 <div key={game.id} style={{ 
                   background: '#111', 
                   borderRadius: '16px', 
-                  border: game.isLive ? '1px solid #ff4444' : hasGameEV ? '1px solid var(--brand-neon)' : '1px solid #333', 
-                  borderLeft: game.isLive ? '6px solid #ff4444' : game.isFinished ? '6px solid #666' : hasGameEV ? '6px solid var(--brand-neon)' : '6px solid #4CAF50',
+                  border: game.isLive ? '1px solid #4CAF50' : game.isFinished ? '1px solid #ff4d4d' : hasGameEV ? '1px solid var(--brand-neon)' : '1px solid #333', 
+                  borderLeft: game.isLive ? '6px solid #4CAF50' : game.isFinished ? '6px solid #ff4d4d' : hasGameEV ? '6px solid var(--brand-neon)' : '6px solid #4CAF50',
                   boxShadow: hasGameEV ? '0 0 15px rgba(204, 255, 0, 0.08)' : 'none',
                   overflow: 'hidden',
                   opacity: game.isFinished ? 0.7 : 1,
@@ -1514,7 +1687,7 @@ export default function PalpitesPage() {
                       </div>
                     </div>
 
-                    {/* Botões de Ação Reposicionados (Estatísticas, Seguir Palpite, Telegram) */}
+                    {/* Botões de Ação Reposicionados (Estatísticas, Seguir Palpite, Criar Aposta, Telegram) */}
                     <div style={{ display: 'flex', gap: '8px', width: '100%', flexWrap: 'wrap' }}>
                       <button
                         onClick={() => {
@@ -1526,7 +1699,7 @@ export default function PalpitesPage() {
                           }
                         }}
                         style={{
-                          flex: 1,
+                          flex: '1 1 calc(50% - 4px)',
                           background: openStatsId === game.id ? '#333' : 'transparent',
                           color: openStatsId === game.id ? '#fff' : '#aaa',
                           border: '1px solid ' + (openStatsId === game.id ? '#666' : '#444'),
@@ -1559,7 +1732,7 @@ export default function PalpitesPage() {
                         }}
                         disabled={isFollowed(game)}
                         style={{
-                          flex: 1.2,
+                          flex: '1 1 calc(50% - 4px)',
                           background: isFollowed(game) ? 'rgba(76, 175, 80, 0.15)' : activeFollowId === game.id ? '#ff9800' : 'transparent',
                           color: isFollowed(game) ? '#4CAF50' : activeFollowId === game.id ? '#fff' : '#aaa',
                           border: isFollowed(game) ? '1px solid rgba(76, 175, 80, 0.3)' : activeFollowId === game.id ? '1px solid #ff9800' : '1px solid #444',
@@ -1585,11 +1758,38 @@ export default function PalpitesPage() {
                         )}
                       </button>
 
+                      {/* Criar Aposta Customizada */}
+                      <button
+                        onClick={() => {
+                          setOpenBuilderGameId(game.id);
+                          setBuilderSelections([]);
+                        }}
+                        style={{
+                          flex: '1 1 calc(50% - 4px)',
+                          background: 'transparent',
+                          color: 'var(--brand-neon)',
+                          border: '1px solid var(--brand-neon)',
+                          padding: '8px 12px',
+                          borderRadius: '8px',
+                          fontSize: '0.82rem',
+                          fontWeight: 'bold',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px',
+                          transition: 'all 0.3s'
+                        }}
+                      >
+                        <PlusCircle size={15} />
+                        <span>Criar Aposta 🛠️</span>
+                      </button>
+
                       <button 
                         onClick={() => handleBroadcast(game)}
                         disabled={loadingId === game.id || sentIds.has(game.id)}
                         style={{ 
-                          flex: 1.2,
+                          flex: '1 1 calc(50% - 4px)',
                           background: sentIds.has(game.id) ? '#333' : successId === game.id ? '#4CAF50' : 'var(--brand-neon)', 
                           color: sentIds.has(game.id) ? '#888' : '#000', 
                           padding: '8px 12px', 
@@ -2491,6 +2691,265 @@ export default function PalpitesPage() {
                   onMouseOut={(e) => e.target.style.background = '#ff4444'}
                 >
                   Fechar Radar
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* POPUP DO CRIADOR DE APOSTA (MODAL) */}
+      {openBuilderGameId && (() => {
+        const game = games.find(g => g.id === openBuilderGameId);
+        if (!game) return null;
+        
+        const markets = getBuilderMarkets(game);
+        
+        const totalOddCalc = builderSelections.reduce((acc, s) => acc * Number(s.odd), 1).toFixed(2);
+        const totalProbCalc = (builderSelections.reduce((acc, s) => acc * s.prob, 1) * 100).toFixed(1);
+
+        return (
+          <div 
+            onClick={() => { setOpenBuilderGameId(null); setBuilderSelections([]); }}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              width: '100vw',
+              height: '100vh',
+              backgroundColor: 'rgba(0, 0, 0, 0.75)',
+              backdropFilter: 'blur(5px)',
+              display: 'flex',
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 10000,
+              animation: 'fadeIn 0.2s ease-out'
+            }}
+          >
+            <div 
+              className="glass-panel" 
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '90%',
+                maxWidth: '600px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                background: 'linear-gradient(135deg, #111115, #14141d)',
+                border: '1px solid #333',
+                borderTop: '4px solid var(--brand-neon)',
+                padding: '24px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.8)',
+                position: 'relative',
+                animation: 'scaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)'
+              }}
+            >
+              <button 
+                onClick={() => { setOpenBuilderGameId(null); setBuilderSelections([]); }}
+                style={{
+                  position: 'absolute',
+                  top: '16px',
+                  right: '16px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#aaa',
+                  fontSize: '1.5rem',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  transition: 'color 0.2s'
+                }}
+              >
+                ✕
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
+                <span style={{ fontSize: '1.5rem' }}>🛠️</span>
+                <div>
+                  <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>
+                    Criador de Aposta Personalizada
+                  </h3>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--brand-neon)', margin: '2px 0 0 0', fontWeight: 'bold' }}>
+                    {game.home} x {game.away}
+                  </p>
+                </div>
+              </div>
+
+              {/* Informações explicativas sobre odds */}
+              <div style={{ background: 'rgba(0, 210, 255, 0.05)', border: '1px solid rgba(0, 210, 255, 0.2)', padding: '10px 14px', borderRadius: '8px', fontSize: '0.78rem', color: '#00d2ff', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
+                <span style={{ fontSize: '1rem' }}>💡</span>
+                <span>As cotações individuais são geradas a partir de modelos matemáticos da <strong>A2 Solutions</strong>. Você pode montar a sua aposta selecionando múltiplos mercados e definir a odd exata da sua casa de apostas manualmente no cupom!</span>
+              </div>
+
+              {/* Grid de Mercados e Seleções */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                {markets.map((cat, catIdx) => (
+                  <div key={catIdx} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                      {cat.category}
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {cat.items.map((item, itemIdx) => {
+                        const id = `${game.home} x ${game.away}_${item.market}_${item.label}`;
+                        const isSelected = builderSelections.some(s => s.id === id);
+                        return (
+                          <button
+                            key={itemIdx}
+                            onClick={() => handleToggleBuilderSelection(item, `${game.home} x ${game.away}`)}
+                            style={{
+                              background: isSelected ? 'var(--brand-neon)' : '#16161a',
+                              border: isSelected ? '1px solid var(--brand-neon)' : '1px solid #27272a',
+                              color: isSelected ? '#000' : '#ccc',
+                              padding: '8px 12px',
+                              borderRadius: '6px',
+                              fontSize: '0.75rem',
+                              fontWeight: 'bold',
+                              cursor: 'pointer',
+                              transition: 'all 0.2s',
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '6px'
+                            }}
+                          >
+                            <span>{item.label}</span>
+                            <span style={{ color: isSelected ? '#000' : '#ff9800' }}>@{item.odd.toFixed(2)}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Seções Selecionadas & Cupom de Aposta */}
+              {builderSelections.length > 0 && (
+                <div style={{ background: '#1c1c24', border: '1px solid #333', borderRadius: '12px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
+                  <div style={{ fontSize: '0.8rem', color: '#fff', fontWeight: 'bold', borderBottom: '1px solid #333', paddingBottom: '6px' }}>
+                    📋 Cupom de Aposta ({builderSelections.length})
+                  </div>
+
+                  {/* 🎫 Bilhete em Construção */}
+                  <div style={{ 
+                    background: 'rgba(204, 255, 0, 0.04)', 
+                    border: '1.5px dashed var(--brand-neon)', 
+                    borderRadius: '8px', 
+                    padding: '10px 14px', 
+                    color: '#fff',
+                    fontFamily: 'monospace',
+                    fontSize: '0.8rem',
+                    lineHeight: '1.4',
+                  }}>
+                    <div style={{ color: 'var(--brand-neon)', fontSize: '0.62rem', fontWeight: 'bold', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '1px' }}>
+                      🎫 Aposta sendo montada:
+                    </div>
+                    <div style={{ wordBreak: 'break-all' }}>
+                      {builderSelections.map(s => s.label).join(' + ')}
+                    </div>
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    {builderSelections.map((sel, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#ccc' }}>
+                        <span>• {sel.label}</span>
+                        <span style={{ color: '#ff9800', fontWeight: 'bold' }}>@{sel.odd.toFixed(2)}</span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Resultados Combinados */}
+                  <div style={{ borderTop: '1px dashed #333', paddingTop: '10px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '0.72rem', color: '#888', fontWeight: 'bold' }}>Odd Combinada (Editar)</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span style={{ color: '#ff9800', fontWeight: 'bold' }}>@</span>
+                        <input 
+                          type="number"
+                          step="0.01"
+                          value={builderCustomOdd !== "" ? builderCustomOdd : totalOddCalc}
+                          onChange={(e) => setBuilderCustomOdd(e.target.value)}
+                          style={{
+                            background: '#141419',
+                            border: '1px solid #333',
+                            color: '#ff9800',
+                            padding: '6px 10px',
+                            borderRadius: '6px',
+                            fontSize: '0.85rem',
+                            fontWeight: 'bold',
+                            width: '100px',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <label style={{ fontSize: '0.72rem', color: '#888', fontWeight: 'bold' }}>Valor da Aposta (R$)</label>
+                      <input 
+                        type="number"
+                        value={builderStake}
+                        onChange={(e) => setBuilderStake(e.target.value)}
+                        placeholder="50"
+                        style={{
+                          background: '#141419',
+                          border: '1px solid #333',
+                          color: '#fff',
+                          padding: '6px 10px',
+                          borderRadius: '6px',
+                          fontSize: '0.85rem',
+                          fontWeight: 'bold',
+                          width: '100px',
+                          outline: 'none'
+                        }}
+                      />
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: '#aaa', marginTop: '4px' }}>
+                    <span>Probabilidade Teórica:</span>
+                    <strong style={{ color: 'var(--brand-neon)' }}>{totalProbCalc}%</strong>
+                  </div>
+
+                  <button
+                    onClick={() => handleSaveBuilderBet(game)}
+                    style={{
+                      background: 'var(--brand-neon)',
+                      color: '#000',
+                      border: 'none',
+                      padding: '12px',
+                      borderRadius: '8px',
+                      fontWeight: 'bold',
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      textAlign: 'center',
+                      boxShadow: '0 4px 12px rgba(204, 255, 0, 0.2)',
+                      marginTop: '4px'
+                    }}
+                  >
+                    Salvar Aposta na Banca 🚀
+                  </button>
+                </div>
+              )}
+
+              {/* Botão Fechar no rodapé */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+                <button 
+                  onClick={() => { setOpenBuilderGameId(null); setBuilderSelections([]); }}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid #444',
+                    color: '#aaa',
+                    padding: '8px 20px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '0.85rem'
+                  }}
+                >
+                  Voltar
                 </button>
               </div>
             </div>

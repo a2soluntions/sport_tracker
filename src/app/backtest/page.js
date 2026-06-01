@@ -27,7 +27,8 @@ import {
   Calendar, 
   AlertCircle,
   Trash2,
-  CheckCircle2
+  CheckCircle2,
+  Eye
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
@@ -63,6 +64,17 @@ const parseMatchTeams = (description) => {
   else if (matchPart.includes(' - ')) parts = matchPart.split(' - ');
   if (parts.length >= 2) return { home: parts[0].trim(), away: parts[1].trim(), rest: clean.includes('(') ? ' (' + clean.split('(').slice(1).join('(') : '' };
   return { home: matchPart, away: '', rest: '' };
+};
+
+const parseSelections = (description) => {
+  if (!description) return [];
+  const startIdx = description.indexOf('(');
+  const endIdx = description.lastIndexOf(')');
+  if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
+    const content = description.substring(startIdx + 1, endIdx);
+    return content.split(',').map(s => s.trim()).filter(Boolean);
+  }
+  return [];
 };
 
 const evaluateSelection = (selection, gh, ga) => {
@@ -134,6 +146,9 @@ export default function RelatorioApostasPage() {
   const [sending, setSending] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [showDetailModal, setShowDetailModal] = useState(false);
+  const [selectedTxForDetail, setSelectedTxForDetail] = useState(null);
+  const [fixtures, setFixtures] = useState([]);
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -182,6 +197,29 @@ export default function RelatorioApostasPage() {
       }
     }
 
+    async function loadFixtures() {
+      try {
+        const [resA, resB] = await Promise.all([
+          fetch('/api/football/fixtures?league=71&all=true'),
+          fetch('/api/football/fixtures?league=72&all=true')
+        ]);
+        let allFixtures = [];
+        if (resA.ok) {
+          const dataA = await resA.json();
+          if (dataA.fixtures) allFixtures = [...allFixtures, ...dataA.fixtures];
+        }
+        if (resB.ok) {
+          const dataB = await resB.json();
+          if (dataB.fixtures) allFixtures = [...allFixtures, ...dataB.fixtures];
+        }
+        setFixtures(allFixtures);
+        return allFixtures;
+      } catch (e) {
+        console.warn("Erro ao buscar fixtures:", e);
+        return [];
+      }
+    }
+
     async function loadTransactions() {
       if (!supabase) {
         fallbackToLocal();
@@ -200,8 +238,11 @@ export default function RelatorioApostasPage() {
         // Sincronizar dados locais pendentes para a nuvem
         const syncedList = await syncLocalTransactionsToCloud(filteredData);
         
+        // Carregar fixtures primeiro
+        const allFixtures = await loadFixtures();
+
         // Auto resolver palpites pendentes
-        const resolvedList = await autoResolvePendingBets(syncedList);
+        const resolvedList = await autoResolvePendingBets(syncedList, allFixtures);
         setTransactions(resolvedList);
       } catch (err) {
         console.warn("Erro ao carregar transações do Supabase:", err);
@@ -258,26 +299,12 @@ export default function RelatorioApostasPage() {
       }
     }
 
-    async function autoResolvePendingBets(txList) {
+    async function autoResolvePendingBets(txList, loadedFixtures) {
       const pendingTxs = txList.filter(t => t.type === 'pendente');
       if (pendingTxs.length === 0) return txList;
 
       try {
-        const [resA, resB] = await Promise.all([
-          fetch('/api/football/fixtures?league=71&all=true'),
-          fetch('/api/football/fixtures?league=72&all=true')
-        ]);
-        
-        let allFixtures = [];
-        if (resA.ok) {
-          const dataA = await resA.json();
-          if (dataA.fixtures) allFixtures = [...allFixtures, ...dataA.fixtures];
-        }
-        if (resB.ok) {
-          const dataB = await resB.json();
-          if (dataB.fixtures) allFixtures = [...allFixtures, ...dataB.fixtures];
-        }
-
+        const allFixtures = loadedFixtures && loadedFixtures.length > 0 ? loadedFixtures : await loadFixtures();
         if (allFixtures.length === 0) return txList;
 
         let updatedList = [...txList];
@@ -346,8 +373,10 @@ export default function RelatorioApostasPage() {
       if (savedTxs) {
         try {
           const parsed = JSON.parse(savedTxs);
-          autoResolvePendingBets(parsed).then(resolved => {
-            setTransactions(resolved);
+          loadFixtures().then(allFixtures => {
+            autoResolvePendingBets(parsed, allFixtures).then(resolved => {
+              setTransactions(resolved);
+            });
           });
         } catch (e) {
           console.warn("Erro ao carregar transações locais:", e);
@@ -861,7 +890,14 @@ export default function RelatorioApostasPage() {
                         <td style={{ padding: '12px', fontSize: '0.9rem', color: '#aaa' }} className="mobile-hide">
                           {new Date(tx.date + 'T12:00:00').toLocaleDateString('pt-BR')}
                         </td>
-                        <td style={{ padding: '12px', fontWeight: 500, fontSize: '0.95rem' }}>
+                        <td 
+                          onClick={() => {
+                            setSelectedTxForDetail(tx);
+                            setShowDetailModal(true);
+                          }}
+                          style={{ padding: '12px', fontWeight: 500, fontSize: '0.95rem', cursor: 'pointer' }}
+                          title="Ver detalhes da aposta"
+                        >
                           {(() => {
                             const teams = parseMatchTeams(tx.description);
                             if (teams.away) {
@@ -921,8 +957,20 @@ export default function RelatorioApostasPage() {
                               : tx.amount.toFixed(2)
                           }
                         </td>
-                        <td style={{ padding: '12px' }}>
-                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                        <td style={{ padding: '12px' }} className="no-print">
+                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                            <button 
+                              onClick={() => {
+                                setSelectedTxForDetail(tx);
+                                setShowDetailModal(true);
+                              }}
+                              style={{ background: 'transparent', border: '1px solid #444', borderRadius: '4px', color: 'var(--brand-neon)', padding: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
+                              onMouseOver={(e) => { e.currentTarget.style.borderColor = 'var(--brand-neon)'; }}
+                              onMouseOut={(e) => { e.currentTarget.style.borderColor = '#444'; }}
+                              title="Ver Detalhes"
+                            >
+                              <Eye size={14} />
+                            </button>
                             <button 
                               onClick={() => handleDeleteTransaction(tx.id)}
                               style={{ background: 'transparent', border: '1px solid #444', borderRadius: '4px', color: '#aaa', padding: '5px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.2s' }}
@@ -966,6 +1014,243 @@ export default function RelatorioApostasPage() {
             {toast.type === 'success' ? '🟢' : toast.type === 'error' ? '🔴' : '⏳'}
           </span>
           <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '0.9rem' }}>{toast.message}</span>
+        </div>
+      )}
+
+      {/* Modal de Detalhes da Aposta */}
+      {showDetailModal && selectedTxForDetail && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(5px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 10000,
+          animation: 'fadeIn 0.2s ease-out'
+        }}>
+          <div className="glass-panel" style={{
+            width: '95%',
+            maxWidth: '450px',
+            background: 'linear-gradient(135deg, #111115, #14141d)',
+            border: '1px solid #333',
+            borderTop: '4px solid var(--brand-neon)',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '18px',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.8)'
+          }}>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🎫 Detalhes da Aposta
+              </h3>
+              <button 
+                onClick={() => { setShowDetailModal(false); setSelectedTxForDetail(null); }}
+                style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 'bold' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Match info */}
+            {(() => {
+              const teams = parseMatchTeams(selectedTxForDetail.description);
+              const selections = parseSelections(selectedTxForDetail.description);
+              const isGain = selectedTxForDetail.type === 'ganho';
+              const isLoss = selectedTxForDetail.type === 'perda';
+              const isPending = selectedTxForDetail.type === 'pendente';
+              const isAlav = selectedTxForDetail.type === 'alavancagem';
+
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                  
+                  {/* Partida / Evento */}
+                  <div>
+                    <span style={{ fontSize: '0.72rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '6px' }}>Partida</span>
+                    {teams.away ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#141419', padding: '10px 14px', borderRadius: '8px', border: '1px solid #222' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
+                          <img
+                            src={getTeamLogoUrl(teams.home)}
+                            alt={teams.home}
+                            style={{ width: '24px', height: '24px', objectFit: 'contain' }}
+                            onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${teams.home}&background=222&color=fff&rounded=true&bold=true&size=24`; }}
+                          />
+                          <strong style={{ color: '#fff', fontSize: '0.92rem' }}>{teams.home}</strong>
+                          <span style={{ color: '#555', fontSize: '0.8rem' }}>x</span>
+                          <img
+                            src={getTeamLogoUrl(teams.away)}
+                            alt={teams.away}
+                            style={{ width: '24px', height: '24px', objectFit: 'contain' }}
+                            onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${teams.away}&background=222&color=fff&rounded=true&bold=true&size=24`; }}
+                          />
+                          <strong style={{ color: '#fff', fontSize: '0.92rem' }}>{teams.away}</strong>
+                        </div>
+                        {(() => {
+                          const matchName = selectedTxForDetail.description.replace('[Palpite] ', '').replace('[Aposta Criada] ', '').split(' (')[0].trim().toLowerCase();
+                          const game = fixtures.find(f => `${f.home.trim()} x ${f.away.trim()}`.toLowerCase() === matchName);
+                          if (game && game.isFinished) {
+                            return (
+                              <div style={{ textAlign: 'center', borderTop: '1px dashed #222', paddingTop: '6px', marginTop: '2px' }}>
+                                <span style={{ fontSize: '0.75rem', color: '#888' }}>Placar Final: </span>
+                                <strong style={{ color: 'var(--brand-neon)', fontSize: '0.85rem' }}>{game.goalsHome} x {game.goalsAway}</strong>
+                              </div>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    ) : (
+                      <div style={{ background: '#141419', padding: '10px 14px', borderRadius: '8px', border: '1px solid #222', color: '#fff', fontWeight: 'bold', fontSize: '0.95rem' }}>
+                        {selectedTxForDetail.description.replace('[Palpite] ', '').replace('[Aposta Criada] ', '')}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Seleções */}
+                  {selections.length > 0 && (
+                    <div>
+                      <span style={{ fontSize: '0.72rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '6px' }}>Seleções Incluídas</span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                        {(() => {
+                          const matchName = selectedTxForDetail.description.replace('[Palpite] ', '').replace('[Aposta Criada] ', '').split(' (')[0].trim().toLowerCase();
+                          const game = fixtures.find(f => `${f.home.trim()} x ${f.away.trim()}`.toLowerCase() === matchName);
+                          const gh = game?.isFinished ? game.goalsHome : null;
+                          const ga = game?.isFinished ? game.goalsAway : null;
+
+                          return selections.map((sel, idx) => {
+                            let statusIcon = '•';
+                            let statusColor = 'var(--brand-neon)';
+                            let statusText = '';
+
+                            if (game && game.isFinished && gh !== null && ga !== null) {
+                              const isHit = evaluateSelection(sel, gh, ga);
+                              statusIcon = isHit ? '✔️' : '❌';
+                              statusColor = isHit ? '#4CAF50' : '#ff4d4d';
+                              statusText = isHit ? 'Acertou' : 'Errou';
+                            }
+
+                            return (
+                              <div key={idx} style={{ 
+                                background: 'rgba(255,255,255,0.02)', 
+                                border: '1px solid #222', 
+                                padding: '8px 12px', 
+                                borderRadius: '6px', 
+                                fontSize: '0.82rem', 
+                                color: '#eee', 
+                                display: 'flex', 
+                                justifyContent: 'space-between',
+                                alignItems: 'center' 
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ color: statusColor, fontWeight: 'bold' }}>{statusIcon}</span>
+                                  <span>{sel}</span>
+                                </div>
+                                {statusText && (
+                                  <span style={{ 
+                                    fontSize: '0.68rem', 
+                                    color: '#000', 
+                                    background: statusColor, 
+                                    padding: '2px 6px', 
+                                    borderRadius: '4px',
+                                    fontWeight: 'bold' 
+                                  }}>
+                                    {statusText}
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Informações Financeiras */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '10px', borderTop: '1px solid #222', paddingTop: '14px' }}>
+                    <div style={{ background: '#141419', padding: '8px 12px', borderRadius: '8px', border: '1px solid #222' }}>
+                      <span style={{ fontSize: '0.65rem', color: '#888', display: 'block' }}>Data</span>
+                      <strong style={{ color: '#fff', fontSize: '0.85rem' }}>{new Date(selectedTxForDetail.date + 'T12:00:00').toLocaleDateString('pt-BR')}</strong>
+                    </div>
+                    <div style={{ background: '#141419', padding: '8px 12px', borderRadius: '8px', border: '1px solid #222' }}>
+                      <span style={{ fontSize: '0.65rem', color: '#888', display: 'block' }}>Status</span>
+                      <span style={{ 
+                        fontSize: '0.8rem', 
+                        fontWeight: 'bold',
+                        color: isGain ? '#4CAF50' : isLoss ? '#ff4d4d' : isAlav ? '#4CAF50' : '#FFC107'
+                      }}>
+                        {isGain ? 'GANHO' : isLoss ? 'PERDA' : isAlav ? 'ALAVANCAGEM' : 'PENDENTE'}
+                      </span>
+                    </div>
+                    <div style={{ background: '#141419', padding: '8px 12px', borderRadius: '8px', border: '1px solid #222' }}>
+                      <span style={{ fontSize: '0.65rem', color: '#888', display: 'block' }}>Valor Apostado (Stake)</span>
+                      <strong style={{ color: '#fff', fontSize: '0.85rem' }}>R$ {selectedTxForDetail.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</strong>
+                    </div>
+                    <div style={{ background: '#141419', padding: '8px 12px', borderRadius: '8px', border: '1px solid #222' }}>
+                      <span style={{ fontSize: '0.65rem', color: '#888', display: 'block' }}>Odd</span>
+                      <strong style={{ color: '#ff9800', fontSize: '0.85rem' }}>{selectedTxForDetail.odd ? `@${selectedTxForDetail.odd.toFixed(2)}` : '-'}</strong>
+                    </div>
+                  </div>
+
+                  {/* Resultado Financeiro */}
+                  <div style={{ 
+                    background: isPending ? 'rgba(255, 193, 7, 0.05)' : (isGain || isAlav) ? 'rgba(76, 175, 80, 0.05)' : 'rgba(255, 77, 77, 0.05)', 
+                    border: '1.5px dashed ' + (isPending ? '#FFC107' : (isGain || isAlav) ? '#4CAF50' : '#ff4d4d'), 
+                    borderRadius: '8px', 
+                    padding: '12px 14px', 
+                    display: 'flex', 
+                    justifyContent: 'space-between', 
+                    alignItems: 'center',
+                    marginTop: '4px'
+                  }}>
+                    <span style={{ fontSize: '0.78rem', color: '#eee', fontWeight: 'bold' }}>
+                      {isPending ? 'Retorno Estimado:' : (isGain || isAlav) ? 'Lucro Líquido:' : 'Prejuízo:'}
+                    </span>
+                    <strong style={{ 
+                      fontSize: '1.05rem', 
+                      color: isPending ? '#FFC107' : (isGain || isAlav) ? '#4CAF50' : '#ff4d4d' 
+                    }}>
+                      R$ {
+                        isPending 
+                          ? (selectedTxForDetail.odd ? (selectedTxForDetail.amount * selectedTxForDetail.odd).toLocaleString('pt-BR', { minimumFractionDigits: 2 }) : selectedTxForDetail.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 }))
+                          : (isGain || isAlav) && selectedTxForDetail.odd
+                            ? (selectedTxForDetail.amount * (selectedTxForDetail.odd - 1)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+                            : selectedTxForDetail.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })
+                      }
+                    </strong>
+                  </div>
+
+                </div>
+              );
+            })()}
+
+            {/* Footer */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '6px' }}>
+              <button 
+                onClick={() => { setShowDetailModal(false); setSelectedTxForDetail(null); }}
+                style={{
+                  background: 'var(--brand-neon)',
+                  border: 'none',
+                  color: '#000',
+                  padding: '10px 24px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '0.9rem',
+                  boxShadow: '0 4px 15px rgba(204, 255, 0, 0.2)'
+                }}
+              >
+                Fechar
+              </button>
+            </div>
+
+          </div>
         </div>
       )}
 

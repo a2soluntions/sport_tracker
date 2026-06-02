@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
-import { Activity, TrendingUp, Settings, Bell, Calculator, Zap, Trophy, PiggyBank, LogOut, ArrowUpCircle, Info, HelpCircle } from 'lucide-react';
+import { Activity, TrendingUp, Settings, Bell, Calculator, Zap, Trophy, PiggyBank, LogOut, ArrowUpCircle, Info, HelpCircle, ShieldCheck } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
 export default function Sidebar() {
@@ -57,6 +57,24 @@ export default function Sidebar() {
 
         {user && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {user.email === 'a2soluntions@gmail.com' && (
+              <Link href="/admin" style={{
+                color: 'var(--brand-neon)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                textDecoration: 'none',
+                fontSize: '0.75rem',
+                fontWeight: 'bold',
+                marginRight: '8px',
+                background: 'rgba(204, 255, 0, 0.05)',
+                border: '1px solid rgba(204, 255, 0, 0.2)',
+                padding: '2px 8px',
+                borderRadius: '4px'
+              }}>
+                <ShieldCheck size={12} /> Admin
+              </Link>
+            )}
             <Link href="/pricing" style={{
               background: planStyle.bg,
               color: planStyle.color,
@@ -118,6 +136,12 @@ export default function Sidebar() {
             <Settings size={20} className={styles.navIcon} /> 
             <span>Configurações</span>
           </Link>
+          {user && user.email === 'a2soluntions@gmail.com' && (
+            <Link href="/admin" className={`${styles.navItem} ${pathname === '/admin' ? styles.navItemActive : ''}`}>
+              <ShieldCheck size={20} className={styles.navIcon} color="var(--brand-neon)" /> 
+              <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>Administração</span>
+            </Link>
+          )}
           <Link href="/quem-somos" className={`${styles.navItem} ${pathname === '/quem-somos' ? styles.navItemActive : ''}`}>
             <Info size={20} className={styles.navIcon} /> 
             <span>Quem Somos</span>

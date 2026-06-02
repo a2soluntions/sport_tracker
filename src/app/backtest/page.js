@@ -48,7 +48,7 @@ const getTeamLogoUrl = (teamName) => {
     'CUIABÁ': 1100, 'CUIABA': 1100, 'CRICIÚMA': 1192, 'CRICIUMA': 1192,
     'BOTAFOGO-SP': 1190, 'AMÉRICA-MG': 123, 'AMERICA MG': 123,
     'VILA NOVA': 1193, 'OPERÁRIO-PR': 1194, 'OPERARIO PR': 1194,
-    'CHAPECOENSE': 122, 'REMO': 1195
+    'CHAPECOENSE': 122, 'REMO': 1195, 'BRUSQUE': 1189, 'BARRA': 9770
   };
   const teamId = mapping[clean];
   if (teamId) return `https://media.api-sports.io/football/teams/${teamId}.png`;
@@ -102,30 +102,34 @@ const evaluateSelection = (selection, gh, ga) => {
     return gh === targetH && ga === targetA;
   }
   
-  // Fora Acima/Abaixo
-  const foraOverMatch = cleanSel.match(/fora\s+(?:acima|mais)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
-  if (foraOverMatch) {
-    const val = parseFloat(foraOverMatch[1]);
-    return ga > val;
-  }
-  const foraUnderMatch = cleanSel.match(/fora\s+(?:abaixo|menos)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
-  if (foraUnderMatch) {
-    const val = parseFloat(foraUnderMatch[1]);
-    return ga < val;
-  }
+  const isGoalMarket = !cleanSel.includes('escanteio') && !cleanSel.includes('canto') && !cleanSel.includes('cartã') && !cleanSel.includes('cartao') && !cleanSel.includes('amarelo') && !cleanSel.includes('vermelho');
 
-  // Acima/Mais de Z Gols
-  const overMatch = cleanSel.match(/(?:acima|mais)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
-  if (overMatch) {
-    const val = parseFloat(overMatch[1]);
-    return (gh + ga) > val;
-  }
-  
-  // Abaixo/Menos de Z Gols
-  const underMatch = cleanSel.match(/(?:abaixo|menos)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
-  if (underMatch) {
-    const val = parseFloat(underMatch[1]);
-    return (gh + ga) < val;
+  if (isGoalMarket) {
+    // Fora Acima/Abaixo
+    const foraOverMatch = cleanSel.match(/fora\s+(?:acima|mais)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
+    if (foraOverMatch) {
+      const val = parseFloat(foraOverMatch[1]);
+      return ga > val;
+    }
+    const foraUnderMatch = cleanSel.match(/fora\s+(?:abaixo|menos)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
+    if (foraUnderMatch) {
+      const val = parseFloat(foraUnderMatch[1]);
+      return ga < val;
+    }
+
+    // Acima/Mais de Z Gols
+    const overMatch = cleanSel.match(/(?:acima|mais)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
+    if (overMatch) {
+      const val = parseFloat(overMatch[1]);
+      return (gh + ga) > val;
+    }
+    
+    // Abaixo/Menos de Z Gols
+    const underMatch = cleanSel.match(/(?:abaixo|menos)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
+    if (underMatch) {
+      const val = parseFloat(underMatch[1]);
+      return (gh + ga) < val;
+    }
   }
 
   // Outros (Marcadores, Cartões, etc.) fallback to true if the match finished
@@ -199,9 +203,10 @@ export default function RelatorioApostasPage() {
 
     async function loadFixtures() {
       try {
-        const [resA, resB] = await Promise.all([
+        const [resA, resB, resC] = await Promise.all([
           fetch('/api/football/fixtures?league=71&all=true'),
-          fetch('/api/football/fixtures?league=72&all=true')
+          fetch('/api/football/fixtures?league=72&all=true'),
+          fetch('/api/football/fixtures?league=75&all=true')
         ]);
         let allFixtures = [];
         if (resA.ok) {
@@ -211,6 +216,10 @@ export default function RelatorioApostasPage() {
         if (resB.ok) {
           const dataB = await resB.json();
           if (dataB.fixtures) allFixtures = [...allFixtures, ...dataB.fixtures];
+        }
+        if (resC.ok) {
+          const dataC = await resC.json();
+          if (dataC.fixtures) allFixtures = [...allFixtures, ...dataC.fixtures];
         }
         setFixtures(allFixtures);
         return allFixtures;

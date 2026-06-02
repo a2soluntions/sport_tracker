@@ -793,9 +793,10 @@ export default function PalpitesPage() {
       if (pendingTxs.length === 0) return txList;
 
       try {
-        const [resA, resB] = await Promise.all([
+        const [resA, resB, resC] = await Promise.all([
           fetch('/api/football/fixtures?league=71&all=true'),
-          fetch('/api/football/fixtures?league=72&all=true')
+          fetch('/api/football/fixtures?league=72&all=true'),
+          fetch('/api/football/fixtures?league=75&all=true')
         ]);
         
         let allFixtures = [];
@@ -806,6 +807,10 @@ export default function PalpitesPage() {
         if (resB.ok) {
           const dataB = await resB.json();
           if (dataB.fixtures) allFixtures = [...allFixtures, ...dataB.fixtures];
+        }
+        if (resC.ok) {
+          const dataC = await resC.json();
+          if (dataC.fixtures) allFixtures = [...allFixtures, ...dataC.fixtures];
         }
 
         if (allFixtures.length === 0) return txList;
@@ -819,7 +824,10 @@ export default function PalpitesPage() {
           const matchName = t.description.replace('[Palpite] ', '').split(' (')[0];
           const bestTip = t.description.split(' (')[1]?.replace(')', '');
           
-          const game = allFixtures.find(f => `${f.home} x ${f.away}` === matchName);
+          const game = allFixtures.find(f => {
+            const gameName = `${f.home.trim()} x ${f.away.trim()}`.toLowerCase();
+            return gameName === matchName.trim().toLowerCase();
+          });
           if (game && game.isFinished) {
             const gh = game.goalsHome;
             const ga = game.goalsAway;

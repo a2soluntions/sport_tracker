@@ -66,7 +66,9 @@ const getTeamLogoUrl = (teamName) => {
     'OPERÁRIO-PR': 1194,
     'OPERARIO PR': 1194,
     'CHAPECOENSE': 122,
-    'REMO': 1195
+    'REMO': 1195,
+    'BRUSQUE': 1189,
+    'BARRA': 9770
   };
   
   const teamId = mapping[clean];

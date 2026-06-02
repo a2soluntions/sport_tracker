@@ -252,6 +252,7 @@ export default function RelatorioApostasPage() {
         // Auto resolver palpites pendentes
         const resolvedList = await autoResolvePendingBets(syncedList, allFixtures);
         setTransactions(resolvedList);
+        localStorage.setItem(userTxsKey, JSON.stringify(resolvedList));
       } catch (err) {
         console.warn("Erro ao carregar transações do Supabase:", err);
         fallbackToLocal();
@@ -269,10 +270,10 @@ export default function RelatorioApostasPage() {
         if (!Array.isArray(localList) || localList.length === 0) return cloudList;
 
         const unsyncedList = [];
-        const cloudKeys = new Set(cloudList.map(t => `${t.date}_${t.type}_${t.amount}_${t.description}`));
+        const cloudKeys = new Set(cloudList.map(t => `${t.date}_${t.amount}_${t.description}`));
 
         for (const localTx of localList) {
-          const key = `${localTx.date}_${localTx.type}_${localTx.amount}_${localTx.description}`;
+          const key = `${localTx.date}_${localTx.amount}_${localTx.description}`;
           if (!cloudKeys.has(key)) {
             const { id, ...txToUpload } = localTx;
             txToUpload.user_id = user.id; // Vincular ao usuário logado

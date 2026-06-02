@@ -77,6 +77,41 @@ const getTeamLogoUrl = (teamName) => {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(teamName)}&background=141419&color=CCFF00&rounded=true&bold=true&size=32`;
 };
 
+const getLeagueLogoUrl = (leagueIdOrName) => {
+  if (!leagueIdOrName) return '';
+  const val = String(leagueIdOrName).toLowerCase().trim();
+  
+  const idMapping = {
+    '1': '/copadomundo.png',
+    '13': '/libertadores.jpg',
+    '12': '/sudamericana.png',
+    '71': 'https://flagcdn.com/w40/br.png',
+    '72': 'https://flagcdn.com/w40/br.png',
+    '73': 'https://flagcdn.com/w40/br.png',
+    '39': 'https://flagcdn.com/w40/gb.png',
+    '140': 'https://flagcdn.com/w40/es.png',
+    '135': 'https://flagcdn.com/w40/it.png',
+    '78': 'https://flagcdn.com/w40/de.png'
+  };
+  
+  if (idMapping[val]) {
+    return idMapping[val];
+  }
+  
+  if (val.includes('copa do mundo')) return '/copadomundo.png';
+  if (val.includes('libertadores')) return '/libertadores.jpg';
+  if (val.includes('sudamericana')) return '/sudamericana.png';
+  if (val.includes('brasileirão') || val.includes('brasileirao') || val.includes('série a') || val.includes('série b') || val.includes('série c') || val.includes('copa do brasil')) {
+    return 'https://flagcdn.com/w40/br.png';
+  }
+  if (val.includes('premier')) return 'https://flagcdn.com/w40/gb.png';
+  if (val.includes('la liga') || val.includes('espanha')) return 'https://flagcdn.com/w40/es.png';
+  if (val.includes('serie a') && (val.includes('itália') || val.includes('italia'))) return 'https://flagcdn.com/w40/it.png';
+  if (val.includes('bundesliga') || val.includes('alemanha')) return 'https://flagcdn.com/w40/de.png';
+  
+  return '';
+};
+
 export default function ResponsiveDashboard() {
   const { user } = useAuth();
   const [banca, setBanca] = useState(0);
@@ -532,8 +567,35 @@ export default function ResponsiveDashboard() {
 
                     {/* Corpo Principal */}
                     <div className="card-brutalist-body">
-                      <div style={{ fontSize: '0.75rem', color: '#666', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <Clock size={11} /> {new Date(opp.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • {opp.campeonato}
+                      <div style={{ fontSize: '0.75rem', color: '#666', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <Clock size={11} /> 
+                        <span>{new Date(opp.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
+                        <span>•</span>
+                        {(() => {
+                          const logoUrl = getLeagueLogoUrl(opp.campeonato);
+                          if (logoUrl) {
+                            const isLocal = logoUrl.startsWith('/');
+                            return (
+                              <img 
+                                src={logoUrl} 
+                                alt="Campeonato Logo" 
+                                style={isLocal ? {
+                                  width: '16px',
+                                  height: '16px',
+                                  objectFit: 'contain'
+                                } : {
+                                  width: '16px',
+                                  height: '11px',
+                                  objectFit: 'cover',
+                                  borderRadius: '2px',
+                                  border: '1px solid rgba(255, 255, 255, 0.1)'
+                                }}
+                              />
+                            );
+                          }
+                          return null;
+                        })()}
+                        <span>{opp.campeonato}</span>
                       </div>
                       
                       {(() => {

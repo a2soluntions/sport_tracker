@@ -117,6 +117,41 @@ const getLeagueName = (leagueId) => {
   return mapping[String(leagueId)] || `Liga ${leagueId}`;
 };
 
+const getLeagueLogoUrl = (leagueIdOrName) => {
+  if (!leagueIdOrName) return '';
+  const val = String(leagueIdOrName).toLowerCase().trim();
+  
+  const idMapping = {
+    '1': '/copadomundo.png',
+    '13': '/libertadores.jpg',
+    '12': '/sudamericana.png',
+    '71': 'https://flagcdn.com/w40/br.png',
+    '72': 'https://flagcdn.com/w40/br.png',
+    '73': 'https://flagcdn.com/w40/br.png',
+    '39': 'https://flagcdn.com/w40/gb.png',
+    '140': 'https://flagcdn.com/w40/es.png',
+    '135': 'https://flagcdn.com/w40/it.png',
+    '78': 'https://flagcdn.com/w40/de.png'
+  };
+  
+  if (idMapping[val]) {
+    return idMapping[val];
+  }
+  
+  if (val.includes('copa do mundo')) return '/copadomundo.png';
+  if (val.includes('libertadores')) return '/libertadores.jpg';
+  if (val.includes('sudamericana')) return '/sudamericana.png';
+  if (val.includes('brasileirão') || val.includes('brasileirao') || val.includes('série a') || val.includes('série b') || val.includes('série c') || val.includes('copa do brasil')) {
+    return 'https://flagcdn.com/w40/br.png';
+  }
+  if (val.includes('premier')) return 'https://flagcdn.com/w40/gb.png';
+  if (val.includes('la liga') || val.includes('espanha')) return 'https://flagcdn.com/w40/es.png';
+  if (val.includes('serie a') && (val.includes('itália') || val.includes('italia'))) return 'https://flagcdn.com/w40/it.png';
+  if (val.includes('bundesliga') || val.includes('alemanha')) return 'https://flagcdn.com/w40/de.png';
+  
+  return '';
+};
+
 const getBookmakerOdds = (confronto, selection, fairOdd) => {
   if (!confronto) return [];
   const baseOdd = Number(fairOdd) || 2.00;
@@ -723,6 +758,30 @@ export default function OpportunityTable() {
                         </div>
                         
                         <div className={styles.leagueName} style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px' }}>
+                          {(() => {
+                            const logoUrl = getLeagueLogoUrl(parsedData.cleanName);
+                            if (logoUrl) {
+                              const isLocal = logoUrl.startsWith('/');
+                              return (
+                                <img 
+                                  src={logoUrl} 
+                                  alt="Campeonato Logo" 
+                                  style={isLocal ? {
+                                    width: '18px',
+                                    height: '18px',
+                                    objectFit: 'contain'
+                                  } : {
+                                    width: '18px',
+                                    height: '12px',
+                                    objectFit: 'cover',
+                                    borderRadius: '2px',
+                                    border: '1px solid rgba(255, 255, 255, 0.1)'
+                                  }}
+                                />
+                              );
+                            }
+                            return <Trophy size={12} style={{ color: 'var(--brand-neon)' }} />;
+                          })()}
                           {parsedData.cleanName}
                           {parsedData.isLive && (
                             <span style={{ color: '#fff', background: '#333', padding: '2px 6px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold' }}>
@@ -789,8 +848,31 @@ export default function OpportunityTable() {
               <div key={item.id} className={`${styles.mobileCard} ${parsedData.isLive ? styles.liveCard : ''}`}>
                 {/* Cabeçalho do Card */}
                 <div className={styles.mobileCardHeader}>
-                  <div className={styles.mobileCardLeague}>
-                    <Trophy size={12} className={styles.leagueIcon} />
+                  <div className={styles.mobileCardLeague} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    {(() => {
+                      const logoUrl = getLeagueLogoUrl(parsedData.cleanName);
+                      if (logoUrl) {
+                        const isLocal = logoUrl.startsWith('/');
+                        return (
+                          <img 
+                            src={logoUrl} 
+                            alt="Campeonato Logo" 
+                            style={isLocal ? {
+                              width: '16px',
+                              height: '16px',
+                              objectFit: 'contain'
+                            } : {
+                              width: '16px',
+                              height: '11px',
+                              objectFit: 'cover',
+                              borderRadius: '2px',
+                              border: '1px solid rgba(255, 255, 255, 0.1)'
+                            }}
+                          />
+                        );
+                      }
+                      return <Trophy size={12} className={styles.leagueIcon} />;
+                    })()}
                     <span>{parsedData.cleanName}</span>
                   </div>
                   <div className={styles.mobileCardTime}>

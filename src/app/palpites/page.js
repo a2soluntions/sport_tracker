@@ -197,6 +197,41 @@ const getLeagueName = (leagueId) => {
   return mapping[leagueId] || 'Futebol';
 };
 
+const getLeagueLogoUrl = (leagueIdOrName) => {
+  if (!leagueIdOrName) return '';
+  const val = String(leagueIdOrName).toLowerCase().trim();
+  
+  const idMapping = {
+    '1': '/copadomundo.png',
+    '13': '/libertadores.jpg',
+    '12': '/sudamericana.png',
+    '71': 'https://flagcdn.com/w40/br.png',
+    '72': 'https://flagcdn.com/w40/br.png',
+    '73': 'https://flagcdn.com/w40/br.png',
+    '39': 'https://flagcdn.com/w40/gb.png',
+    '140': 'https://flagcdn.com/w40/es.png',
+    '135': 'https://flagcdn.com/w40/it.png',
+    '78': 'https://flagcdn.com/w40/de.png'
+  };
+  
+  if (idMapping[val]) {
+    return idMapping[val];
+  }
+  
+  if (val.includes('copa do mundo')) return '/copadomundo.png';
+  if (val.includes('libertadores')) return '/libertadores.jpg';
+  if (val.includes('sudamericana')) return '/sudamericana.png';
+  if (val.includes('brasileirão') || val.includes('brasileirao') || val.includes('série a') || val.includes('série b') || val.includes('série c') || val.includes('copa do brasil')) {
+    return 'https://flagcdn.com/w40/br.png';
+  }
+  if (val.includes('premier')) return 'https://flagcdn.com/w40/gb.png';
+  if (val.includes('la liga') || val.includes('espanha')) return 'https://flagcdn.com/w40/es.png';
+  if (val.includes('serie a') && (val.includes('itália') || val.includes('italia'))) return 'https://flagcdn.com/w40/it.png';
+  if (val.includes('bundesliga') || val.includes('alemanha')) return 'https://flagcdn.com/w40/de.png';
+  
+  return '';
+};
+
 const getBookmakerOdds = (confronto, selection, fairOdd) => {
   if (!confronto) return [];
   const baseOdd = Number(fairOdd) || 2.00;
@@ -1215,12 +1250,12 @@ export default function PalpitesPage() {
             <div className="league-buttons-container">
               {[
                 { id: 'all', name: 'Todas', iconType: 'emoji', icon: '⚽' },
-                { id: '1', name: 'Copa do Mundo', iconType: 'emoji', icon: '🏆' },
+                { id: '1', name: 'Copa do Mundo', iconType: 'image', icon: '/copadomundo.png' },
                 { id: '71', name: 'Série A', iconType: 'image', icon: 'https://flagcdn.com/w40/br.png' },
                 { id: '72', name: 'Série B', iconType: 'image', icon: 'https://flagcdn.com/w40/br.png' },
                 { id: '73', name: 'Série C', iconType: 'image', icon: 'https://flagcdn.com/w40/br.png' },
-                { id: '13', name: 'Libertadores', iconType: 'emoji', icon: '🌎' },
-                { id: '12', name: 'Sudamericana', iconType: 'emoji', icon: '🌍' },
+                { id: '13', name: 'Libertadores', iconType: 'image', icon: '/libertadores.jpg' },
+                { id: '12', name: 'Sudamericana', iconType: 'image', icon: '/sudamericana.png' },
                 { id: '39', name: 'Premier', iconType: 'image', icon: 'https://flagcdn.com/w40/gb.png' },
                 { id: '140', name: 'La Liga', iconType: 'image', icon: 'https://flagcdn.com/w40/es.png' },
                 { id: '135', name: 'Serie A', iconType: 'image', icon: 'https://flagcdn.com/w40/it.png' },
@@ -1266,7 +1301,11 @@ export default function PalpitesPage() {
                       <img 
                         src={lg.icon} 
                         alt={lg.name} 
-                        style={{ 
+                        style={lg.icon.startsWith('/') ? {
+                          width: '16px', 
+                          height: '16px', 
+                          objectFit: 'contain'
+                        } : { 
                           width: '18px', 
                           height: '12px', 
                           objectFit: 'cover', 
@@ -1473,6 +1512,30 @@ export default function PalpitesPage() {
                     </div>
                     <div style={{ fontSize: '0.8rem', color: '#888', marginBottom: '4px', textTransform: 'uppercase' }}>Futebol</div>
                     <div style={{ fontWeight: 'bold', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {(() => {
+                        const logoUrl = getLeagueLogoUrl(game.sourceLeagueId || selectedLeague);
+                        if (logoUrl) {
+                          const isLocal = logoUrl.startsWith('/');
+                          return (
+                            <img 
+                              src={logoUrl} 
+                              alt="Campeonato Logo" 
+                              style={isLocal ? {
+                                width: '18px',
+                                height: '18px',
+                                objectFit: 'contain'
+                              } : {
+                                width: '18px',
+                                height: '12px',
+                                objectFit: 'cover',
+                                borderRadius: '2px',
+                                border: '1px solid rgba(255, 255, 255, 0.1)'
+                              }}
+                            />
+                          );
+                        }
+                        return null;
+                      })()}
                       {getLeagueName(game.sourceLeagueId || selectedLeague)} <span style={{ background: '#333', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', color: '#aaa' }}>Rodada {game.round}</span>
                     </div>
                     

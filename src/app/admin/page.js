@@ -5,7 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { 
   ShieldCheck, ShieldAlert, Users, TrendingUp, DollarSign, ArrowUpRight, 
   Trash2, Plus, Sparkles, Filter, Search, Award, RefreshCw, BarChart2,
-  Settings, Key, Tag, Layers, HelpCircle
+  Settings, Key, Tag, Layers, HelpCircle, Edit
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -93,10 +93,36 @@ export default function AdminDashboard() {
     ];
   });
 
+  // 6. Categorias de Gastos/Despesas
+  const [gastosCategorias, setGastosCategorias] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ev_tracker_admin_gastos_categorias');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return ['Servidor', 'Database', 'API', 'Marketing', 'Outros'];
+  });
+
+  // Modal States para Categorias de Gastos
+  const [showExpenseCatModal, setShowExpenseCatModal] = useState(false);
+  const [newExpenseCatName, setNewExpenseCatName] = useState('');
+  const [editingExpenseCatIndex, setEditingExpenseCatIndex] = useState(null);
+  const [editingExpenseCatName, setEditingExpenseCatName] = useState('');
+
+  // Modal States para Editar Gasto/Despesa
+  const [showEditExpenseModal, setShowEditExpenseModal] = useState(false);
+  const [editingExpense, setEditingExpense] = useState(null);
+  const [editExpenseName, setEditExpenseName] = useState('');
+  const [editExpenseValue, setEditExpenseValue] = useState('');
+  const [editExpenseCategory, setEditExpenseCategory] = useState('Outros');
+
   // --- OUTROS ESTADOS AUXILIARES ---
   const [novoGastoNome, setNovoGastoNome] = useState('');
   const [novoGastoValor, setNovoGastoValor] = useState('');
-  const [novoGastoCat, setNovoGastoCat] = useState('Outros');
+  const [novoGastoCat, setNovoGastoCat] = useState(() => {
+    return gastosCategorias && gastosCategorias.length > 0 ? gastosCategorias[0] : 'Outros';
+  });
 
   const [searchUser, setSearchUser] = useState('');
   const [planFilter, setPlanFilter] = useState('todos');
@@ -113,6 +139,10 @@ export default function AdminDashboard() {
   useEffect(() => {
     localStorage.setItem('ev_tracker_admin_gastos', JSON.stringify(gastos));
   }, [gastos]);
+
+  useEffect(() => {
+    localStorage.setItem('ev_tracker_admin_gastos_categorias', JSON.stringify(gastosCategorias));
+  }, [gastosCategorias]);
 
   useEffect(() => {
     localStorage.setItem('ev_tracker_admin_users', JSON.stringify(usersBase));
@@ -255,6 +285,50 @@ export default function AdminDashboard() {
 
   const handleRemoveGasto = (id) => {
     setGastos(prev => prev.filter(g => g.id !== id));
+  };
+
+  const handleUpdateGasto = (e) => {
+    e.preventDefault();
+    if (!editingExpense || !editExpenseName || !editExpenseValue || isNaN(parseFloat(editExpenseValue))) return;
+
+    const updated = {
+      ...editingExpense,
+      name: editExpenseName.trim(),
+      value: parseFloat(editExpenseValue),
+      category: editExpenseCategory
+    };
+
+    setGastos(prev => prev.map(g => g.id === editingExpense.id ? updated : g));
+    setShowEditExpenseModal(false);
+    setEditingExpense(null);
+  };
+
+  const handleAddGastoCategory = (e) => {
+    e.preventDefault();
+    if (!newExpenseCatName) return;
+    const clean = newExpenseCatName.trim();
+    if (gastosCategorias.includes(clean)) return;
+    setGastosCategorias(prev => [...prev, clean]);
+    setNewExpenseCatName('');
+  };
+
+  const handleRemoveGastoCategory = (catName) => {
+    if (catName === 'Outros') return;
+    setGastosCategorias(prev => prev.filter(c => c !== catName));
+    setGastos(prev => prev.map(g => g.category === catName ? { ...g, category: 'Outros' } : g));
+  };
+
+  const handleSaveGastoCategoryName = (index, newName) => {
+    if (!newName) return;
+    const clean = newName.trim();
+    const oldName = gastosCategorias[index];
+    if (oldName === 'Outros') return;
+    if (gastosCategorias.includes(clean) && clean !== oldName) return;
+
+    setGastosCategorias(prev => prev.map((c, i) => i === index ? clean : c));
+    setGastos(prev => prev.map(g => g.category === oldName ? { ...g, category: clean } : g));
+    setEditingExpenseCatIndex(null);
+    setEditingExpenseCatName('');
   };
 
   const handleToggleUserPlan = (id) => {
@@ -660,8 +734,32 @@ export default function AdminDashboard() {
           
           {/* Tabela de Despesas */}
           <div className="glass-panel" style={{ padding: '20px' }}>
-            <h3 style={{ fontSize: '1.05rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 16px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <DollarSign size={16} color="#ff9800" /> Controle de Despesas Operacionais
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 16px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <DollarSign size={16} color="#ff9800" /> Controle de Despesas Operacionais
+              </div>
+              <button
+                onClick={() => setShowExpenseCatModal(true)}
+                style={{
+                  background: 'transparent',
+                  border: '1px solid rgba(255,152,0,0.2)',
+                  color: '#ff9800',
+                  padding: '4px 10px',
+                  borderRadius: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(255,152,0,0.05)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+                type="button"
+              >
+                <Tag size={12} /> Categorias
+              </button>
             </h3>
 
             <form onSubmit={handleAddGasto} style={{
@@ -726,11 +824,9 @@ export default function AdminDashboard() {
                   cursor: 'pointer'
                 }}
               >
-                <option value="Servidor">Servidor</option>
-                <option value="Database">Database</option>
-                <option value="API">API</option>
-                <option value="Marketing">Marketing</option>
-                <option value="Outros">Outros</option>
+                {gastosCategorias.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
               </select>
               <button type="submit" style={{
                 background: '#ff9800',
@@ -756,7 +852,7 @@ export default function AdminDashboard() {
                     <th style={{ padding: '8px 4px' }}>Item</th>
                     <th style={{ padding: '8px 4px' }}>Categoria</th>
                     <th style={{ padding: '8px 4px', textAlign: 'right' }}>Valor</th>
-                    <th style={{ padding: '8px 4px', textAlign: 'center' }}>Deletar</th>
+                    <th style={{ padding: '8px 4px', textAlign: 'center', width: '80px' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -778,19 +874,40 @@ export default function AdminDashboard() {
                         R$ {g.value.toFixed(2)}
                       </td>
                       <td style={{ padding: '10px 4px', textAlign: 'center' }}>
-                        <button 
-                          onClick={() => handleRemoveGasto(g.id)}
-                          style={{
-                            background: 'transparent',
-                            border: 'none',
-                            color: '#ff4d4d',
-                            cursor: 'pointer',
-                            padding: '4px'
-                          }}
-                          title="Remover Despesa"
-                        >
-                          <Trash2 size={14} />
-                        </button>
+                        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                          <button 
+                            onClick={() => {
+                              setEditingExpense(g);
+                              setEditExpenseName(g.name);
+                              setEditExpenseValue(g.value.toString());
+                              setEditExpenseCategory(g.category);
+                              setShowEditExpenseModal(true);
+                            }}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#00d2ff',
+                              cursor: 'pointer',
+                              padding: '4px'
+                            }}
+                            title="Editar Despesa"
+                          >
+                            <Edit size={14} />
+                          </button>
+                          <button 
+                            onClick={() => handleRemoveGasto(g.id)}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: '#ff4d4d',
+                              cursor: 'pointer',
+                              padding: '4px'
+                            }}
+                            title="Remover Despesa"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -1233,6 +1350,303 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Gerenciamento de Categorias de Gastos */}
+      {showExpenseCatModal && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(5px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 10000,
+          animation: 'fadeIn 0.2s ease-out',
+          color: '#fff',
+          fontFamily: 'system-ui, sans-serif'
+        }}>
+          <div className="glass-panel" style={{
+            width: '90%',
+            maxWidth: '420px',
+            background: 'linear-gradient(135deg, #111115, #14141d)',
+            border: '1px solid #333',
+            borderTop: '4px solid #ff9800',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.8)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Tag size={18} color="#ff9800" /> Categorias de Despesas
+              </h3>
+              <button 
+                onClick={() => { setShowExpenseCatModal(false); setEditingExpenseCatIndex(null); }}
+                style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 'bold' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* Lista de categorias existentes */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }} className="no-scrollbar">
+              {gastosCategorias.map((cat, index) => (
+                <div key={index} style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  background: '#16161a',
+                  border: '1px solid #222',
+                  padding: '8px 12px',
+                  borderRadius: '6px'
+                }}>
+                  {editingExpenseCatIndex === index ? (
+                    <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
+                      <input 
+                        type="text"
+                        value={editingExpenseCatName}
+                        onChange={(e) => setEditingExpenseCatName(e.target.value)}
+                        style={{
+                          flex: 1,
+                          background: '#111',
+                          border: '1px solid #444',
+                          color: '#fff',
+                          padding: '4px 8px',
+                          borderRadius: '4px',
+                          fontSize: '0.82rem',
+                          outline: 'none'
+                        }}
+                      />
+                      <button
+                        onClick={() => handleSaveGastoCategoryName(index, editingExpenseCatName)}
+                        style={{ background: '#ff9800', color: '#000', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }}
+                      >
+                        Salvar
+                      </button>
+                      <button
+                        onClick={() => setEditingExpenseCatIndex(null)}
+                        style={{ background: 'transparent', border: '1px solid #444', color: '#aaa', borderRadius: '4px', padding: '4px 8px', fontSize: '0.75rem', cursor: 'pointer' }}
+                      >
+                        Canc.
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <span style={{ fontSize: '0.85rem', color: '#fff', fontWeight: 500 }}>{cat}</span>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        {cat !== 'Outros' && (
+                          <>
+                            <button
+                              onClick={() => {
+                                setEditingExpenseCatIndex(index);
+                                setEditingExpenseCatName(cat);
+                              }}
+                              style={{ background: 'transparent', border: 'none', color: '#00d2ff', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 'bold' }}
+                            >
+                              Editar
+                            </button>
+                            <button
+                              onClick={() => handleRemoveGastoCategory(cat)}
+                              style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </>
+                        )}
+                        {cat === 'Outros' && (
+                          <span style={{ fontSize: '0.65rem', color: '#666', fontStyle: 'italic' }}>Padrão</span>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Adicionar nova categoria */}
+            <form onSubmit={handleAddGastoCategory} style={{ display: 'flex', gap: '8px', borderTop: '1px solid #222', paddingTop: '16px', marginTop: '4px' }}>
+              <input 
+                type="text"
+                placeholder="Nova Categoria..."
+                value={newExpenseCatName}
+                onChange={(e) => setNewExpenseCatName(e.target.value)}
+                style={{
+                  flex: 1,
+                  background: '#16161a',
+                  border: '1px solid #333',
+                  color: '#fff',
+                  padding: '8px 12px',
+                  borderRadius: '6px',
+                  fontSize: '0.82rem',
+                  outline: 'none'
+                }}
+                required
+              />
+              <button
+                type="submit"
+                style={{
+                  background: '#ff9800',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '8px 14px',
+                  fontWeight: 'bold',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Add
+              </button>
+            </form>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+              <button 
+                onClick={() => { setShowExpenseCatModal(false); setEditingExpenseCatIndex(null); }}
+                style={{
+                  background: '#222',
+                  border: '1px solid #333',
+                  color: '#ccc',
+                  padding: '8px 20px',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '0.85rem'
+                }}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Editar Gasto/Despesa */}
+      {showEditExpenseModal && editingExpense && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(5px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 10000,
+          animation: 'fadeIn 0.2s ease-out',
+          color: '#fff',
+          fontFamily: 'system-ui, sans-serif'
+        }}>
+          <div className="glass-panel" style={{
+            width: '90%',
+            maxWidth: '400px',
+            background: 'linear-gradient(135deg, #111115, #14141d)',
+            border: '1px solid #333',
+            borderTop: '4px solid #00d2ff',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.8)'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Edit size={18} color="#00d2ff" /> Editar Despesa
+              </h3>
+              <button 
+                onClick={() => { setShowEditExpenseModal(false); setEditingExpense(null); }}
+                style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 'bold' }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleUpdateGasto} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Nome da Despesa</label>
+                <input 
+                  type="text"
+                  value={editExpenseName}
+                  onChange={(e) => setEditExpenseName(e.target.value)}
+                  style={{ width: '100%', background: '#16161a', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Valor (R$)</label>
+                  <input 
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    value={editExpenseValue}
+                    onChange={(e) => setEditExpenseValue(e.target.value)}
+                    style={{ width: '100%', background: '#16161a', border: '1px solid #333', color: 'var(--brand-neon)', fontWeight: 'bold', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
+                    required
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Categoria</label>
+                  <select 
+                    value={editExpenseCategory} 
+                    onChange={(e) => setEditExpenseCategory(e.target.value)}
+                    style={{ width: '100%', background: '#16161a', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 'bold', height: '40px' }}
+                  >
+                    {gastosCategorias.map(cat => (
+                      <option key={cat} value={cat}>{cat}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px', borderTop: '1px solid #222', paddingTop: '16px' }}>
+                <button 
+                  type="button"
+                  onClick={() => { setShowEditExpenseModal(false); setEditingExpense(null); }}
+                  style={{
+                    background: 'transparent',
+                    border: '1px solid #444',
+                    color: '#aaa',
+                    padding: '10px 16px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '0.9rem'
+                  }}
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  style={{
+                    background: '#00d2ff',
+                    border: 'none',
+                    color: '#000',
+                    padding: '10px 20px',
+                    borderRadius: '8px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '0.9rem',
+                    boxShadow: '0 4px 15px rgba(0, 210, 255, 0.2)'
+                  }}
+                >
+                  Salvar
+                </button>
+              </div>
+
+            </form>
           </div>
         </div>
       )}

@@ -21,9 +21,7 @@ import {
   Trash2, 
   PiggyBank, 
   Percent,
-  Eye,
-  Tag,
-  Edit
+  Eye
 } from 'lucide-react';
 import { supabase } from '@/lib/supabaseClient';
 import { calculatePoissonMatchStats } from '../../utils/poisson';
@@ -51,20 +49,8 @@ const getTeamLogoUrl = (teamName) => {
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(teamName)}&background=141419&color=CCFF00&rounded=true&bold=true&size=24`;
 };
 
-const cleanDescription = (description) => {
-  if (!description) return '';
-  return description.replace(/^\[Categoria:\s*.*?\]\s*/, '');
-};
-
-const parseTransactionCategory = (description) => {
-  if (!description) return 'Geral';
-  const match = description.match(/^\[Categoria:\s*(.*?)\]/);
-  return match ? match[1] : 'Geral';
-};
-
 const parseMatchTeams = (description) => {
-  const cleaned = cleanDescription(description);
-  const clean = cleaned.replace('[Palpite] ', '').replace('[Aposta Criada] ', '');
+  const clean = description.replace('[Palpite] ', '').replace('[Aposta Criada] ', '');
   const matchPart = clean.split(' (')[0];
   let parts = [];
   if (matchPart.includes(' x ')) parts = matchPart.split(' x ');
@@ -76,11 +62,10 @@ const parseMatchTeams = (description) => {
 
 const parseSelections = (description) => {
   if (!description) return [];
-  const cleaned = cleanDescription(description);
-  const startIdx = cleaned.indexOf('(');
-  const endIdx = cleaned.lastIndexOf(')');
+  const startIdx = description.indexOf('(');
+  const endIdx = description.lastIndexOf(')');
   if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-    const content = cleaned.substring(startIdx + 1, endIdx);
+    const content = description.substring(startIdx + 1, endIdx);
     return content.split(',').map(s => s.trim()).filter(Boolean);
   }
   return [];
@@ -165,53 +150,6 @@ export default function GestaoBancaPage() {
   const [txType, setTxType] = useState('ganho'); // 'ganho', 'perda', 'alavancagem'
   const [txAmount, setTxAmount] = useState('');
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
-
-  // Categories State
-  const [categories, setCategories] = useState(() => {
-    return ['Futebol', 'Basquete', 'Tênis', 'E-sports', 'Alavancagem', 'Geral'];
-  });
-  const [showCatModal, setShowCatModal] = useState(false);
-  const [newCatName, setNewCatName] = useState('');
-  const [editingCatIndex, setEditingCatIndex] = useState(null);
-  const [editingCatName, setEditingCatName] = useState('');
-
-  // Additional Form States (Custom odd/description and Category selection)
-  const [txCategory, setTxCategory] = useState('Geral');
-  const [txOdd, setTxOdd] = useState('');
-  const [txDescription, setTxDescription] = useState('');
-
-  // Edit Transaction States
-  const [showEditModal, setShowEditModal] = useState(false);
-  const [editingTx, setEditingTx] = useState(null);
-  const [editDate, setEditDate] = useState('');
-  const [editType, setEditType] = useState('ganho');
-  const [editCategory, setEditCategory] = useState('Geral');
-  const [editAmount, setEditAmount] = useState('');
-  const [editOdd, setEditOdd] = useState('');
-  const [editDescription, setEditDescription] = useState('');
-
-  // Sincronizar categorias locais com o ID do usuário
-  useEffect(() => {
-    const key = `ev_tracker_banca_categories_${user?.id || 'guest'}`;
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        try {
-          setCategories(JSON.parse(saved));
-        } catch (e) {}
-      } else {
-        localStorage.setItem(key, JSON.stringify(['Futebol', 'Basquete', 'Tênis', 'E-sports', 'Alavancagem', 'Geral']));
-      }
-    }
-  }, [user]);
-
-  // Salvar categorias ao mudar
-  useEffect(() => {
-    if (mounted) {
-      const key = `ev_tracker_banca_categories_${user?.id || 'guest'}`;
-      localStorage.setItem(key, JSON.stringify(categories));
-    }
-  }, [categories, user, mounted]);
 
   // Mapeia transações com descrição 'Alavancagem' para o tipo virtual 'alavancagem'
   const normalizedTransactions = useMemo(() => {
@@ -505,22 +443,19 @@ export default function GestaoBancaPage() {
     // Se for Alavancagem, salvamos na DB como "ganho" para respeitar a constraint,
     // e na descrição como "Alavancagem" para ser mapeada no frontend.
     const dbType = txType === 'alavancagem' ? 'ganho' : txType;
-    const defaultDesc = txType === 'alavancagem' 
+    const desc = txType === 'alavancagem' 
       ? 'Alavancagem' 
       : txType === 'ganho' 
         ? 'Ganho Manual' 
         : 'Perda Manual';
-    
-    const userDesc = txDescription.trim() || defaultDesc;
-    const finalDesc = `[Categoria: ${txCategory}] ${userDesc}`;
-    const oddVal = txOdd ? Number(txOdd) : null;
+    const oddVal = null;
 
     const newTxLocal = {
       id: Date.now(),
       date: todayDate,
       type: txType,
       amount: Number(txAmount),
-      description: finalDesc,
+      description: desc,
       odd: oddVal
     };
 
@@ -532,7 +467,7 @@ export default function GestaoBancaPage() {
             date: todayDate,
             type: dbType,
             amount: Number(txAmount),
-            description: finalDesc,
+            description: desc,
             odd: oddVal,
             user_id: user.id
           }])
@@ -568,109 +503,7 @@ export default function GestaoBancaPage() {
 
     // Resetar campos do formulário
     setTxAmount('');
-    setTxOdd('');
-    setTxDescription('');
     showToast('Transação gravada com sucesso!', 'success');
-  };
-
-  // Handler para atualizar transação
-  const handleUpdateTransaction = async (e) => {
-    e.preventDefault();
-    if (!editingTx || !editAmount || Number(editAmount) <= 0) return;
-
-    const dbType = editType === 'alavancagem' ? 'ganho' : editType;
-    const finalDesc = `[Categoria: ${editCategory}] ${editDescription.trim() || (editType === 'alavancagem' ? 'Alavancagem' : editType === 'ganho' ? 'Ganho Manual' : 'Perda Manual')}`;
-    const oddVal = editOdd ? Number(editOdd) : null;
-    const amountVal = Number(editAmount);
-
-    const updatedTx = {
-      ...editingTx,
-      date: editDate,
-      type: editType,
-      amount: amountVal,
-      odd: oddVal,
-      description: finalDesc
-    };
-
-    if (syncStatus === 'cloud' && supabase) {
-      try {
-        const { error } = await supabase
-          .from('banca_transactions')
-          .update({
-            date: editDate,
-            type: dbType,
-            amount: amountVal,
-            odd: oddVal,
-            description: finalDesc
-          })
-          .eq('id', editingTx.id);
-
-        if (error) throw error;
-
-        // Atualizar lista
-        const updatedList = transactions.map(t => t.id === editingTx.id ? updatedTx : t);
-        setTransactions(updatedList);
-        showToast('Transação atualizada com sucesso!', 'success');
-        setShowEditModal(false);
-        setEditingTx(null);
-      } catch (err) {
-        console.warn("Erro ao atualizar no Supabase:", err);
-        showToast("Erro ao atualizar registro na nuvem: " + err.message, 'error');
-      }
-    } else {
-      const updatedList = transactions.map(t => t.id === editingTx.id ? updatedTx : t);
-      saveTransactionsLocal(updatedList);
-      showToast('Transação atualizada com sucesso!', 'success');
-      setShowEditModal(false);
-      setEditingTx(null);
-    }
-  };
-
-  // Funções de Gerenciamento de Categorias
-  const handleAddCategory = (e) => {
-    e.preventDefault();
-    if (!newCatName) return;
-    const cleanName = newCatName.trim();
-    if (categories.includes(cleanName)) {
-      showToast('Esta categoria já existe.', 'error');
-      return;
-    }
-    setCategories(prev => [...prev, cleanName]);
-    setNewCatName('');
-    showToast('Categoria adicionada com sucesso!', 'success');
-  };
-
-  const handleRemoveCategory = (catName) => {
-    if (catName === 'Geral') {
-      showToast('A categoria "Geral" não pode ser excluída.', 'error');
-      return;
-    }
-    setCategories(prev => prev.filter(c => c !== catName));
-    showToast('Categoria excluída com sucesso!', 'success');
-  };
-
-  const handleStartEditCategory = (index, name) => {
-    setEditingCatIndex(index);
-    setEditingCatName(name);
-  };
-
-  const handleSaveCategoryName = (index) => {
-    if (!editingCatName) return;
-    const cleanName = editingCatName.trim();
-    const oldName = categories[index];
-    if (oldName === 'Geral') {
-      showToast('A categoria "Geral" não pode ser renomeada.', 'error');
-      return;
-    }
-    if (categories.includes(cleanName) && cleanName !== oldName) {
-      showToast('Esta categoria já existe.', 'error');
-      return;
-    }
-
-    setCategories(prev => prev.map((c, i) => i === index ? cleanName : c));
-    setEditingCatIndex(null);
-    setEditingCatName('');
-    showToast('Categoria renomeada com sucesso!', 'success');
   };
 
   // Handler para deletar transação
@@ -865,41 +698,13 @@ export default function GestaoBancaPage() {
 
       {/* Formulário de Registrar Movimentação */}
       <div className="glass-panel responsive-banca-form" style={{ display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid #222', paddingBottom: '12px', flexWrap: 'wrap', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <PlusCircle size={20} color="var(--brand-neon)" /> Registrar Movimentação
-          </div>
-          <button
-            onClick={() => setShowCatModal(true)}
-            style={{
-              background: 'transparent',
-              border: '1px solid rgba(204,255,0,0.2)',
-              color: 'var(--brand-neon)',
-              padding: '4px 10px',
-              borderRadius: '6px',
-              fontSize: '0.75rem',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = 'rgba(204,255,0,0.05)';
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = 'transparent';
-            }}
-            type="button"
-          >
-            <Tag size={12} /> Gerenciar Categorias
-          </button>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
+          <PlusCircle size={20} color="var(--brand-neon)" /> Registrar Movimentação
         </h2>
         
-        <form onSubmit={handleAddTransaction} className="banca-form-row" style={{ marginTop: '12px', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'flex-end' }}>
+        <form onSubmit={handleAddTransaction} className="banca-form-row" style={{ marginTop: '12px' }}>
           
-          <div style={{ flex: '1.5 1 120px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ flex: '2 1 120px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Tipo de Lançamento</label>
             <select 
               value={txType} 
@@ -912,20 +717,7 @@ export default function GestaoBancaPage() {
             </select>
           </div>
 
-          <div style={{ flex: '1.5 1 120px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Categoria</label>
-            <select 
-              value={txCategory} 
-              onChange={(e) => setTxCategory(e.target.value)}
-              style={{ width: '100%', background: '#1c1c1c', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 'bold', height: '42px' }}
-            >
-              {categories.map(cat => (
-                <option key={cat} value={cat}>{cat}</option>
-              ))}
-            </select>
-          </div>
-
-          <div style={{ flex: '2 1 140px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <div style={{ flex: '2 1 120px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
             <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Valor</label>
             <div style={{ display: 'flex', alignItems: 'center', background: '#1c1c1c', border: '1px solid #333', borderRadius: '8px', overflow: 'hidden', height: '42px' }}>
               <span style={{ background: '#27272A', color: '#888', padding: '10px 14px', fontSize: '0.9rem', fontWeight: 'bold', borderRight: '1px solid #333' }}>
@@ -944,38 +736,14 @@ export default function GestaoBancaPage() {
             </div>
           </div>
 
-          <div style={{ flex: '1 1 85px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Odd (Opcional)</label>
-            <input 
-              type="number" 
-              step="0.01" 
-              min="1.01"
-              placeholder="1.00"
-              value={txOdd}
-              onChange={(e) => setTxOdd(e.target.value)}
-              style={{ width: '100%', background: '#1c1c1c', border: '1px solid #333', color: '#ff9800', fontWeight: 'bold', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', height: '42px' }} 
-            />
-          </div>
-
-          <div style={{ flex: '3 1 200px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Descrição (Opcional)</label>
-            <input 
-              type="text" 
-              placeholder="Ex: Jogo do Flamengo, Aposta VIP, etc."
-              value={txDescription}
-              onChange={(e) => setTxDescription(e.target.value)}
-              style={{ width: '100%', background: '#1c1c1c', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', height: '42px' }} 
-            />
-          </div>
-
           <button 
             type="submit"
             className="btn-responsive-compact"
-            style={{ height: '42px', padding: '0 20px', background: 'var(--brand-neon)', color: '#000', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(204, 255, 0, 0.2)' }}
+            style={{ height: '42px', background: 'var(--brand-neon)', color: '#000', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(204, 255, 0, 0.2)' }}
             title="Gravar Transação"
           >
             <PlusCircle size={18} />
-            <span style={{ marginLeft: '8px' }}>Gravar</span>
+            <span className="btn-text-mobile-hide" style={{ marginLeft: '8px' }}>Gravar Transação</span>
           </button>
 
         </form>
@@ -1062,45 +830,31 @@ export default function GestaoBancaPage() {
                         className="mobile-hide"
                         title="Ver detalhes da aposta"
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                          <span style={{
-                            background: 'rgba(204, 255, 0, 0.05)',
-                            border: '1px solid rgba(204, 255, 0, 0.25)',
-                            color: 'var(--brand-neon)',
-                            borderRadius: '4px',
-                            padding: '1px 6px',
-                            fontSize: '0.68rem',
-                            fontWeight: 'bold',
-                            textTransform: 'uppercase'
-                          }}>
-                            {parseTransactionCategory(tx.description)}
-                          </span>
-                          {(() => {
-                            const teams = parseMatchTeams(tx.description);
-                            if (teams.away) {
-                              return (
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-                                  <img
-                                    src={getTeamLogoUrl(teams.home)}
-                                    alt={teams.home}
-                                    style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0 }}
-                                    onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${teams.home}&background=222&color=fff&rounded=true&bold=true&size=20`; }}
-                                  />
-                                  <span>{teams.home}</span>
-                                  <span style={{ color: '#555', fontSize: '0.8rem' }}>x</span>
-                                  <img
-                                    src={getTeamLogoUrl(teams.away)}
-                                    alt={teams.away}
-                                    style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0 }}
-                                    onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${teams.away}&background=222&color=fff&rounded=true&bold=true&size=20`; }}
-                                  />
-                                  <span>{teams.away}</span>
-                                </div>
-                              );
-                            }
-                            return cleanDescription(tx.description).replace('[Palpite] ', '').replace('[Aposta Criada] ', '');
-                          })()}
-                        </div>
+                        {(() => {
+                          const teams = parseMatchTeams(tx.description);
+                          if (teams.away) {
+                            return (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                                <img
+                                  src={getTeamLogoUrl(teams.home)}
+                                  alt={teams.home}
+                                  style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0 }}
+                                  onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${teams.home}&background=222&color=fff&rounded=true&bold=true&size=20`; }}
+                                />
+                                <span>{teams.home}</span>
+                                <span style={{ color: '#555', fontSize: '0.8rem' }}>x</span>
+                                <img
+                                  src={getTeamLogoUrl(teams.away)}
+                                  alt={teams.away}
+                                  style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0 }}
+                                  onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${teams.away}&background=222&color=fff&rounded=true&bold=true&size=20`; }}
+                                />
+                                <span>{teams.away}</span>
+                              </div>
+                            );
+                          }
+                          return tx.description.replace('[Palpite] ', '').replace('[Aposta Criada] ', '');
+                        })()}
                       </td>
                       <td style={{ padding: '12px', textAlign: 'center' }}>
                         <span style={{ 
@@ -1145,24 +899,6 @@ export default function GestaoBancaPage() {
                             title="Ver Detalhes"
                           >
                             <Eye size={16} />
-                          </button>
-                          <button 
-                            onClick={() => {
-                              setEditingTx(tx);
-                              setEditDate(tx.date);
-                              setEditType(tx.type);
-                              setEditCategory(parseTransactionCategory(tx.description));
-                              setEditAmount(tx.amount.toString());
-                              setEditOdd(tx.odd ? tx.odd.toString() : '');
-                              setEditDescription(cleanDescription(tx.description).replace('[Palpite] ', '').replace('[Aposta Criada] ', ''));
-                              setShowEditModal(true);
-                            }}
-                            style={{ background: 'transparent', border: 'none', color: '#00d2ff', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px', transition: 'opacity 0.2s' }}
-                            onMouseOver={(e) => e.currentTarget.style.opacity = '0.7'}
-                            onMouseOut={(e) => e.currentTarget.style.opacity = '1'}
-                            title="Editar Transação"
-                          >
-                            <Edit size={16} />
                           </button>
                           <button 
                             onClick={() => handleDeleteTransaction(tx.id)}
@@ -1375,21 +1111,7 @@ export default function GestaoBancaPage() {
                   
                   {/* Partida / Evento */}
                   <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
-                      <span style={{ fontSize: '0.72rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Partida</span>
-                      <span style={{
-                        background: 'rgba(204, 255, 0, 0.05)',
-                        border: '1px solid rgba(204, 255, 0, 0.25)',
-                        color: 'var(--brand-neon)',
-                        borderRadius: '4px',
-                        padding: '1px 6px',
-                        fontSize: '0.65rem',
-                        fontWeight: 'bold',
-                        textTransform: 'uppercase'
-                      }}>
-                        Categoria: {parseTransactionCategory(selectedTxForDetail.description)}
-                      </span>
-                    </div>
+                    <span style={{ fontSize: '0.72rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '6px' }}>Partida</span>
                     {teams.away ? (
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', background: '#141419', padding: '10px 14px', borderRadius: '8px', border: '1px solid #222' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center' }}>
@@ -1410,7 +1132,7 @@ export default function GestaoBancaPage() {
                           <strong style={{ color: '#fff', fontSize: '0.92rem' }}>{teams.away}</strong>
                         </div>
                         {(() => {
-                          const matchName = cleanDescription(selectedTxForDetail.description).replace('[Palpite] ', '').replace('[Aposta Criada] ', '').split(' (')[0].trim().toLowerCase();
+                          const matchName = selectedTxForDetail.description.replace('[Palpite] ', '').replace('[Aposta Criada] ', '').split(' (')[0].trim().toLowerCase();
                           const game = fixtures.find(f => `${f.home.trim()} x ${f.away.trim()}`.toLowerCase() === matchName);
                           if (game && game.isFinished) {
                             return (
@@ -1425,7 +1147,7 @@ export default function GestaoBancaPage() {
                       </div>
                     ) : (
                       <div style={{ background: '#141419', padding: '10px 14px', borderRadius: '8px', border: '1px solid #222', color: '#fff', fontWeight: 'bold', fontSize: '0.95rem' }}>
-                        {cleanDescription(selectedTxForDetail.description).replace('[Palpite] ', '').replace('[Aposta Criada] ', '')}
+                        {selectedTxForDetail.description.replace('[Palpite] ', '').replace('[Aposta Criada] ', '')}
                       </div>
                     )}
                   </div>
@@ -1567,338 +1289,6 @@ export default function GestaoBancaPage() {
               </button>
             </div>
 
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Gerenciamento de Categorias */}
-      {showCatModal && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          backgroundColor: 'rgba(0, 0, 0, 0.75)',
-          backdropFilter: 'blur(5px)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 10000,
-          animation: 'fadeIn 0.2s ease-out'
-        }}>
-          <div className="glass-panel" style={{
-            width: '90%',
-            maxWidth: '450px',
-            background: 'linear-gradient(135deg, #111115, #14141d)',
-            border: '1px solid #333',
-            borderTop: '4px solid var(--brand-neon)',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.8)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Tag size={18} color="var(--brand-neon)" /> Gerenciar Categorias
-              </h3>
-              <button 
-                onClick={() => { setShowCatModal(false); setEditingCatIndex(null); }}
-                style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 'bold' }}
-              >
-                ✕
-              </button>
-            </div>
-
-            {/* Lista de categorias existentes */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto', paddingRight: '4px' }} className="no-scrollbar">
-              {categories.map((cat, index) => (
-                <div key={index} style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  background: '#16161a',
-                  border: '1px solid #222',
-                  padding: '8px 12px',
-                  borderRadius: '6px'
-                }}>
-                  {editingCatIndex === index ? (
-                    <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                      <input 
-                        type="text"
-                        value={editingCatName}
-                        onChange={(e) => setEditingCatName(e.target.value)}
-                        style={{
-                          flex: 1,
-                          background: '#111',
-                          border: '1px solid #444',
-                          color: '#fff',
-                          padding: '4px 8px',
-                          borderRadius: '4px',
-                          fontSize: '0.85rem',
-                          outline: 'none'
-                        }}
-                      />
-                      <button
-                        onClick={() => handleSaveCategoryName(index)}
-                        style={{ background: 'var(--brand-neon)', color: '#000', border: 'none', borderRadius: '4px', padding: '4px 10px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }}
-                      >
-                        Salvar
-                      </button>
-                      <button
-                        onClick={() => setEditingCatIndex(null)}
-                        style={{ background: 'transparent', border: '1px solid #444', color: '#aaa', borderRadius: '4px', padding: '4px 8px', fontSize: '0.75rem', cursor: 'pointer' }}
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <span style={{ fontSize: '0.9rem', color: '#fff', fontWeight: 500 }}>{cat}</span>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        {cat !== 'Geral' && (
-                          <>
-                            <button
-                              onClick={() => handleStartEditCategory(index, cat)}
-                              style={{ background: 'transparent', border: 'none', color: '#00d2ff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 'bold' }}
-                            >
-                              Editar
-                            </button>
-                            <button
-                              onClick={() => handleRemoveCategory(cat)}
-                              style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </>
-                        )}
-                        {cat === 'Geral' && (
-                          <span style={{ fontSize: '0.68rem', color: '#666', fontStyle: 'italic' }}>Padrão</span>
-                        )}
-                      </div>
-                    </>
-                  )}
-                </div>
-              ))}
-            </div>
-
-            {/* Adicionar nova categoria */}
-            <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '8px', borderTop: '1px solid #222', paddingTop: '16px', marginTop: '4px' }}>
-              <input 
-                type="text"
-                placeholder="Nova Categoria..."
-                value={newCatName}
-                onChange={(e) => setNewCatName(e.target.value)}
-                style={{
-                  flex: 1,
-                  background: '#16161a',
-                  border: '1px solid #333',
-                  color: '#fff',
-                  padding: '10px 12px',
-                  borderRadius: '6px',
-                  fontSize: '0.85rem',
-                  outline: 'none'
-                }}
-                required
-              />
-              <button
-                type="submit"
-                style={{
-                  background: 'var(--brand-neon)',
-                  color: '#000',
-                  border: 'none',
-                  borderRadius: '6px',
-                  padding: '10px 16px',
-                  fontWeight: 'bold',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 15px rgba(204, 255, 0, 0.2)'
-                }}
-              >
-                Adicionar
-              </button>
-            </form>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
-              <button 
-                onClick={() => { setShowCatModal(false); setEditingCatIndex(null); }}
-                style={{
-                  background: '#222',
-                  border: '1px solid #333',
-                  color: '#ccc',
-                  padding: '10px 24px',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  fontWeight: 'bold',
-                  fontSize: '0.9rem'
-                }}
-              >
-                Fechar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal de Editar Lançamento */}
-      {showEditModal && editingTx && (
-        <div style={{
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          width: '100vw',
-          height: '100vh',
-          backgroundColor: 'rgba(0, 0, 0, 0.75)',
-          backdropFilter: 'blur(5px)',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          zIndex: 10000,
-          animation: 'fadeIn 0.2s ease-out'
-        }}>
-          <div className="glass-panel" style={{
-            width: '90%',
-            maxWidth: '450px',
-            background: 'linear-gradient(135deg, #111115, #14141d)',
-            border: '1px solid #333',
-            borderTop: '4px solid #00d2ff',
-            padding: '24px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '16px',
-            boxShadow: '0 10px 40px rgba(0,0,0,0.8)'
-          }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Edit size={18} color="#00d2ff" /> Editar Lançamento
-              </h3>
-              <button 
-                onClick={() => { setShowEditModal(false); setEditingTx(null); }}
-                style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 'bold' }}
-              >
-                ✕
-              </button>
-            </div>
-
-            <form onSubmit={handleUpdateTransaction} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-              
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Data do Lançamento</label>
-                <input 
-                  type="date"
-                  value={editDate}
-                  onChange={(e) => setEditDate(e.target.value)}
-                  style={{ width: '100%', background: '#16161a', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Tipo</label>
-                  <select 
-                    value={editType} 
-                    onChange={(e) => setEditType(e.target.value)}
-                    style={{ width: '100%', background: '#16161a', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 'bold', height: '42px' }}
-                  >
-                    <option value="ganho">Ganho (Blue) 🔵</option>
-                    <option value="perda">Perda (Red) 🔴</option>
-                    <option value="alavancagem">Alavancagem 🟢</option>
-                    <option value="pendente">Pendente 🟡</option>
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Categoria</label>
-                  <select 
-                    value={editCategory} 
-                    onChange={(e) => setEditCategory(e.target.value)}
-                    style={{ width: '100%', background: '#16161a', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 'bold', height: '42px' }}
-                  >
-                    {categories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Valor (R$)</label>
-                  <input 
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    value={editAmount}
-                    onChange={(e) => setEditAmount(e.target.value)}
-                    style={{ width: '100%', background: '#16161a', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
-                    required
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Odd (Opcional)</label>
-                  <input 
-                    type="number"
-                    step="0.01"
-                    min="1.01"
-                    placeholder="Sem Odd"
-                    value={editOdd}
-                    onChange={(e) => setEditOdd(e.target.value)}
-                    style={{ width: '100%', background: '#16161a', border: '1px solid #333', color: '#ff9800', fontWeight: 'bold', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Descrição</label>
-                <input 
-                  type="text"
-                  placeholder="Descrição da aposta/lançamento"
-                  value={editDescription}
-                  onChange={(e) => setEditDescription(e.target.value)}
-                  style={{ width: '100%', background: '#16161a', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none' }}
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px', borderTop: '1px solid #222', paddingTop: '16px' }}>
-                <button 
-                  type="button"
-                  onClick={() => { setShowEditModal(false); setEditingTx(null); }}
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid #444',
-                    color: '#aaa',
-                    padding: '10px 16px',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    fontSize: '0.9rem'
-                  }}
-                >
-                  Cancelar
-                </button>
-                <button 
-                  type="submit"
-                  style={{
-                    background: '#00d2ff',
-                    border: 'none',
-                    color: '#000',
-                    padding: '10px 20px',
-                    borderRadius: '8px',
-                    cursor: 'pointer',
-                    fontWeight: 'bold',
-                    fontSize: '0.9rem',
-                    boxShadow: '0 4px 15px rgba(0, 210, 255, 0.2)'
-                  }}
-                >
-                  Salvar Alterações
-                </button>
-              </div>
-
-            </form>
           </div>
         </div>
       )}

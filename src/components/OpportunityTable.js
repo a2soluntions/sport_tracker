@@ -106,7 +106,7 @@ const getLeagueName = (leagueId) => {
     '1': 'Copa do Mundo',
     '71': 'Brasileirão Série A',
     '72': 'Brasileirão Série B',
-    '73': 'Brasileirão Série C',
+    '75': 'Brasileirão Série C',
     '13': 'Copa Libertadores',
     '12': 'Copa Sudamericana',
     '39': 'Premier League',
@@ -127,7 +127,7 @@ const getLeagueLogoUrl = (leagueIdOrName) => {
     '12': '/sudamericana.png',
     '71': 'https://flagcdn.com/w40/br.png',
     '72': 'https://flagcdn.com/w40/br.png',
-    '73': 'https://flagcdn.com/w40/br.png',
+    '75': 'https://flagcdn.com/w40/br.png',
     '39': 'https://flagcdn.com/w40/gb.png',
     '140': 'https://flagcdn.com/w40/es.png',
     '135': 'https://flagcdn.com/w40/it.png',
@@ -231,7 +231,7 @@ export default function OpportunityTable() {
     // 1. Definição do gerador dinâmico de fallback
     const generateDynamicOpportunities = async () => {
       try {
-        const leaguesToFetch = ['71', '72', '73', '13', '12', '39', '140', '135', '78', '1'];
+        const leaguesToFetch = ['71', '72', '75', '13', '12', '39', '140', '135', '78', '1'];
         const getLocalDateString = (offset = 0) => {
           const d = new Date();
           d.setDate(d.getDate() + offset);
@@ -767,12 +767,12 @@ export default function OpportunityTable() {
                                   src={logoUrl} 
                                   alt="Campeonato Logo" 
                                   style={isLocal ? {
-                                    width: '18px',
-                                    height: '18px',
+                                    width: '24px',
+                                    height: '24px',
                                     objectFit: 'contain'
                                   } : {
-                                    width: '18px',
-                                    height: '12px',
+                                    width: '24px',
+                                    height: '16px',
                                     objectFit: 'cover',
                                     borderRadius: '2px',
                                     border: '1px solid rgba(255, 255, 255, 0.1)'
@@ -858,12 +858,12 @@ export default function OpportunityTable() {
                             src={logoUrl} 
                             alt="Campeonato Logo" 
                             style={isLocal ? {
-                              width: '16px',
-                              height: '16px',
+                              width: '22px',
+                              height: '22px',
                               objectFit: 'contain'
                             } : {
-                              width: '16px',
-                              height: '11px',
+                              width: '22px',
+                              height: '15px',
                               objectFit: 'cover',
                               borderRadius: '2px',
                               border: '1px solid rgba(255, 255, 255, 0.1)'

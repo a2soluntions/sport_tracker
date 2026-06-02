@@ -580,12 +580,12 @@ export default function ResponsiveDashboard() {
                                 src={logoUrl} 
                                 alt="Campeonato Logo" 
                                 style={isLocal ? {
-                                  width: '16px',
-                                  height: '16px',
+                                  width: '22px',
+                                  height: '22px',
                                   objectFit: 'contain'
                                 } : {
-                                  width: '16px',
-                                  height: '11px',
+                                  width: '22px',
+                                  height: '15px',
                                   objectFit: 'cover',
                                   borderRadius: '2px',
                                   border: '1px solid rgba(255, 255, 255, 0.1)'

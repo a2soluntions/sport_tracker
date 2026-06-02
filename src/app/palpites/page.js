@@ -186,7 +186,7 @@ const getLeagueName = (leagueId) => {
     '1': 'Copa do Mundo',
     '71': 'Brasileirão Série A',
     '72': 'Brasileirão Série B',
-    '73': 'Brasileirão Série C',
+    '75': 'Brasileirão Série C',
     '13': 'Copa Libertadores',
     '12': 'Copa Sudamericana',
     '39': 'Premier League',
@@ -207,7 +207,7 @@ const getLeagueLogoUrl = (leagueIdOrName) => {
     '12': '/sudamericana.png',
     '71': 'https://flagcdn.com/w40/br.png',
     '72': 'https://flagcdn.com/w40/br.png',
-    '73': 'https://flagcdn.com/w40/br.png',
+    '75': 'https://flagcdn.com/w40/br.png',
     '39': 'https://flagcdn.com/w40/gb.png',
     '140': 'https://flagcdn.com/w40/es.png',
     '135': 'https://flagcdn.com/w40/it.png',
@@ -1007,7 +1007,7 @@ export default function PalpitesPage() {
       setApiError(null);
       try {
         const leaguesToFetch = selectedLeague === 'all'
-          ? ['71', '72', '73', '13', '12', '39', '140', '135', '78', '1']
+          ? ['71', '72', '75', '13', '12', '39', '140', '135', '78', '1']
           : [selectedLeague];
 
         const fetchPromises = leaguesToFetch.map(async (lgId) => {
@@ -1253,7 +1253,7 @@ export default function PalpitesPage() {
                 { id: '1', name: 'Copa do Mundo', iconType: 'image', icon: '/copadomundo.png' },
                 { id: '71', name: 'Série A', iconType: 'image', icon: 'https://flagcdn.com/w40/br.png' },
                 { id: '72', name: 'Série B', iconType: 'image', icon: 'https://flagcdn.com/w40/br.png' },
-                { id: '73', name: 'Série C', iconType: 'image', icon: 'https://flagcdn.com/w40/br.png' },
+                { id: '75', name: 'Série C', iconType: 'image', icon: 'https://flagcdn.com/w40/br.png' },
                 { id: '13', name: 'Libertadores', iconType: 'image', icon: '/libertadores.jpg' },
                 { id: '12', name: 'Sudamericana', iconType: 'image', icon: '/sudamericana.png' },
                 { id: '39', name: 'Premier', iconType: 'image', icon: 'https://flagcdn.com/w40/gb.png' },
@@ -1302,12 +1302,12 @@ export default function PalpitesPage() {
                         src={lg.icon} 
                         alt={lg.name} 
                         style={lg.icon.startsWith('/') ? {
-                          width: '16px', 
-                          height: '16px', 
+                          width: '24px', 
+                          height: '24px', 
                           objectFit: 'contain'
                         } : { 
-                          width: '18px', 
-                          height: '12px', 
+                          width: '24px', 
+                          height: '16px', 
                           objectFit: 'cover', 
                           borderRadius: '2px', 
                           border: isActive ? '1px solid rgba(0,0,0,0.1)' : '1px solid rgba(255,255,255,0.1)' 
@@ -1521,12 +1521,12 @@ export default function PalpitesPage() {
                               src={logoUrl} 
                               alt="Campeonato Logo" 
                               style={isLocal ? {
-                                width: '18px',
-                                height: '18px',
+                                width: '24px',
+                                height: '24px',
                                 objectFit: 'contain'
                               } : {
-                                width: '18px',
-                                height: '12px',
+                                width: '24px',
+                                height: '16px',
                                 objectFit: 'cover',
                                 borderRadius: '2px',
                                 border: '1px solid rgba(255, 255, 255, 0.1)'

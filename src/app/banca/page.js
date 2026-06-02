@@ -181,7 +181,27 @@ export default function GestaoBancaPage() {
     const userTxsKey = `ev_tracker_banca_txs_${user.id}`;
     const userTxIdsKey = `ev_tracker_user_tx_ids_${user.id}`;
 
-    function loadInitialValue() {
+    async function loadInitialValue() {
+      if (supabase && user) {
+        try {
+          const { data, error } = await supabase
+            .from('user_settings')
+            .select('banca')
+            .eq('id', user.id)
+            .maybeSingle();
+
+          if (error) throw error;
+          if (data && data.banca !== undefined && data.banca !== null) {
+            const val = parseFloat(data.banca);
+            setInitialValue(val);
+            localStorage.setItem(userBancaKey, val.toString());
+            return;
+          }
+        } catch (e) {
+          console.warn("Erro ao buscar banca inicial do Supabase:", e);
+        }
+      }
+
       const savedInitialValue = localStorage.getItem(userBancaKey);
       if (savedInitialValue) {
         setInitialValue(parseFloat(savedInitialValue));
@@ -996,9 +1016,7 @@ export default function GestaoBancaPage() {
                 R$
               </span>
               <input 
-                type="number"
-                step="0.01"
-                min="0"
+                type="text"
                 value={modalInputVal}
                 onChange={(e) => setModalInputVal(e.target.value)}
                 placeholder="0,00"
@@ -1036,11 +1054,33 @@ export default function GestaoBancaPage() {
               </button>
               <button 
                 onClick={() => {
-                  const num = parseFloat(modalInputVal.replace(',', '.'));
-                  if (!isNaN(num)) {
+                  let clean = modalInputVal.trim();
+                  if (clean.includes('.') && clean.includes(',')) {
+                    clean = clean.replace(/\./g, '').replace(/,/g, '.');
+                  } else if (clean.includes(',')) {
+                    clean = clean.replace(/,/g, '.');
+                  } else if (clean.includes('.')) {
+                    const parts = clean.split('.');
+                    if (parts[1] && parts[1].length === 3) {
+                      clean = clean.replace(/\./g, '');
+                    }
+                  }
+                  const num = parseFloat(clean);
+                  if (!isNaN(num) && num >= 0) {
                     setInitialValue(num);
                     const userBancaKey = user ? `ev_tracker_banca_initial_value_${user.id}` : 'ev_tracker_banca_initial_value';
                     localStorage.setItem(userBancaKey, num.toString());
+
+                    if (supabase && user) {
+                      supabase
+                        .from('user_settings')
+                        .upsert({ id: user.id, banca: num })
+                        .then(({ error }) => {
+                          if (error) {
+                            console.error("Erro ao salvar banca inicial no Supabase:", error);
+                          }
+                        });
+                    }
 
                     showToast('Valor inicial atualizado com sucesso!', 'success');
                     setShowModal(false);

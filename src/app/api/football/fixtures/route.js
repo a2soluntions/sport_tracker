@@ -315,7 +315,7 @@ export async function GET(request) {
     let apiSportsRound = '?';
 
     if (returnAll) {
-      if (!(leagueId === '71' || leagueId === '72')) {
+      if (!(leagueId === '71' || leagueId === '72' || leagueId === '75')) {
         // Ordena por data decrescente e pega as 40 partidas mais recentes
         filteredFixtures.sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate));
         filteredFixtures = filteredFixtures.slice(0, 40);

@@ -50,7 +50,7 @@ export default function PricingPage() {
   };
 
   const handleCopyPix = () => {
-    const pixCode = `00020101021226870014br.gov.bcb.pix2565mercadopago.pix.oddssentry.com/checkout/pay?ref=ev_prod_${selectedPlan}_${Date.now()}`;
+    const pixCode = `00020101021226870014br.gov.bcb.pix2565mercadopago.pix.a2sporttrackers.com/checkout/pay?ref=ev_prod_${selectedPlan}_${Date.now()}`;
     navigator.clipboard.writeText(pixCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -591,7 +591,7 @@ export default function PricingPage() {
                         <rect x="62" y="62" width="26" height="26" rx="4" fill="#32b5ad" />
                         <polygon points="75,66 82,75 75,84 68,75" fill="#fff" />
                       </svg>
-                      <span style={{ fontSize: '0.72rem', color: '#666', fontWeight: 'bold' }}>Chave Pix ID: oddssentry_mp_prod</span>
+                      <span style={{ fontSize: '0.72rem', color: '#666', fontWeight: 'bold' }}>Chave Pix ID: a2sporttrackers_mp_prod</span>
                     </div>
 
                     <p style={{ color: '#666', fontSize: '0.8rem', textAlign: 'center', lineHeight: 1.4, margin: '0 10px' }}>
@@ -603,7 +603,7 @@ export default function PricingPage() {
                       <input 
                         type="text" 
                         readOnly 
-                        value="oddssentry_mp_checkout_code_98374987239847239" 
+                        value="a2sporttrackers_mp_checkout_code_98374987239847239" 
                         style={{
                           flex: 1,
                           padding: '10px',

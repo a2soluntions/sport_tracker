@@ -81,7 +81,7 @@ export default function RedefinirSenhaPage() {
           <div style={{ background: 'var(--brand-neon)', padding: '6px', borderRadius: '6px', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Zap size={20} strokeWidth={2.5} />
           </div>
-          <span style={{ fontSize: '1.25rem', fontWeight: 900, letterSpacing: '0.5px' }}>OddsSentry <span style={{ color: 'var(--brand-neon)' }}>PRO</span></span>
+          <span style={{ fontSize: '1.25rem', fontWeight: 900, letterSpacing: '0.5px' }}>a2sport<span style={{ color: 'var(--brand-neon)' }}>trackers</span></span>
         </div>
 
         {success ? (

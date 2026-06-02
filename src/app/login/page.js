@@ -106,7 +106,7 @@ export default function LoginPage() {
     setLoading(true);
     try {
       // Criar ou fazer login com uma conta demo
-      const demoEmail = 'demo@oddssentry.com';
+      const demoEmail = 'demo@a2sporttrackers.com';
       const demoPassword = 'demopassword123';
       const demoName = 'Investidor PRO (Demo)';
 
@@ -156,7 +156,7 @@ export default function LoginPage() {
             <div style={{ background: 'var(--brand-neon)', padding: '8px', borderRadius: '8px', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Zap size={24} strokeWidth={2.5} />
             </div>
-            <span style={{ fontSize: '1.4rem', fontWeight: 900, letterSpacing: '0.5px' }}>OddsSentry <span style={{ color: 'var(--brand-neon)' }}>PRO</span></span>
+            <span style={{ fontSize: '1.4rem', fontWeight: 900, letterSpacing: '0.5px' }}>a2sport<span style={{ color: 'var(--brand-neon)' }}>trackers</span></span>
           </div>
 
           <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '8px', textTransform: 'uppercase' }}>
@@ -356,7 +356,7 @@ export default function LoginPage() {
           <div style={{ background: 'var(--brand-neon)', padding: '8px', borderRadius: '8px', color: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Zap size={24} strokeWidth={2.5} />
           </div>
-          <span style={{ fontSize: '1.4rem', fontWeight: 900, letterSpacing: '0.5px' }}>OddsSentry <span style={{ color: 'var(--brand-neon)' }}>PRO</span></span>
+          <span style={{ fontSize: '1.4rem', fontWeight: 900, letterSpacing: '0.5px' }}>a2sport<span style={{ color: 'var(--brand-neon)' }}>trackers</span></span>
         </div>
 
         {/* Header de Boas Vindas */}

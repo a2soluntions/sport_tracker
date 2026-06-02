@@ -28,7 +28,7 @@ ${emojiHeader} *RELATÓRIO DE DESEMPENHO* ${emojiHeader}
 🔴 *Reds:* ${reds}
 ⏳ *Pendentes:* ${pending}
 
-_Gerado automaticamente pelo OddsSentry PRO_ 🤖
+_Gerado automaticamente pelo a2sporttrackers_ 🤖
 `;
 
     const telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;

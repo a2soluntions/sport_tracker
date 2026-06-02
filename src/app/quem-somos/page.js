@@ -17,7 +17,7 @@ export default function QuemSomosPage() {
           Quem Somos
         </h1>
         <p style={{ color: '#888', marginTop: '8px', fontSize: '1.1rem', lineHeight: 1.5 }}>
-          Conheça a inteligência matemática e o desenvolvimento por trás do <strong>OddsSentry PRO</strong>.
+          Conheça a inteligência matemática e o desenvolvimento por trás do <strong>a2sporttrackers</strong>.
         </p>
       </header>
 
@@ -31,7 +31,7 @@ export default function QuemSomosPage() {
             <h3 style={{ margin: 0, fontSize: '1.15rem', color: '#fff' }}>Nossa Missão</h3>
           </div>
           <p style={{ color: '#aaa', fontSize: '0.9rem', lineHeight: 1.6, margin: 0 }}>
-            O <strong>OddsSentry PRO</strong> nasceu para nivelar o campo de jogo entre investidores esportivos e as casas de apostas. Não acreditamos em "sorte" ou "palpites intuitivos". Acreditamos na estatística pura e no cálculo preciso de <strong>Valor Esperado (+EV)</strong>.
+            O <strong>a2sporttrackers</strong> nasceu para nivelar o campo de jogo entre investidores esportivos e as casas de apostas. Não acreditamos em "sorte" ou "palpites intuitivos". Acreditamos na estatística pura e no cálculo preciso de <strong>Valor Esperado (+EV)</strong>.
           </p>
         </div>
 
@@ -71,7 +71,7 @@ export default function QuemSomosPage() {
         </div>
 
         <p style={{ color: '#ccc', fontSize: '0.95rem', lineHeight: 1.6, margin: 0 }}>
-          Todo o desenvolvimento de software, hospedagem, integrações de APIs, inteligência artificial de modelagem e sustentação técnica do portal <strong>OddsSentry PRO</strong> é gerido e mantido de ponta a ponta pela <strong>A2 Solutions</strong>.
+          Todo o desenvolvimento de software, hospedagem, integrações de APIs, inteligência artificial de modelagem e sustentação técnica do portal <strong>a2sporttrackers</strong> é gerido e mantido de ponta a ponta pela <strong>A2 Solutions</strong>.
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap', background: '#09090b', padding: '20px', borderRadius: '12px', border: '1px solid #222' }}>

@@ -75,7 +75,7 @@ export default function Sidebar() {
       <div className={styles.mobileHeader}>
         <div className={styles.mobileLogo}>
           <Zap size={20} className={styles.logoIcon} strokeWidth={2.5} />
-          <span className={styles.logoText}>OddsSentry <span style={{ color: 'var(--brand-neon)' }}>PRO</span></span>
+          <span className={styles.logoText}>a2sport<span style={{ color: 'var(--brand-neon)' }}>trackers</span></span>
         </div>
 
         {user && (
@@ -127,7 +127,7 @@ export default function Sidebar() {
           <div className={styles.logoIconWrapper}>
             <Zap size={24} className={styles.logoIcon} strokeWidth={2.5} />
           </div>
-          <span className={styles.logoText}>OddsSentry <span style={{ color: 'var(--brand-neon)' }}>PRO</span></span>
+          <span className={styles.logoText}>a2sport<span style={{ color: 'var(--brand-neon)' }}>trackers</span></span>
         </div>
         
         <nav className={styles.nav}>

@@ -3,7 +3,7 @@ import AppContent from "./AppContent";
 import { AuthProvider } from "../context/AuthContext";
 
 export const metadata = {
-  title: "OddsSentry PRO",
+  title: "a2sporttrackers",
   description: "Dashboard de Inteligência +EV",
 };
 

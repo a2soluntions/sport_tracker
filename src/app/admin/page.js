@@ -4,13 +4,17 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { 
   ShieldCheck, ShieldAlert, Users, TrendingUp, DollarSign, ArrowUpRight, 
-  Trash2, Plus, Sparkles, Filter, Search, Award, RefreshCw, BarChart2 
+  Trash2, Plus, Sparkles, Filter, Search, Award, RefreshCw, BarChart2,
+  Settings, Key, Tag, Layers, HelpCircle
 } from 'lucide-react';
 
 export default function AdminDashboard() {
   const { user, loading } = useAuth();
+  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'finance' | 'settings'
+
+  // --- ESTADOS PERSISTIDOS EM LOCALSTORAGE ---
   
-  // Controle de Gastos
+  // 1. Controle de Gastos
   const [gastos, setGastos] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('ev_tracker_admin_gastos');
@@ -27,11 +31,7 @@ export default function AdminDashboard() {
     ];
   });
 
-  const [novoGastoNome, setNovoGastoNome] = useState('');
-  const [novoGastoValor, setNovoGastoValor] = useState('');
-  const [novoGastoCat, setNovoGastoCat] = useState('Outros');
-
-  // Gerenciamento de Usuários (Mocked Base de Dados)
+  // 2. Base de Usuários (Simulação)
   const [usersBase, setUsersBase] = useState(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('ev_tracker_admin_users');
@@ -40,7 +40,7 @@ export default function AdminDashboard() {
       }
     }
     return [
-      { id: 'usr_1', name: 'A2 Solutions Admin', email: 'a2soluntions@gmail.com', plan: 'vip', createdAt: '2026-05-01' },
+      { id: 'usr_1', name: 'A2 Solutions Admin', email: 'a2soluntions@gmail.com', plan: 'vitalicio', createdAt: '2026-05-01' },
       { id: 'usr_2', name: 'Thiago Martins', email: 'thiago.bet@gmail.com', plan: 'pro', createdAt: '2026-05-12' },
       { id: 'usr_3', name: 'Rodrigo Silva', email: 'rodrigo.palpites@hotmail.com', plan: 'gratis', createdAt: '2026-05-18' },
       { id: 'usr_4', name: 'Felipe Santana', email: 'felipe.poisson@yahoo.com', plan: 'vip', createdAt: '2026-05-22' },
@@ -51,10 +51,65 @@ export default function AdminDashboard() {
     ];
   });
 
+  // 3. Sub-Administradores autorizados
+  const [subAdmins, setSubAdmins] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ev_tracker_admin_emails');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return ['admin.suporte@gmail.com', 'parceiro.a2@gmail.com'];
+  });
+
+  // 4. Categorias Futuras
+  const [categorias, setCategorias] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ev_tracker_admin_categorias');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return [
+      { id: 1, name: 'Basquete NBA (Poisson)', description: 'Alertas de Handicap e Over/Under para NBA.', active: true },
+      { id: 2, name: 'E-sports (Counter-Strike/LoL)', description: 'True Odds de vencedor e total de mapas.', active: false },
+      { id: 3, name: 'Mercado de Cartões (Poisson Live)', description: 'Sinais +EV ao vivo para cartões amarelos.', active: true },
+      { id: 4, name: 'WhatsApp Push Notifications', description: 'Disparo de oportunidades diretamente no celular.', active: true }
+    ];
+  });
+
+  // 5. Cupons de Promoção
+  const [cupons, setCupons] = useState(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('ev_tracker_admin_cupons');
+      if (saved) {
+        try { return JSON.parse(saved); } catch (e) {}
+      }
+    }
+    return [
+      { id: 1, code: 'BRUTAL20', discount: 20, description: '20% OFF na primeira mensalidade do plano PRO/VIP' },
+      { id: 2, code: 'VIPFIRST', discount: 40, description: '40% OFF no primeiro mês do plano VIP' },
+      { id: 3, code: 'A2SOLUTIONS', discount: 100, description: 'Acesso vitalício gratuito para parceiros' }
+    ];
+  });
+
+  // --- OUTROS ESTADOS AUXILIARES ---
+  const [novoGastoNome, setNovoGastoNome] = useState('');
+  const [novoGastoValor, setNovoGastoValor] = useState('');
+  const [novoGastoCat, setNovoGastoCat] = useState('Outros');
+
   const [searchUser, setSearchUser] = useState('');
   const [planFilter, setPlanFilter] = useState('todos');
 
-  // Persistir Gastos e Usuários
+  const [novoAdminEmail, setNovoAdminEmail] = useState('');
+  const [novaCatNome, setNovaCatNome] = useState('');
+  const [novaCatDesc, setNovaCatDesc] = useState('');
+
+  const [novoCupomCode, setNovoCupomCode] = useState('');
+  const [novoCupomDesc, setNovoCupomDesc] = useState('');
+  const [novoCupomDisc, setNovoCupomDisc] = useState('');
+
+  // Persistir Estados
   useEffect(() => {
     localStorage.setItem('ev_tracker_admin_gastos', JSON.stringify(gastos));
   }, [gastos]);
@@ -63,8 +118,19 @@ export default function AdminDashboard() {
     localStorage.setItem('ev_tracker_admin_users', JSON.stringify(usersBase));
   }, [usersBase]);
 
-  // Cálculos de Receita
-  // PRO = R$ 19,90 | VIP = R$ 49,90 | Gratis = R$ 0.00
+  useEffect(() => {
+    localStorage.setItem('ev_tracker_admin_emails', JSON.stringify(subAdmins));
+  }, [subAdmins]);
+
+  useEffect(() => {
+    localStorage.setItem('ev_tracker_admin_categorias', JSON.stringify(categorias));
+  }, [categorias]);
+
+  useEffect(() => {
+    localStorage.setItem('ev_tracker_admin_cupons', JSON.stringify(cupons));
+  }, [cupons]);
+
+  // --- CÁLCULO DE MÉTRICAS SaaS ---
   const financialMetrics = useMemo(() => {
     let proCount = 0;
     let vipCount = 0;
@@ -72,11 +138,10 @@ export default function AdminDashboard() {
 
     usersBase.forEach(u => {
       if (u.plan === 'pro') proCount++;
-      else if (u.plan === 'vip') vipCount++;
+      else if (u.plan === 'vip' || u.plan === 'vitalicio') vipCount++;
       else gratisCount++;
     });
 
-    // Multiplicador simulado (para parecer uma base maior, multiplicamos por 30)
     const baseMultiplier = 30;
     const simulatedPro = proCount * baseMultiplier;
     const simulatedVip = vipCount * baseMultiplier;
@@ -85,8 +150,6 @@ export default function AdminDashboard() {
     const mrr = (simulatedPro * 19.90) + (simulatedVip * 49.90);
     const totalExpenses = gastos.reduce((sum, g) => sum + g.value, 0);
     const netProfit = mrr - totalExpenses;
-    
-    // Taxa de Churn calculada de forma simulada baseada na proporção de VIP/PRO
     const baseChurn = 2.4; 
     const dynamicChurn = Math.max(1.2, parseFloat((baseChurn + (totalExpenses / 5000) - (simulatedVip / 500)).toFixed(1)));
 
@@ -111,7 +174,69 @@ export default function AdminDashboard() {
     });
   }, [usersBase, searchUser, planFilter]);
 
-  // Adicionar despesa
+  // --- MANIPULADORES DE SUB-ADMINS ---
+  const handleAddAdmin = (e) => {
+    e.preventDefault();
+    if (!novoAdminEmail || !novoAdminEmail.includes('@')) return;
+    const email = novoAdminEmail.trim().toLowerCase();
+    if (subAdmins.includes(email) || email === 'a2soluntions@gmail.com') return;
+
+    setSubAdmins(prev => [...prev, email]);
+    setNovoAdminEmail('');
+  };
+
+  const handleRemoveAdmin = (email) => {
+    setSubAdmins(prev => prev.filter(adm => adm !== email));
+  };
+
+  // --- MANIPULADORES DE CATEGORIAS ---
+  const handleAddCategoria = (e) => {
+    e.preventDefault();
+    if (!novaCatNome) return;
+
+    const newCat = {
+      id: Date.now(),
+      name: novaCatNome.trim(),
+      description: novaCatDesc.trim() || 'Sem descrição cadastrada.',
+      active: true
+    };
+
+    setCategorias(prev => [...prev, newCat]);
+    setNovaCatNome('');
+    setNovaCatDesc('');
+  };
+
+  const handleToggleCategoria = (id) => {
+    setCategorias(prev => prev.map(c => c.id === id ? { ...c, active: !c.active } : c));
+  };
+
+  const handleRemoveCategoria = (id) => {
+    setCategorias(prev => prev.filter(c => c.id !== id));
+  };
+
+  // --- MANIPULADORES DE CUPONS ---
+  const handleAddCupom = (e) => {
+    e.preventDefault();
+    if (!novoCupomCode || !novoCupomDisc || isNaN(parseInt(novoCupomDisc))) return;
+
+    const newCup = {
+      id: Date.now(),
+      code: novoCupomCode.trim().toUpperCase(),
+      discount: parseInt(novoCupomDisc),
+      description: novoCupomDesc.trim() || 'Sem descrição.'
+    };
+
+    setCupons(prev => [...prev, newCup]);
+    setNovoCupomCode('');
+    setNovoCupomDisc('');
+    setNovoCupomDesc('');
+  };
+
+  const handleRemoveCupom = (id) => {
+    setCupons(prev => prev.filter(c => c.id !== id));
+  };
+
+  // --- OUTROS DIRETOS ---
   const handleAddGasto = (e) => {
     e.preventDefault();
     if (!novoGastoNome || !novoGastoValor || isNaN(parseFloat(novoGastoValor))) return;
@@ -128,24 +253,24 @@ export default function AdminDashboard() {
     setNovoGastoValor('');
   };
 
-  // Remover despesa
   const handleRemoveGasto = (id) => {
     setGastos(prev => prev.filter(g => g.id !== id));
   };
 
-  // Alterar Plano do Usuário (Promoção)
   const handleToggleUserPlan = (id) => {
     setUsersBase(prev => prev.map(u => {
       if (u.id === id) {
-        const nextPlan = u.plan === 'gratis' ? 'pro' : u.plan === 'pro' ? 'vip' : 'gratis';
+        const nextPlan = u.plan === 'gratis' ? 'pro' : u.plan === 'pro' ? 'vip' : u.plan === 'vip' ? 'vitalicio' : 'gratis';
         return { ...u, plan: nextPlan };
       }
       return u;
     }));
   };
 
-  // Verificação de Segurança
-  const isAdmin = user && user.email === 'a2soluntions@gmail.com';
+  // Verificação de Segurança (Super Admin ou Admin Secundário)
+  const isSuperAdmin = user && user.email === 'a2soluntions@gmail.com';
+  const isSubAdmin = user && subAdmins.includes(user.email);
+  const isAdmin = isSuperAdmin || isSubAdmin;
 
   if (loading) {
     return (
@@ -242,7 +367,7 @@ export default function AdminDashboard() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--brand-neon)' }}>
             <ShieldCheck size={24} />
             <span style={{ fontSize: '0.78rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '2px', background: 'rgba(204,255,0,0.1)', padding: '2px 8px', borderRadius: '4px' }}>
-              Modo Administrador
+              {isSuperAdmin ? 'SUPER ADMIN • ACESSO VITALÍCIO' : 'MODO ADMINISTRADOR'}
             </span>
           </div>
           <h1 style={{ fontSize: '1.9rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '-0.5px', marginTop: '6px', margin: 0 }}>
@@ -270,10 +395,8 @@ export default function AdminDashboard() {
         display: 'grid',
         gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
         gap: '16px',
-        marginBottom: '32px'
+        marginBottom: '28px'
       }}>
-        
-        {/* MRR */}
         <div style={{ background: '#111116', border: '1px solid #222', borderLeft: '5px solid var(--brand-neon)', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#888', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 'bold' }}>
             <span>Receita Mensal (MRR)</span>
@@ -289,7 +412,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Churn Rate */}
         <div style={{ background: '#111116', border: '1px solid #222', borderLeft: '5px solid #00d2ff', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#888', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 'bold' }}>
             <span>Churn Rate (Mensal)</span>
@@ -303,7 +425,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Custos Operacionais */}
         <div style={{ background: '#111116', border: '1px solid #222', borderLeft: '5px solid #ff9800', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#888', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 'bold' }}>
             <span>Despesas do Mês</span>
@@ -317,7 +438,6 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* Lucro Líquido */}
         <div style={{ background: '#111116', border: '1px solid #222', borderLeft: '5px solid #b339ff', padding: '20px', borderRadius: '8px', boxShadow: '0 4px 20px rgba(0,0,0,0.15)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#888', fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 'bold' }}>
             <span>Lucro Líquido</span>
@@ -330,398 +450,792 @@ export default function AdminDashboard() {
             Margem de Lucro: {((financialMetrics.profit / (financialMetrics.mrr || 1)) * 100).toFixed(1)}%
           </div>
         </div>
-
       </div>
 
-      {/* Grid de Seções de Relatório */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-        gap: '20px',
-        marginBottom: '32px'
-      }}>
-        
-        {/* Evolução de Vendas (Gráfico Brutalista) */}
-        <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', height: '380px' }}>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 24px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <BarChart2 size={16} color="var(--brand-neon)" /> Evolução de Receita (MRR)
-          </h3>
-          
-          {/* Corpo do Gráfico de Barras */}
-          <div style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'flex-end',
-            flex: 1,
-            padding: '10px 10px 0 10px',
-            borderBottom: '2px solid #333',
-            position: 'relative'
-          }}>
-            {/* Linhas de Grade de Fundo */}
-            {[0.25, 0.5, 0.75, 1.0].map((p, idx) => (
-              <div key={idx} style={{
-                position: 'absolute',
-                left: 0,
-                right: 0,
-                bottom: `${p * 100}%`,
-                borderBottom: '1px dashed rgba(255,255,255,0.03)',
-                pointerEvents: 'none'
-              }}></div>
-            ))}
+      {/* Navegação por Abas (Tab Selector) */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid #222', paddingBottom: '8px' }}>
+        {[
+          { id: 'dashboard', name: 'Dashboard Geral', icon: BarChart2 },
+          { id: 'finance', name: 'Gastos & Clientes', icon: Users },
+          { id: 'settings', name: 'Configurações SaaS', icon: Settings }
+        ].map(tab => {
+          const Icon = tab.icon;
+          const isActive = activeTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                padding: '10px 18px',
+                borderRadius: '6px',
+                border: isActive ? '1px solid var(--brand-neon)' : '1px solid transparent',
+                background: isActive ? 'rgba(204,255,0,0.08)' : 'transparent',
+                color: isActive ? 'var(--brand-neon)' : '#888',
+                fontWeight: 'bold',
+                fontSize: '0.85rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+            >
+              <Icon size={16} />
+              <span>{tab.name}</span>
+            </button>
+          );
+        })}
+      </div>
 
-            {/* Barras do Gráfico */}
-            {[
-              { label: 'Jan', val: 8100, pct: 64 },
-              { label: 'Fev', val: 9300, pct: 73 },
-              { label: 'Mar', val: 10200, pct: 81 },
-              { label: 'Abr', val: 11100, pct: 88 },
-              { label: 'Mai', val: 12100, pct: 96 },
-              { label: 'Jun', val: Math.round(financialMetrics.mrr), pct: 100 }
-            ].map((bar, idx) => (
-              <div key={idx} style={{
+      {/* --- ABA 1: DASHBOARD GERAL --- */}
+      {activeTab === 'dashboard' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))',
+            gap: '20px'
+          }}>
+            
+            {/* Evolução de Vendas (Gráfico de Barras) */}
+            <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', height: '380px' }}>
+              <h3 style={{ fontSize: '1.02rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 20px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <BarChart2 size={16} color="var(--brand-neon)" /> Evolução de Receita (MRR)
+              </h3>
+              
+              <div style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-end',
+                flex: 1,
+                padding: '10px 10px 0 10px',
+                borderBottom: '2px solid #333',
+                position: 'relative'
+              }}>
+                {[0.25, 0.5, 0.75, 1.0].map((p, idx) => (
+                  <div key={idx} style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    bottom: `${p * 100}%`,
+                    borderBottom: '1px dashed rgba(255,255,255,0.03)',
+                    pointerEvents: 'none'
+                  }}></div>
+                ))}
+
+                {[
+                  { label: 'Jan', val: 8100, pct: 64 },
+                  { label: 'Fev', val: 9300, pct: 73 },
+                  { label: 'Mar', val: 10200, pct: 81 },
+                  { label: 'Abr', val: 11100, pct: 88 },
+                  { label: 'Mai', val: 12100, pct: 96 },
+                  { label: 'Jun', val: Math.round(financialMetrics.mrr), pct: 100 }
+                ].map((bar, idx) => (
+                  <div key={idx} style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    flex: 1,
+                    gap: '8px'
+                  }}>
+                    <span style={{ fontSize: '0.68rem', color: 'var(--brand-neon)', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                      R$ {bar.val >= 1000 ? `${(bar.val/1000).toFixed(1)}k` : bar.val}
+                    </span>
+                    <div style={{
+                      width: '28px',
+                      height: `${bar.pct * 1.8}px`,
+                      background: idx === 5 ? 'linear-gradient(to top, #b339ff, var(--brand-neon))' : 'var(--brand-neon)',
+                      border: '1px solid #000',
+                      boxShadow: idx === 5 ? '0 0 15px rgba(204,255,0,0.3)' : '0 0 8px rgba(204,255,0,0.1)',
+                      transition: 'all 0.4s ease-out'
+                    }}></div>
+                    <span style={{ fontSize: '0.78rem', color: '#888', fontWeight: 'bold', marginTop: '4px' }}>
+                      {bar.label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Funil de Vendas Geométrico CSS */}
+            <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', height: '380px' }}>
+              <h3 style={{ fontSize: '1.02rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 20px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <TrendingUp size={16} color="#00d2ff" /> Funil de Conversão (Visual Funil)
+              </h3>
+              
+              {/* Funil Visual Geométrico Centralizado */}
+              <div style={{
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
+                justifyContent: 'center',
                 flex: 1,
-                gap: '8px'
+                gap: '4px',
+                paddingTop: '10px'
               }}>
-                <span style={{ fontSize: '0.7rem', color: 'var(--brand-neon)', fontWeight: 'bold', fontFamily: 'monospace' }}>
-                  R$ {bar.val >= 1000 ? `${(bar.val/1000).toFixed(1)}k` : bar.val}
-                </span>
-                <div style={{
-                  width: '32px',
-                  height: `${bar.pct * 1.8}px`, // Escalar proporcionalmente
-                  background: idx === 5 ? 'linear-gradient(to top, #b339ff, var(--brand-neon))' : 'var(--brand-neon)',
-                  border: '1px solid #000',
-                  boxShadow: idx === 5 ? '0 0 15px rgba(204,255,0,0.3)' : '0 0 8px rgba(204,255,0,0.1)',
-                  transition: 'all 0.4s ease-out'
-                }}></div>
-                <span style={{ fontSize: '0.78rem', color: '#888', fontWeight: 'bold', marginTop: '4px' }}>
-                  {bar.label}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Funil de Vendas SaaS */}
-        <div className="glass-panel" style={{ padding: '20px', display: 'flex', flexDirection: 'column', height: '380px' }}>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 24px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <TrendingUp size={16} color="#00d2ff" /> Funil de Conversão (Mensal)
-          </h3>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', flex: 1, justifyContent: 'center' }}>
-            {[
-              { step: '1. Visitantes Únicos', val: 10200, pct: '100%', bg: '#1c1c24', color: '#fff', border: '1px solid #333' },
-              { step: '2. Trials Ativados (Cadastro)', val: 2450, pct: '24.0% de conv.', bg: 'rgba(0, 210, 255, 0.08)', color: '#00d2ff', border: '1px solid rgba(0, 210, 255, 0.2)' },
-              { step: '3. Assinantes PRO', val: financialMetrics.proCount, pct: `${((financialMetrics.proCount / 2450) * 100).toFixed(1)}% do trial`, bg: 'rgba(204, 255, 0, 0.08)', color: 'var(--brand-neon)', border: '1px solid rgba(204, 255, 0, 0.2)' },
-              { step: '4. Assinantes VIP Elite', val: financialMetrics.vipCount, pct: `${((financialMetrics.vipCount / 2450) * 100).toFixed(1)}% do trial`, bg: 'rgba(179, 57, 255, 0.1)', color: '#b339ff', border: '1px solid rgba(179, 57, 255, 0.2)' }
-            ].map((funnel, idx) => (
-              <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                <div style={{
-                  flex: 1,
-                  background: funnel.bg,
-                  border: funnel.border,
-                  padding: '10px 14px',
-                  borderRadius: '6px',
-                  color: funnel.color,
-                  fontWeight: 'bold',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontSize: '0.85rem'
-                }}>
-                  <span>{funnel.step}</span>
-                  <span style={{ fontFamily: 'monospace', fontSize: '0.95rem' }}>{funnel.val}</span>
-                </div>
-                <div style={{
-                  width: '120px',
-                  fontSize: '0.72rem',
-                  color: '#888',
-                  textAlign: 'right',
-                  fontStyle: 'italic',
-                  fontWeight: 'bold'
-                }}>
-                  {funnel.pct}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-      </div>
-
-      {/* Grid: Tabela de Gastos & Gerenciador de Usuários */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
-        gap: '20px'
-      }}>
-        
-        {/* Controle de Gastos */}
-        <div className="glass-panel" style={{ padding: '20px' }}>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 16px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <DollarSign size={16} color="#ff9800" /> Controle de Despesas Operacionais
-          </h3>
-
-          <form onSubmit={handleAddGasto} style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            gap: '8px',
-            marginBottom: '20px',
-            background: '#16161a',
-            padding: '12px',
-            borderRadius: '6px',
-            border: '1px solid #222'
-          }}>
-            <input 
-              type="text" 
-              placeholder="Nome da despesa (ex: VPS)" 
-              value={novoGastoNome}
-              onChange={(e) => setNovoGastoNome(e.target.value)}
-              style={{
-                flex: 2,
-                minWidth: '150px',
-                background: '#111',
-                border: '1px solid #333',
-                color: '#fff',
-                padding: '6px 12px',
-                borderRadius: '4px',
-                fontSize: '0.82rem',
-                outline: 'none'
-              }}
-              required
-            />
-            <input 
-              type="text" 
-              placeholder="Valor (R$)" 
-              value={novoGastoValor}
-              onChange={(e) => setNovoGastoValor(e.target.value)}
-              style={{
-                flex: 1,
-                minWidth: '80px',
-                background: '#111',
-                border: '1px solid #333',
-                color: 'var(--brand-neon)',
-                fontWeight: 'bold',
-                padding: '6px 12px',
-                borderRadius: '4px',
-                fontSize: '0.82rem',
-                outline: 'none'
-              }}
-              required
-            />
-            <select
-              value={novoGastoCat}
-              onChange={(e) => setNovoGastoCat(e.target.value)}
-              style={{
-                flex: 1,
-                minWidth: '90px',
-                background: '#111',
-                border: '1px solid #333',
-                color: '#aaa',
-                padding: '6px 8px',
-                borderRadius: '4px',
-                fontSize: '0.82rem',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="Servidor">Servidor</option>
-              <option value="Database">Database</option>
-              <option value="API">API</option>
-              <option value="Marketing">Marketing</option>
-              <option value="Outros">Outros</option>
-            </select>
-            <button type="submit" style={{
-              background: '#ff9800',
-              color: '#000',
-              border: 'none',
-              borderRadius: '4px',
-              padding: '6px 12px',
-              cursor: 'pointer',
-              fontWeight: 'bold',
-              fontSize: '0.82rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px'
-            }}>
-              <Plus size={14} /> Add
-            </button>
-          </form>
-
-          {/* Tabela de despesas */}
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #333', color: '#888', textAlign: 'left' }}>
-                  <th style={{ padding: '8px 4px' }}>Item</th>
-                  <th style={{ padding: '8px 4px' }}>Categoria</th>
-                  <th style={{ padding: '8px 4px', textAlign: 'right' }}>Valor</th>
-                  <th style={{ padding: '8px 4px', textAlign: 'center' }}>Ação</th>
-                </tr>
-              </thead>
-              <tbody>
-                {gastos.map(g => (
-                  <tr key={g.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                    <td style={{ padding: '10px 4px', fontWeight: 'bold' }}>{g.name}</td>
-                    <td style={{ padding: '10px 4px' }}>
-                      <span style={{
-                        background: '#222',
-                        color: '#aaa',
-                        padding: '2px 6px',
-                        borderRadius: '4px',
-                        fontSize: '0.7rem'
-                      }}>
-                        {g.category}
-                      </span>
-                    </td>
-                    <td style={{ padding: '10px 4px', textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace', color: '#ff9800' }}>
-                      R$ {g.value.toFixed(2)}
-                    </td>
-                    <td style={{ padding: '10px 4px', textAlign: 'center' }}>
-                      <button 
-                        onClick={() => handleRemoveGasto(g.id)}
-                        style={{
-                          background: 'transparent',
-                          border: 'none',
-                          color: '#ff4d4d',
-                          cursor: 'pointer',
-                          padding: '4px'
-                        }}
-                        title="Remover Despesa"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    </td>
-                  </tr>
+                {[
+                  { 
+                    label: '1. Visitantes Únicos', 
+                    val: '10.200', 
+                    subtext: '100% de tráfego',
+                    width: '320px', 
+                    polygon: 'polygon(0% 0%, 100% 0%, 85% 100%, 15% 100%)',
+                    bg: 'linear-gradient(90deg, #1c1c24, #2d2d38)',
+                    color: '#fff'
+                  },
+                  { 
+                    label: '2. Trials Ativados', 
+                    val: '2.450', 
+                    subtext: '24% conversão',
+                    width: '272px', // 85% de 320
+                    polygon: 'polygon(0% 0%, 100% 0%, 82% 100%, 18% 100%)',
+                    bg: 'linear-gradient(90deg, rgba(0,210,255,0.15), rgba(0,150,220,0.3))',
+                    color: '#00d2ff'
+                  },
+                  { 
+                    label: '3. Assinantes PRO', 
+                    val: String(financialMetrics.proCount), 
+                    subtext: `${((financialMetrics.proCount/2450)*100).toFixed(1)}% do trial`,
+                    width: '223px', // 82% de 272
+                    polygon: 'polygon(0% 0%, 100% 0%, 78% 100%, 22% 100%)',
+                    bg: 'linear-gradient(90deg, rgba(204,255,0,0.15), rgba(150,200,0,0.3))',
+                    color: 'var(--brand-neon)'
+                  },
+                  { 
+                    label: '4. Assinantes VIP Elite', 
+                    val: String(financialMetrics.vipCount), 
+                    subtext: `${((financialMetrics.vipCount/2450)*100).toFixed(1)}% do trial`,
+                    width: '174px', // 78% de 223
+                    polygon: 'polygon(0% 0%, 100% 0%, 50% 100%, 50% 100%)', // Triângulo invertido!
+                    bg: 'linear-gradient(to bottom, rgba(179,57,255,0.2), rgba(100,20,150,0.45))',
+                    color: '#b339ff',
+                    height: '60px' // Um pouco mais alto para o triângulo fechar legal
+                  }
+                ].map((level, idx) => (
+                  <div 
+                    key={idx} 
+                    style={{
+                      width: level.width,
+                      height: level.height || '46px',
+                      clipPath: level.polygon,
+                      background: level.bg,
+                      border: '1px solid rgba(255,255,255,0.05)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: level.color,
+                      fontSize: '0.78rem',
+                      fontWeight: 'bold',
+                      textAlign: 'center',
+                      boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5)',
+                      textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+                      padding: '2px 20px',
+                      transition: 'all 0.3s ease'
+                    }}
+                    title={`${level.label}: ${level.val} (${level.subtext})`}
+                  >
+                    <div style={{ display: 'flex', gap: '6px', justifyContent: 'center', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.75rem', opacity: 0.9 }}>{level.label.split('. ')[1]}:</span>
+                      <strong style={{ fontSize: '0.85rem' }}>{level.val}</strong>
+                    </div>
+                    <span style={{ fontSize: '0.62rem', opacity: 0.7, fontWeight: 'normal', marginTop: '1px' }}>
+                      {level.subtext}
+                    </span>
+                  </div>
                 ))}
-              </tbody>
-            </table>
+              </div>
+            </div>
+
           </div>
         </div>
+      )}
 
-        {/* Gerenciamento de Usuários */}
-        <div className="glass-panel" style={{ padding: '20px' }}>
-          <h3 style={{ fontSize: '1.05rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 16px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <Users size={16} color="#b339ff" /> Controle de Usuários Cadastrados
-          </h3>
+      {/* --- ABA 2: GASTOS E USUÁRIOS --- */}
+      {activeTab === 'finance' && (
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(350px, 1fr))',
+          gap: '20px'
+        }}>
+          
+          {/* Tabela de Despesas */}
+          <div className="glass-panel" style={{ padding: '20px' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 16px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <DollarSign size={16} color="#ff9800" /> Controle de Despesas Operacionais
+            </h3>
 
-          {/* Busca e Filtros */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
-            <div style={{ position: 'relative', flex: 2, minWidth: '180px' }}>
-              <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: '#666' }} />
+            <form onSubmit={handleAddGasto} style={{
+              display: 'flex',
+              flexWrap: 'wrap',
+              gap: '8px',
+              marginBottom: '20px',
+              background: '#16161a',
+              padding: '12px',
+              borderRadius: '6px',
+              border: '1px solid #222'
+            }}>
               <input 
                 type="text" 
-                placeholder="Pesquisar por nome ou e-mail..."
-                value={searchUser}
-                onChange={(e) => setSearchUser(e.target.value)}
+                placeholder="Nome da despesa (ex: VPS)" 
+                value={novoGastoNome}
+                onChange={(e) => setNovoGastoNome(e.target.value)}
                 style={{
-                  width: '100%',
-                  background: '#16161a',
+                  flex: 2,
+                  minWidth: '140px',
+                  background: '#111',
                   border: '1px solid #333',
                   color: '#fff',
-                  padding: '6px 12px 6px 30px',
-                  borderRadius: '6px',
+                  padding: '6px 12px',
+                  borderRadius: '4px',
                   fontSize: '0.82rem',
                   outline: 'none'
                 }}
+                required
               />
-            </div>
-            
-            <select
-              value={planFilter}
-              onChange={(e) => setPlanFilter(e.target.value)}
-              style={{
-                flex: 1,
-                minWidth: '100px',
-                background: '#16161a',
-                border: '1px solid #333',
-                color: '#aaa',
-                padding: '6px',
-                borderRadius: '6px',
+              <input 
+                type="text" 
+                placeholder="Valor (R$)" 
+                value={novoGastoValor}
+                onChange={(e) => setNovoGastoValor(e.target.value)}
+                style={{
+                  flex: 1,
+                  minWidth: '70px',
+                  background: '#111',
+                  border: '1px solid #333',
+                  color: 'var(--brand-neon)',
+                  fontWeight: 'bold',
+                  padding: '6px 12px',
+                  borderRadius: '4px',
+                  fontSize: '0.82rem',
+                  outline: 'none'
+                }}
+                required
+              />
+              <select
+                value={novoGastoCat}
+                onChange={(e) => setNovoGastoCat(e.target.value)}
+                style={{
+                  flex: 1,
+                  minWidth: '90px',
+                  background: '#111',
+                  border: '1px solid #333',
+                  color: '#aaa',
+                  padding: '6px 8px',
+                  borderRadius: '4px',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="Servidor">Servidor</option>
+                <option value="Database">Database</option>
+                <option value="API">API</option>
+                <option value="Marketing">Marketing</option>
+                <option value="Outros">Outros</option>
+              </select>
+              <button type="submit" style={{
+                background: '#ff9800',
+                color: '#000',
+                border: 'none',
+                borderRadius: '4px',
+                padding: '6px 12px',
+                cursor: 'pointer',
+                fontWeight: 'bold',
                 fontSize: '0.82rem',
-                cursor: 'pointer'
-              }}
-            >
-              <option value="todos">Todos Planos</option>
-              <option value="vip">VIP</option>
-              <option value="pro">PRO</option>
-              <option value="gratis">Trial (Grátis)</option>
-            </select>
-          </div>
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px'
+              }}>
+                <Plus size={14} /> Add
+              </button>
+            </form>
 
-          {/* Listagem de Usuários */}
-          <div style={{ overflowX: 'auto', maxHeight: '260px', overflowY: 'auto' }} className="no-scrollbar">
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid #333', color: '#888', textAlign: 'left' }}>
-                  <th style={{ padding: '8px 4px' }}>Nome / E-mail</th>
-                  <th style={{ padding: '8px 4px' }}>Plano</th>
-                  <th style={{ padding: '8px 4px', textAlign: 'center' }}>Promover</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan="3" style={{ textAlign: 'center', padding: '24px', color: '#666' }}>
-                      Nenhum usuário encontrado.
-                    </td>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #333', color: '#888', textAlign: 'left' }}>
+                    <th style={{ padding: '8px 4px' }}>Item</th>
+                    <th style={{ padding: '8px 4px' }}>Categoria</th>
+                    <th style={{ padding: '8px 4px', textAlign: 'right' }}>Valor</th>
+                    <th style={{ padding: '8px 4px', textAlign: 'center' }}>Deletar</th>
                   </tr>
-                ) : (
-                  filteredUsers.map(u => (
-                    <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                      <td style={{ padding: '10px 4px' }}>
-                        <div style={{ fontWeight: 'bold' }}>{u.name}</div>
-                        <div style={{ fontSize: '0.72rem', color: '#666', marginTop: '2px' }}>{u.email}</div>
-                      </td>
+                </thead>
+                <tbody>
+                  {gastos.map(g => (
+                    <tr key={g.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                      <td style={{ padding: '10px 4px', fontWeight: 'bold' }}>{g.name}</td>
                       <td style={{ padding: '10px 4px' }}>
                         <span style={{
-                          background: u.plan === 'vip' ? 'rgba(179,57,255,0.15)' : u.plan === 'pro' ? 'rgba(204,255,0,0.1)' : '#222',
-                          color: u.plan === 'vip' ? '#b339ff' : u.plan === 'pro' ? 'var(--brand-neon)' : '#888',
-                          border: '1px solid ' + (u.plan === 'vip' ? '#b339ff' : u.plan === 'pro' ? 'var(--brand-neon)' : '#333'),
+                          background: '#222',
+                          color: '#aaa',
                           padding: '2px 6px',
                           borderRadius: '4px',
-                          fontSize: '0.65rem',
-                          fontWeight: 'bold'
+                          fontSize: '0.7rem'
                         }}>
-                          {u.plan === 'vip' ? 'VIP ELITE' : u.plan === 'pro' ? 'PRO' : 'TRIAL'}
+                          {g.category}
                         </span>
                       </td>
+                      <td style={{ padding: '10px 4px', textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace', color: '#ff9800' }}>
+                        R$ {g.value.toFixed(2)}
+                      </td>
                       <td style={{ padding: '10px 4px', textAlign: 'center' }}>
-                        <button
-                          onClick={() => handleToggleUserPlan(u.id)}
+                        <button 
+                          onClick={() => handleRemoveGasto(g.id)}
                           style={{
                             background: 'transparent',
-                            border: '1px solid rgba(255,255,255,0.1)',
-                            borderRadius: '4px',
-                            color: 'var(--brand-neon)',
-                            padding: '4px 8px',
+                            border: 'none',
+                            color: '#ff4d4d',
                             cursor: 'pointer',
-                            fontSize: '0.7rem',
-                            fontWeight: 'bold',
-                            transition: 'all 0.2s'
+                            padding: '4px'
                           }}
-                          onMouseEnter={(e) => {
-                            e.currentTarget.style.background = 'var(--brand-neon)';
-                            e.currentTarget.style.color = '#000';
-                          }}
-                          onMouseLeave={(e) => {
-                            e.currentTarget.style.background = 'transparent';
-                            e.currentTarget.style.color = 'var(--brand-neon)';
-                          }}
+                          title="Remover Despesa"
                         >
-                          Alterar ⚡
+                          <Trash2 size={14} />
                         </button>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {/* Gerenciamento de Usuários */}
+          <div className="glass-panel" style={{ padding: '20px' }}>
+            <h3 style={{ fontSize: '1.05rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 16px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Users size={16} color="#b339ff" /> Controle de Usuários Cadastrados
+            </h3>
+
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+              <div style={{ position: 'relative', flex: 2, minWidth: '180px' }}>
+                <Search size={14} style={{ position: 'absolute', left: '10px', top: '10px', color: '#666' }} />
+                <input 
+                  type="text" 
+                  placeholder="Pesquisar por nome ou e-mail..."
+                  value={searchUser}
+                  onChange={(e) => setSearchUser(e.target.value)}
+                  style={{
+                    width: '100%',
+                    background: '#16161a',
+                    border: '1px solid #333',
+                    color: '#fff',
+                    padding: '6px 12px 6px 30px',
+                    borderRadius: '6px',
+                    fontSize: '0.82rem',
+                    outline: 'none'
+                  }}
+                />
+              </div>
+              
+              <select
+                value={planFilter}
+                onChange={(e) => setPlanFilter(e.target.value)}
+                style={{
+                  flex: 1,
+                  minWidth: '100px',
+                  background: '#16161a',
+                  border: '1px solid #333',
+                  color: '#aaa',
+                  padding: '6px',
+                  borderRadius: '6px',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="todos">Todos Planos</option>
+                <option value="vitalicio">Vitalício</option>
+                <option value="vip">VIP</option>
+                <option value="pro">PRO</option>
+                <option value="gratis">Trial (Grátis)</option>
+              </select>
+            </div>
+
+            <div style={{ overflowX: 'auto', maxHeight: '270px', overflowY: 'auto' }} className="no-scrollbar">
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                <thead>
+                  <tr style={{ borderBottom: '1px solid #333', color: '#888', textAlign: 'left' }}>
+                    <th style={{ padding: '8px 4px' }}>Nome / E-mail</th>
+                    <th style={{ padding: '8px 4px' }}>Plano</th>
+                    <th style={{ padding: '8px 4px', textAlign: 'center' }}>Promover</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan="3" style={{ textAlign: 'center', padding: '24px', color: '#666' }}>
+                        Nenhum usuário encontrado.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUsers.map(u => (
+                      <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                        <td style={{ padding: '10px 4px' }}>
+                          <div style={{ fontWeight: 'bold' }}>{u.name}</div>
+                          <div style={{ fontSize: '0.72rem', color: '#666', marginTop: '2px' }}>{u.email}</div>
+                        </td>
+                        <td style={{ padding: '10px 4px' }}>
+                          <span style={{
+                            background: u.plan === 'vitalicio' ? 'rgba(204,255,0,0.15)' : u.plan === 'vip' ? 'rgba(179,57,255,0.15)' : u.plan === 'pro' ? 'rgba(204,255,0,0.1)' : '#222',
+                            color: u.plan === 'vitalicio' ? 'var(--brand-neon)' : u.plan === 'vip' ? '#b339ff' : u.plan === 'pro' ? 'var(--brand-neon)' : '#888',
+                            border: '1px solid ' + (u.plan === 'vitalicio' ? 'var(--brand-neon)' : u.plan === 'vip' ? '#b339ff' : u.plan === 'pro' ? 'var(--brand-neon)' : '#333'),
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontSize: '0.65rem',
+                            fontWeight: 'bold'
+                          }}>
+                            {u.plan === 'vitalicio' ? 'VITALÍCIO' : u.plan === 'vip' ? 'VIP ELITE' : u.plan === 'pro' ? 'PRO' : 'TRIAL'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 4px', textAlign: 'center' }}>
+                          <button
+                            onClick={() => handleToggleUserPlan(u.id)}
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid rgba(255,255,255,0.1)',
+                              borderRadius: '4px',
+                              color: 'var(--brand-neon)',
+                              padding: '4px 8px',
+                              cursor: 'pointer',
+                              fontSize: '0.7rem',
+                              fontWeight: 'bold',
+                              transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.background = 'var(--brand-neon)';
+                              e.currentTarget.style.color = '#000';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.background = 'transparent';
+                              e.currentTarget.style.color = 'var(--brand-neon)';
+                            }}
+                          >
+                            Alterar ⚡
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+      )}
+
+      {/* --- ABA 3: CONFIGURAÇÕES SAAS --- */}
+      {activeTab === 'settings' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+            gap: '20px'
+          }}>
+            
+            {/* 1. Gerenciador de Admins */}
+            <div className="glass-panel" style={{ padding: '20px' }}>
+              <h3 style={{ fontSize: '1.02rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 16px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Key size={16} color="#00d2ff" /> Cadastro de Administradores
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: '#888', lineHeight: 1.4, marginBottom: '16px' }}>
+                Adicione e-mails de suporte ou sócios da <strong>A2 Solutions</strong> para conceder acesso às telas de controle financeiro e KPIs do SaaS.
+              </p>
+
+              {/* Apenas Super Admin pode gerenciar admins */}
+              {isSuperAdmin ? (
+                <>
+                  <form onSubmit={handleAddAdmin} style={{ display: 'flex', gap: '8px', marginBottom: '20px' }}>
+                    <input 
+                      type="email" 
+                      placeholder="E-mail do novo administrador"
+                      value={novoAdminEmail}
+                      onChange={(e) => setNovoAdminEmail(e.target.value)}
+                      style={{
+                        flex: 1,
+                        background: '#16161a',
+                        border: '1px solid #333',
+                        color: '#fff',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        fontSize: '0.82rem',
+                        outline: 'none'
+                      }}
+                      required
+                    />
+                    <button type="submit" style={{
+                      background: '#00d2ff',
+                      color: '#000',
+                      border: 'none',
+                      borderRadius: '6px',
+                      padding: '8px 16px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      fontSize: '0.82rem'
+                    }}>
+                      Autorizar
+                    </button>
+                  </form>
+                </>
+              ) : (
+                <div style={{ background: 'rgba(255, 152, 0, 0.05)', border: '1px dashed rgba(255, 152, 0, 0.2)', padding: '10px', borderRadius: '6px', fontSize: '0.78rem', color: '#ff9800', marginBottom: '20px', fontWeight: 'bold' }}>
+                  ⚠️ Somente o Super Admin vitalício (a2soluntions@gmail.com) tem permissão de gerenciar outros administradores.
+                </div>
+              )}
+
+              {/* Lista de Admins Cadastrados */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ fontSize: '0.78rem', color: '#666', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '4px' }}>
+                  E-mails com Poder Admin:
+                </div>
+                {/* Dono vitalício */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#16161a', padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--brand-neon)' }}>
+                  <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: 'var(--brand-neon)' }}>a2soluntions@gmail.com</span>
+                  <span style={{ fontSize: '0.65rem', background: 'rgba(204,255,0,0.15)', color: 'var(--brand-neon)', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold' }}>SUPER ADMIN</span>
+                </div>
+                {/* Outros admins */}
+                {subAdmins.map(email => (
+                  <div key={email} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#16161a', padding: '10px 12px', borderRadius: '6px', border: '1px solid #333' }}>
+                    <span style={{ fontSize: '0.82rem' }}>{email}</span>
+                    {isSuperAdmin ? (
+                      <button 
+                        onClick={() => handleRemoveAdmin(email)}
+                        style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', padding: '2px' }}
+                        title="Remover Autorização"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    ) : (
+                      <span style={{ fontSize: '0.65rem', background: '#222', color: '#888', padding: '2px 6px', borderRadius: '4px' }}>ADMIN</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 2. Categorias de Lançamentos Futuros */}
+            <div className="glass-panel" style={{ padding: '20px' }}>
+              <h3 style={{ fontSize: '1.02rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 16px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Layers size={16} color="var(--brand-neon)" /> Planejamento de Lançamentos
+              </h3>
+              
+              <form onSubmit={handleAddCategoria} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                <input 
+                  type="text" 
+                  placeholder="Nome do novo recurso/mercado (ex: NBA)"
+                  value={novaCatNome}
+                  onChange={(e) => setNovaCatNome(e.target.value)}
+                  style={{
+                    background: '#16161a',
+                    border: '1px solid #333',
+                    color: '#fff',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.82rem',
+                    outline: 'none'
+                  }}
+                  required
+                />
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input 
+                    type="text" 
+                    placeholder="Descrição breve..."
+                    value={novaCatDesc}
+                    onChange={(e) => setNovaCatDesc(e.target.value)}
+                    style={{
+                      flex: 1,
+                      background: '#16161a',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      outline: 'none'
+                    }}
+                  />
+                  <button type="submit" style={{
+                    background: 'var(--brand-neon)',
+                    color: '#000',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '8px 16px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '0.82rem'
+                  }}>
+                    Criar
+                  </button>
+                </div>
+              </form>
+
+              {/* Lista de Categorias Futuras */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }} className="no-scrollbar">
+                {categorias.map(cat => (
+                  <div key={cat.id} style={{
+                    background: '#16161a',
+                    border: '1px solid #222',
+                    padding: '10px 12px',
+                    borderRadius: '6px',
+                    opacity: cat.active ? 1 : 0.6,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div style={{ minWidth: 0, flex: 1, paddingRight: '8px' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>{cat.name}</span>
+                        {!cat.active && <span style={{ fontSize: '0.62rem', background: '#333', color: '#888', padding: '1px 4px', borderRadius: '2px' }}>PAUSADO</span>}
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#888', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {cat.description}
+                      </div>
+                    </div>
+                    
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <button
+                        onClick={() => handleToggleCategoria(cat.id)}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid ' + (cat.active ? '#4CAF50' : '#888'),
+                          color: cat.active ? '#4CAF50' : '#888',
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          fontSize: '0.65rem',
+                          cursor: 'pointer',
+                          fontWeight: 'bold'
+                        }}
+                      >
+                        {cat.active ? 'Ativo' : 'Pausar'}
+                      </button>
+                      
+                      <button 
+                        onClick={() => handleRemoveCategoria(cat.id)}
+                        style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', padding: '2px' }}
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 3. Criar Cupons e Promoções */}
+            <div className="glass-panel" style={{ padding: '20px' }}>
+              <h3 style={{ fontSize: '1.02rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 16px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Tag size={16} color="#b339ff" /> Campanhas & Cupons de Promoção
+              </h3>
+              
+              <form onSubmit={handleAddCupom} style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input 
+                    type="text" 
+                    placeholder="Código (ex: VIP50)"
+                    value={novoCupomCode}
+                    onChange={(e) => setNovoCupomCode(e.target.value)}
+                    style={{
+                      flex: 2,
+                      background: '#16161a',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      textTransform: 'uppercase'
+                    }}
+                    required
+                  />
+                  <input 
+                    type="number" 
+                    placeholder="Desc (%)"
+                    min="1"
+                    max="100"
+                    value={novoCupomDisc}
+                    onChange={(e) => setNovoCupomDisc(e.target.value)}
+                    style={{
+                      flex: 1,
+                      background: '#16161a',
+                      border: '1px solid #333',
+                      color: 'var(--brand-neon)',
+                      fontWeight: 'bold',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      outline: 'none'
+                    }}
+                    required
+                  />
+                </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input 
+                    type="text" 
+                    placeholder="Descrição da campanha..."
+                    value={novoCupomDesc}
+                    onChange={(e) => setNovoCupomDesc(e.target.value)}
+                    style={{
+                      flex: 1,
+                      background: '#16161a',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      outline: 'none'
+                    }}
+                  />
+                  <button type="submit" style={{
+                    background: '#b339ff',
+                    color: '#fff',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '8px 16px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '0.82rem'
+                  }}>
+                    Ativar Cupom
+                  </button>
+                </div>
+              </form>
+
+              {/* Lista de Cupons Ativos */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto' }} className="no-scrollbar">
+                {cupons.map(cup => (
+                  <div key={cup.id} style={{
+                    background: '#16161a',
+                    border: '1px solid #222',
+                    padding: '10px 12px',
+                    borderRadius: '6px',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center'
+                  }}>
+                    <div style={{ minWidth: 0, flex: 1, paddingRight: '8px' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#b339ff', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <span>{cup.code}</span>
+                        <span style={{ fontSize: '0.65rem', background: 'rgba(179,57,255,0.15)', color: '#b339ff', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                          -{cup.discount}%
+                        </span>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#888', marginTop: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {cup.description}
+                      </div>
+                    </div>
+                    
+                    <button 
+                      onClick={() => handleRemoveCupom(cup.id)}
+                      style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', padding: '2px' }}
+                      title="Deletar Cupom"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
           </div>
         </div>
-
-      </div>
+      )}
 
       <style jsx>{`
         .glass-panel {

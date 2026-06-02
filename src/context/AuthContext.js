@@ -6,8 +6,46 @@ import { supabase } from '../lib/supabaseClient';
 const AuthContext = createContext({});
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [userState, setUserState] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Computa o usuário com role e plan dinâmicos em cada renderização
+  const user = userState ? (() => {
+    let adminEmails = [];
+    if (typeof window !== 'undefined') {
+      try {
+        const savedAdmins = localStorage.getItem('ev_tracker_admin_emails');
+        if (savedAdmins) {
+          adminEmails = JSON.parse(savedAdmins);
+        }
+      } catch (e) {}
+    }
+
+    const isSuperAdmin = userState.email === 'a2soluntions@gmail.com';
+    const isSubAdmin = adminEmails.includes(userState.email);
+    
+    let role = 'user';
+    let plan = userState.plan || 'gratis';
+    
+    if (isSuperAdmin) {
+      role = 'super_admin';
+      plan = 'vitalicio';
+    } else if (isSubAdmin) {
+      role = 'admin';
+    } else {
+      role = userState.role || 'user';
+    }
+
+    return {
+      ...userState,
+      plan,
+      role
+    };
+  })() : null;
+
+  const setUser = (val) => {
+    setUserState(val);
+  };
 
   // Carregar sessão inicial
   useEffect(() => {
@@ -72,20 +110,39 @@ export function AuthProvider({ children }) {
 
   // Helper para buscar perfil ou gerar mock
   async function fetchOrCreateProfile(supabaseUser) {
-    // Tenta obter perfil estendido do Supabase se a tabela existir
-    // Caso contrário, gera perfil com trial de 7 dias baseado na data de cadastro
     const metadata = supabaseUser.user_metadata || {};
     const createdAt = supabaseUser.created_at || new Date().toISOString();
     
     // Tenta ler plano salvo localmente para manter consistência
     const localPlanKey = `ev_tracker_plan_${supabaseUser.id}`;
-    const savedPlan = localStorage.getItem(localPlanKey) || 'gratis';
+    let savedPlan = localStorage.getItem(localPlanKey) || 'gratis';
+
+    // Lista de administradores secundários cadastrados localmente
+    let adminEmails = [];
+    try {
+      const savedAdmins = localStorage.getItem('ev_tracker_admin_emails');
+      if (savedAdmins) {
+        adminEmails = JSON.parse(savedAdmins);
+      }
+    } catch (e) {}
+
+    const isSuperAdmin = supabaseUser.email === 'a2soluntions@gmail.com';
+    const isSubAdmin = adminEmails.includes(supabaseUser.email);
+    
+    let role = 'user';
+    if (isSuperAdmin) {
+      role = 'super_admin';
+      savedPlan = 'vitalicio';
+    } else if (isSubAdmin) {
+      role = 'admin';
+    }
 
     return {
       id: supabaseUser.id,
       email: supabaseUser.email,
       name: metadata.name || supabaseUser.email.split('@')[0],
-      plan: savedPlan, // 'gratis' | 'pro' | 'vip'
+      plan: savedPlan, // 'gratis' | 'pro' | 'vip' | 'vitalicio'
+      role: role,      // 'user' | 'admin' | 'super_admin'
       createdAt: createdAt
     };
   }

@@ -17,7 +17,23 @@ export default function Sidebar() {
     router.push('/login');
   };
 
-  const getPlanStyles = (plan) => {
+  const getPlanStyles = (plan, role) => {
+    if (role === 'super_admin') {
+      return {
+        bg: 'rgba(179, 57, 255, 0.15)',
+        color: '#b339ff',
+        border: '1px solid #b339ff',
+        label: 'SUPER ADMIN 👑'
+      };
+    }
+    if (role === 'admin') {
+      return {
+        bg: 'rgba(0, 210, 255, 0.15)',
+        color: '#00d2ff',
+        border: '1px solid #00d2ff',
+        label: 'ADMINISTRADOR ⚙️'
+      };
+    }
     switch (plan) {
       case 'pro':
         return {
@@ -33,6 +49,13 @@ export default function Sidebar() {
           border: '1px solid rgba(179, 57, 255, 0.3)',
           label: 'VIP ELITE'
         };
+      case 'vitalicio':
+        return {
+          bg: 'rgba(204, 255, 0, 0.15)',
+          color: 'var(--brand-neon)',
+          border: '1px solid var(--brand-neon)',
+          label: 'ACESSO VITALÍCIO'
+        };
       default:
         return {
           bg: '#1c1c24',
@@ -43,7 +66,7 @@ export default function Sidebar() {
     }
   };
 
-  const planStyle = getPlanStyles(user?.plan);
+  const planStyle = getPlanStyles(user?.plan, user?.role);
   const trialDays = getTrialDaysLeft();
 
   return (
@@ -57,7 +80,7 @@ export default function Sidebar() {
 
         {user && (
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            {user.email === 'a2soluntions@gmail.com' && (
+            {(user.role === 'super_admin' || user.role === 'admin') && (
               <Link href="/admin" style={{
                 color: 'var(--brand-neon)',
                 display: 'flex',
@@ -136,7 +159,7 @@ export default function Sidebar() {
             <Settings size={20} className={styles.navIcon} /> 
             <span>Configurações</span>
           </Link>
-          {user && user.email === 'a2soluntions@gmail.com' && (
+          {user && (user.role === 'super_admin' || user.role === 'admin') && (
             <Link href="/admin" className={`${styles.navItem} ${pathname === '/admin' ? styles.navItemActive : ''}`}>
               <ShieldCheck size={20} className={styles.navIcon} color="var(--brand-neon)" /> 
               <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>Administração</span>
@@ -169,14 +192,14 @@ export default function Sidebar() {
                 width: '38px',
                 height: '38px',
                 borderRadius: '50%',
-                background: user.plan === 'vip' ? '#b339ff' : user.plan === 'pro' ? 'var(--brand-neon)' : '#222',
-                color: user.plan === 'gratis' ? '#888' : '#000',
+                background: (user.plan === 'vip' || user.plan === 'vitalicio' || user.role === 'super_admin') ? '#b339ff' : user.plan === 'pro' ? 'var(--brand-neon)' : '#222',
+                color: (user.plan === 'gratis' && user.role !== 'admin' && user.role !== 'super_admin') ? '#888' : '#000',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 'bold',
                 fontSize: '0.9rem',
-                border: '1px solid ' + (user.plan === 'vip' ? '#b339ff' : user.plan === 'pro' ? 'var(--brand-neon)' : '#333'),
+                border: '1px solid ' + ((user.plan === 'vip' || user.plan === 'vitalicio' || user.role === 'super_admin') ? '#b339ff' : user.plan === 'pro' ? 'var(--brand-neon)' : '#333'),
                 flexShrink: 0
               }}>
                 {user.name ? user.name.substring(0, 2).toUpperCase() : 'US'}
@@ -203,7 +226,7 @@ export default function Sidebar() {
             </div>
 
             {/* Contador de Trial */}
-            {user.plan === 'gratis' && (
+            {user.plan === 'gratis' && user.role !== 'admin' && user.role !== 'super_admin' && (
               <div style={{
                 background: 'rgba(255, 152, 0, 0.05)',
                 border: '1px dashed rgba(255, 152, 0, 0.2)',
@@ -220,7 +243,7 @@ export default function Sidebar() {
 
             {/* Ações */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {user.plan === 'gratis' && (
+              {user.plan === 'gratis' && user.role !== 'admin' && user.role !== 'super_admin' && (
                 <Link href="/pricing" style={{
                   display: 'flex',
                   alignItems: 'center',

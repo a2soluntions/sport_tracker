@@ -2422,6 +2422,149 @@ export default function PalpitesPage() {
                       </div>
                     </div>
                   </div>
+
+                  {/* Projeções de Handicap Asiático */}
+                  <div style={{ background: '#1c1c24', borderRadius: '12px', border: '1px solid #333', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>⚖️ Projeções de Handicap Asiático (Escolha uma Opção)</span>
+                      <span style={{ fontSize: '0.7rem', color: '#888' }}>Clique em [Seguir] para registrar na Banca (R$ 50)</span>
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '220px', overflowY: 'auto', paddingRight: '4px' }} className="no-scrollbar">
+                      {[
+                        { label: `${game.home} AH 0.0`, prob: game.stats.probCasaAH00, name: `Casa AH 0.0` },
+                        { label: `${game.away} AH 0.0`, prob: game.stats.probForaAH00, name: `Fora AH 0.0` },
+                        { label: `${game.home} AH +0.5 (Dupla Chance)`, prob: game.stats.probHome + game.stats.probDraw, name: `Casa AH +0.5` },
+                        { label: `${game.away} AH +0.5 (Dupla Chance)`, prob: game.stats.probAway + game.stats.probDraw, name: `Fora AH +0.5` },
+                        { label: `${game.home} AH -1.0`, prob: game.stats.probCasaAH10, name: `Casa AH -1.0` },
+                        { label: `${game.away} AH -1.0`, prob: game.stats.probForaAH10, name: `Fora AH -1.0` },
+                        { label: `${game.home} AH -1.5`, prob: game.stats.probCasaAH15, name: `Casa AH -1.5` },
+                        { label: `${game.away} AH -1.5`, prob: game.stats.probForaAH15, name: `Fora AH -1.5` },
+                        { label: `${game.home} AH +1.0`, prob: game.stats.probCasaAH10Pos, name: `Casa AH +1.0` },
+                        { label: `${game.away} AH +1.0`, prob: game.stats.probForaAH10Pos, name: `Fora AH +1.0` }
+                      ].map((item, idx) => {
+                        const fairOdd = item.prob > 0 ? (1 / item.prob).toFixed(2) : '1.01';
+                        const pct = (item.prob * 100).toFixed(1);
+                        
+                        // Verificar se esta seleção já foi seguida
+                        const desc = `[Palpite] ${game.home} x ${game.away} (${item.name})`;
+                        const followed = transactions.some(t => t.description === desc);
+
+                        return (
+                          <div 
+                            key={idx} 
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              justifyContent: 'space-between', 
+                              background: '#111', 
+                              padding: '8px 12px', 
+                              borderRadius: '8px', 
+                              border: '1px solid #222' 
+                            }}
+                          >
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#fff' }}>{item.label}</span>
+                              <span style={{ fontSize: '0.72rem', color: '#aaa' }}>
+                                Probabilidade: <strong style={{ color: '#4CAF50' }}>{pct}%</strong> | Odd Justa: <strong style={{ color: 'var(--brand-neon)' }}>@{fairOdd}</strong>
+                              </span>
+                            </div>
+                            
+                            <button
+                              onClick={async () => {
+                                if (followed) return;
+                                const selection = item.name;
+                                const defaultStake = 50;
+                                const odd = parseFloat(fairOdd);
+                                const followDesc = `[Palpite] ${game.home} x ${game.away} (${selection})`;
+                                
+                                let type = 'pendente';
+                                let finalOddVal = odd;
+                                let finalDesc = followDesc;
+                                
+                                if (game.isFinished) {
+                                  const isHit = evaluateSelection(selection, game.goalsHome, game.goalsAway);
+                                  type = isHit === false ? 'perda' : 'ganho';
+                                  if (isHit === null) {
+                                    finalOddVal = 1.0;
+                                    finalDesc = followDesc + ' [DEVOLVIDA]';
+                                  }
+                                }
+
+                                const newTx = {
+                                  date: getLocalDateString(),
+                                  type,
+                                  amount: defaultStake,
+                                  description: finalDesc,
+                                  odd: finalOddVal
+                                };
+
+                                let success = false;
+                                let savedTx = null;
+
+                                const userTxsKey = `ev_tracker_banca_txs_${user?.id || 'guest'}`;
+                                const userTxIdsKey = `ev_tracker_user_tx_ids_${user?.id || 'guest'}`;
+
+                                if (supabase && user) {
+                                  try {
+                                    const txToUpload = { ...newTx, user_id: user.id };
+                                    const { data, error } = await supabase
+                                      .from('banca_transactions')
+                                      .insert([txToUpload])
+                                      .select();
+
+                                    if (error) throw error;
+                                    if (data && data.length > 0) {
+                                      savedTx = data[0];
+                                      success = true;
+                                      const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+                                      userTxIds.push(savedTx.id);
+                                      localStorage.setItem(userTxIdsKey, JSON.stringify(userTxIds));
+                                    }
+                                  } catch (err) {
+                                    console.warn("Erro ao salvar no Supabase (usando fallback local):", err);
+                                  }
+                                }
+
+                                if (!success) {
+                                  savedTx = { id: Date.now(), ...newTx };
+                                  const savedTxs = localStorage.getItem(userTxsKey);
+                                  let txList = [];
+                                  if (savedTxs) {
+                                    try {
+                                      txList = JSON.parse(savedTxs);
+                                    } catch (e) {}
+                                  }
+                                  txList = [savedTx, ...txList];
+                                  localStorage.setItem(userTxsKey, JSON.stringify(txList));
+                                  success = true;
+                                }
+
+                                if (success && savedTx) {
+                                  setTransactions(prev => [savedTx, ...prev]);
+                                  showToast(`Seguindo ${selection} (R$ 50 @${fairOdd}) registrado na Banca!`, 'success');
+                                }
+                              }}
+                              disabled={followed}
+                              style={{
+                                background: followed ? 'rgba(76, 175, 80, 0.15)' : 'var(--brand-neon)',
+                                color: followed ? '#4CAF50' : '#000',
+                                border: 'none',
+                                padding: '6px 12px',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold',
+                                cursor: followed ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              {followed ? 'Seguido ✓' : 'Seguir'}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
                 </div>
               )}
 

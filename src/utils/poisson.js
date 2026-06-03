@@ -144,6 +144,9 @@ export function calculatePoissonMatchStats(homeXG, awayXG, isLive = false, minut
   const probCasaAH10Pos = probAH10Pos_home_den > 0 ? (probAH10Pos_home_num / probAH10Pos_home_den) : 1;
   const probForaAH10Pos = probAH10Pos_away_den > 0 ? (probAH10Pos_away_num / probAH10Pos_away_den) : 1;
 
+  const probCasaAH15 = probAH15_home;
+  const probForaAH15 = probAH15_away;
+
   // Identifica o melhor palpite para o jogo (com inteligência de aposta / valor +EV)
   let bestTip = { market: '', selection: '', prob: 0, odd: 0 };
 

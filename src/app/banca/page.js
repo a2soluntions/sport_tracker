@@ -75,6 +75,22 @@ const evaluateSelection = (selection, gh, ga) => {
   if (!selection) return true;
   const cleanSel = selection.trim().toLowerCase();
   
+  // Handicap Asiático (ex: "casa ah -1.0", "fora ah 0.0", "casa ah +1.5")
+  if (cleanSel.includes('ah') || cleanSel.includes('handicap')) {
+    const isHome = cleanSel.includes('casa');
+    const isAway = cleanSel.includes('fora');
+    const valueMatch = cleanSel.match(/[+-]?\d+(?:\.\d+)?/);
+    if (valueMatch && (isHome || isAway)) {
+      const hc = parseFloat(valueMatch[0]);
+      const diff = isHome ? (gh - ga) : (ga - gh);
+      const total = diff + hc;
+      
+      if (total > 0) return true;      // Venceu
+      if (total < 0) return false;     // Perdeu
+      return null;                     // Reembolso (Aposta nula/devolvida)
+    }
+  }
+
   // 1X2
   if (cleanSel === 'casa' || cleanSel === 'casa vence' || cleanSel === 'casa vencer') return gh > ga;
   if (cleanSel === 'fora' || cleanSel === 'fora vence' || cleanSel === 'fora vencer') return ga > gh;
@@ -401,29 +417,47 @@ export default function GestaoBancaPage() {
           if (game && game.isFinished) {
             const gh = game.goalsHome;
             const ga = game.goalsAway;
-            let isHit = true;
+            let isHit = true; // true = ganho, false = perda, null = reembolso (devolvida)
 
             const selections = selectionsStr.split(',').map(s => s.trim()).filter(Boolean);
             if (selections.length === 0) {
               isHit = false;
             } else {
+              let hasRefund = false;
               for (const sel of selections) {
-                if (!evaluateSelection(sel, gh, ga)) {
+                const res = evaluateSelection(sel, gh, ga);
+                if (res === false) {
                   isHit = false;
+                  hasRefund = false;
                   break;
+                } else if (res === null) {
+                  hasRefund = true;
                 }
+              }
+              if (isHit !== false && hasRefund) {
+                isHit = null; // Aposta devolvida (anulada)
               }
             }
 
-            const resolvedType = isHit ? 'ganho' : 'perda';
+            const resolvedType = isHit === false ? 'perda' : 'ganho';
+            const finalOdd = isHit === null ? 1.0 : t.odd;
+            
             t.type = resolvedType;
+            t.odd = finalOdd;
+            if (isHit === null && !t.description.includes('[DEVOLVIDA]')) {
+              t.description = t.description + ' [DEVOLVIDA]';
+            }
             didUpdate = true;
 
             // Atualizar no Supabase
             if (supabase) {
               await supabase
                 .from('banca_transactions')
-                .update({ type: resolvedType })
+                .update({ 
+                  type: resolvedType, 
+                  odd: finalOdd,
+                  description: t.description
+                })
                 .eq('id', t.id);
             }
           }

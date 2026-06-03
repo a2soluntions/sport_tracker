@@ -227,6 +227,81 @@ const getLeagueLogoUrl = (leagueIdOrName) => {
   return '';
 };
 
+const evaluateSelection = (selection, gh, ga) => {
+  if (!selection) return true;
+  const cleanSel = selection.trim().toLowerCase();
+  
+  // Handicap Asiático (ex: "casa ah -1.0", "fora ah 0.0", "casa ah +1.5")
+  if (cleanSel.includes('ah') || cleanSel.includes('handicap')) {
+    const isHome = cleanSel.includes('casa');
+    const isAway = cleanSel.includes('fora');
+    const valueMatch = cleanSel.match(/[+-]?\d+(?:\.\d+)?/);
+    if (valueMatch && (isHome || isAway)) {
+      const hc = parseFloat(valueMatch[0]);
+      const diff = isHome ? (gh - ga) : (ga - gh);
+      const total = diff + hc;
+      
+      if (total > 0) return true;      // Venceu
+      if (total < 0) return false;     // Perdeu
+      return null;                     // Reembolso (Aposta nula/devolvida)
+    }
+  }
+
+  // 1X2
+  if (cleanSel === 'casa' || cleanSel === 'casa vence' || cleanSel === 'casa vencer') return gh > ga;
+  if (cleanSel === 'fora' || cleanSel === 'fora vence' || cleanSel === 'fora vencer') return ga > gh;
+  if (cleanSel === 'empate') return gh === ga;
+  
+  // Ambos marcam
+  if (cleanSel.includes('ambos marcam') || cleanSel.includes('ambas marcam')) {
+    if (cleanSel.includes('sim')) return gh > 0 && ga > 0;
+    if (cleanSel.includes('nã') || cleanSel.includes('na')) return !(gh > 0 && ga > 0);
+  }
+  if (cleanSel === 'sim') return gh > 0 && ga > 0;
+  if (cleanSel === 'não' || cleanSel === 'nao') return !(gh > 0 && ga > 0);
+  
+  // Placar Exato (e.g. Placar 1x0)
+  const placarMatch = cleanSel.match(/placar\s+(\d+)\s*[x-]\s*(\d+)/);
+  if (placarMatch) {
+    const targetH = parseInt(placarMatch[1]);
+    const targetA = parseInt(placarMatch[2]);
+    return gh === targetH && ga === targetA;
+  }
+  
+  const isGoalMarket = !cleanSel.includes('escanteio') && !cleanSel.includes('canto') && !cleanSel.includes('cartã') && !cleanSel.includes('cartao') && !cleanSel.includes('amarelo') && !cleanSel.includes('vermelho');
+
+  if (isGoalMarket) {
+    // Fora Acima/Abaixo
+    const foraOverMatch = cleanSel.match(/fora\s+(?:acima|mais)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
+    if (foraOverMatch) {
+      const val = parseFloat(foraOverMatch[1]);
+      return ga > val;
+    }
+    const foraUnderMatch = cleanSel.match(/fora\s+(?:abaixo|menos)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
+    if (foraUnderMatch) {
+      const val = parseFloat(foraUnderMatch[1]);
+      return ga < val;
+    }
+
+    // Acima/Mais de Z Gols
+    const overMatch = cleanSel.match(/(?:acima|mais)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
+    if (overMatch) {
+      const val = parseFloat(overMatch[1]);
+      return (gh + ga) > val;
+    }
+    
+    // Abaixo/Menos de Z Gols
+    const underMatch = cleanSel.match(/(?:abaixo|menos)\s*(?:de)?\s*(\d+(?:\.\d+)?)/);
+    if (underMatch) {
+      const val = parseFloat(underMatch[1]);
+      return (gh + ga) < val;
+    }
+  }
+
+  // Outros (Marcadores, Cartões, etc.) fallback to true if the match finished
+  return true;
+};
+
 const getBookmakerOdds = (confronto, selection, fairOdd) => {
   if (!confronto) return [];
   const baseOdd = Number(fairOdd) || 2.00;
@@ -489,6 +564,19 @@ export default function PalpitesPage() {
           { label: 'Casa Vence', prob: stats.probHome, odd: getOdd(stats.probHome), market: '1X2' },
           { label: 'Empate', prob: stats.probDraw, odd: getOdd(stats.probDraw), market: '1X2' },
           { label: 'Fora Vence', prob: stats.probAway, odd: getOdd(stats.probAway), market: '1X2' }
+        ]
+      },
+      {
+        category: 'Handicap Asiático (AH)',
+        items: [
+          { label: 'Casa AH 0.0', prob: stats.probCasaAH00, odd: getOdd(stats.probCasaAH00), market: 'Handicap' },
+          { label: 'Fora AH 0.0', prob: stats.probForaAH00, odd: getOdd(stats.probForaAH00), market: 'Handicap' },
+          { label: 'Casa AH -1.0', prob: stats.probCasaAH10, odd: getOdd(stats.probCasaAH10), market: 'Handicap' },
+          { label: 'Fora AH -1.0', prob: stats.probForaAH10, odd: getOdd(stats.probForaAH10), market: 'Handicap' },
+          { label: 'Casa AH -1.5', prob: stats.probCasaAH15, odd: getOdd(stats.probCasaAH15), market: 'Handicap' },
+          { label: 'Fora AH -1.5', prob: stats.probForaAH15, odd: getOdd(stats.probForaAH15), market: 'Handicap' },
+          { label: 'Casa AH +1.0', prob: stats.probCasaAH10Pos, odd: getOdd(stats.probCasaAH10Pos), market: 'Handicap' },
+          { label: 'Fora AH +1.0', prob: stats.probForaAH10Pos, odd: getOdd(stats.probForaAH10Pos), market: 'Handicap' }
         ]
       },
       {
@@ -842,24 +930,27 @@ export default function PalpitesPage() {
           if (game && game.isFinished) {
             const gh = game.goalsHome;
             const ga = game.goalsAway;
-            let isHit = false;
+            const isHit = evaluateSelection(bestTip, gh, ga); // true = ganho, false = perda, null = reembolso (devolvida)
 
-            if (bestTip === 'Casa' || bestTip === 'Casa Vence') isHit = gh > ga;
-            else if (bestTip === 'Fora' || bestTip === 'Fora Vence') isHit = ga > gh;
-            else if (bestTip === 'Empate') isHit = gh === ga;
-            else if (bestTip === 'Mais de 2.5 Gols') isHit = (gh + ga) > 2;
-            else if (bestTip === 'Menos de 2.5 Gols') isHit = (gh + ga) < 3;
-            else if (bestTip === 'Ambos Marcam' || bestTip === 'Sim' || bestTip === 'Ambas Marcam') isHit = gh > 0 && ga > 0;
+            const resolvedType = isHit === false ? 'perda' : 'ganho';
+            const finalOdd = isHit === null ? 1.0 : t.odd;
 
-            const resolvedType = isHit ? 'ganho' : 'perda';
             t.type = resolvedType;
+            t.odd = finalOdd;
+            if (isHit === null && !t.description.includes('[DEVOLVIDA]')) {
+              t.description = t.description + ' [DEVOLVIDA]';
+            }
             didUpdate = true;
 
             // Atualizar no Supabase
             if (supabase) {
               await supabase
                 .from('banca_transactions')
-                .update({ type: resolvedType })
+                .update({ 
+                  type: resolvedType, 
+                  odd: finalOdd,
+                  description: t.description
+                })
                 .eq('id', t.id);
             }
           }
@@ -946,27 +1037,26 @@ export default function PalpitesPage() {
     const desc = `[Palpite] ${game.home} x ${game.away} (${bestTip})`;
     
     let type = 'pendente';
+    let followOddVal = odd;
+    let followDesc = desc;
     if (game.isFinished) {
       const gh = game.goalsHome;
       const ga = game.goalsAway;
-      let isHit = false;
+      const isHit = evaluateSelection(bestTip, gh, ga); // true = ganho, false = perda, null = reembolso (devolvida)
 
-      if (bestTip === 'Casa' || bestTip === 'Casa Vence') isHit = gh > ga;
-      else if (bestTip === 'Fora' || bestTip === 'Fora Vence') isHit = ga > gh;
-      else if (bestTip === 'Empate') isHit = gh === ga;
-      else if (bestTip === 'Mais de 2.5 Gols') isHit = (gh + ga) > 2;
-      else if (bestTip === 'Menos de 2.5 Gols') isHit = (gh + ga) < 3;
-      else if (bestTip === 'Ambos Marcam' || bestTip === 'Sim' || bestTip === 'Ambas Marcam') isHit = gh > 0 && ga > 0;
-
-      type = isHit ? 'ganho' : 'perda';
+      type = isHit === false ? 'perda' : 'ganho';
+      if (isHit === null) {
+        followOddVal = 1.0;
+        followDesc = desc + ' [DEVOLVIDA]';
+      }
     }
 
     const newTx = {
       date: getLocalDateString(),
       type,
       amount,
-      description: desc,
-      odd
+      description: followDesc,
+      odd: followOddVal
     };
 
     let success = false;

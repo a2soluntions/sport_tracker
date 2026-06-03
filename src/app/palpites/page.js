@@ -418,6 +418,7 @@ export default function PalpitesPage() {
   // Novos estados para Filtro de Ligas e Data
   const [selectedLeague, setSelectedLeague] = useState('all'); // default to load all games
   const [selectedDate, setSelectedDate] = useState(() => getLocalDateString());
+  const [showMathExplanation, setShowMathExplanation] = useState(false);
 
   // Estados do Controle de Banca integrado
   const [transactions, setTransactions] = useState([]);
@@ -1349,6 +1350,64 @@ export default function PalpitesPage() {
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0, 210, 255, 0.05)', border: '1px solid rgba(0, 210, 255, 0.2)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.78rem', color: '#00d2ff' }}>
             <Calculator size={14} style={{ flexShrink: 0 }} />
             <span>Cotações simuladas pelo modelo Poisson da <strong>A2 Solutions</strong>. Diferenças de valor comparadas às casas reais (ex: Betano @1.42 vs App @1.49) não representam atraso ou delay, e sim projeções matemáticas exclusivas de valor!</span>
+          </div>
+          
+          {/* Caixa de Explicação Matemática */}
+          <div style={{ 
+            background: 'rgba(204, 255, 0, 0.02)', 
+            border: showMathExplanation ? '1px solid rgba(204, 255, 0, 0.25)' : '1px solid rgba(255, 255, 255, 0.05)', 
+            borderRadius: '8px', 
+            padding: '12px 16px', 
+            transition: 'all 0.3s ease'
+          }}>
+            <div 
+              onClick={() => setShowMathExplanation(!showMathExplanation)}
+              style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between', 
+                cursor: 'pointer',
+                userSelect: 'none'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', color: showMathExplanation ? 'var(--brand-neon)' : '#ccc', fontWeight: 'bold' }}>
+                <Calculator size={14} color={showMathExplanation ? 'var(--brand-neon)' : '#ccc'} />
+                <span>💡 Como o robô escolhe matematicamente o melhor palpite e Handicap?</span>
+              </div>
+              <span style={{ fontSize: '0.8rem', color: '#888' }}>
+                {showMathExplanation ? '▲ Recolher' : '▼ Expandir Explicação'}
+              </span>
+            </div>
+            
+            {showMathExplanation && (
+              <div style={{ 
+                marginTop: '12px', 
+                fontSize: '0.8rem', 
+                color: '#aaa', 
+                lineHeight: '1.5',
+                borderTop: '1px dashed rgba(255, 255, 255, 0.1)',
+                paddingTop: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                animation: 'fadeIn 0.2s ease-out'
+              }}>
+                <p style={{ margin: 0 }}>
+                  Nosso modelo calcula as probabilidades para centenas de cenários usando a <strong>distribuição de Poisson</strong> baseada no xG (gols esperados). A escolha da melhor dica (Handicap ou mercado seco) segue regras estritas de valor:
+                </p>
+                <ul style={{ margin: '0 0 0 20px', padding: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <li>
+                    <strong style={{ color: '#fff' }}>Super Favoritos (Vitória simples &gt; 65%):</strong> Em vez de sugerir odds baixas, o robô busca o <strong>Handicap -1.5</strong> (se probabilidade de vitória por 2+ gols for &gt; 52%) ou o <strong>Handicap -1.0</strong> (se probabilidade condicional for &gt; 55%), que protege o capital devolvendo a aposta em vitória simples de 1 gol.
+                  </li>
+                  <li>
+                    <strong style={{ color: '#fff' }}>Confrontos Equilibrados (Vitória simples &lt; 48%):</strong> Se houver grande chance de empate, o robô sugere o <strong>Handicap 0.0 (Empate Anula Aposta)</strong> caso sua probabilidade ajustada seja &gt; 65%, neutralizando o risco de perda.
+                  </li>
+                  <li>
+                    <strong style={{ color: '#fff' }}>Cenários Alternativos:</strong> Se nenhum handicap atender aos critérios de valor mínimo, o sistema avalia as chances de <strong>Ambas Marcam</strong> (BTTS &gt; 55%), <strong>Mais de 2.5 Gols</strong> (Over &gt; 50%), ou reverte para mercado seco (1X2 ou Empate).
+                  </li>
+                </ul>
+              </div>
+            )}
           </div>
         </div>
       </header>

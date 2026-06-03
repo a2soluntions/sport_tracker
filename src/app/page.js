@@ -83,33 +83,25 @@ const getLeagueLogoUrl = (leagueIdOrName) => {
   if (!leagueIdOrName) return '';
   const val = String(leagueIdOrName).toLowerCase().trim();
   
-  const idMapping = {
-    '1': '/copadomundo.png',
-    '13': '/libertadores.jpg',
-    '12': '/sudamericana.png',
-    '71': 'https://flagcdn.com/w40/br.png',
-    '72': 'https://flagcdn.com/w40/br.png',
-    '73': 'https://flagcdn.com/w40/br.png',
-    '39': 'https://flagcdn.com/w40/gb.png',
-    '140': 'https://flagcdn.com/w40/es.png',
-    '135': 'https://flagcdn.com/w40/it.png',
-    '78': 'https://flagcdn.com/w40/de.png'
-  };
-  
-  if (idMapping[val]) {
-    return idMapping[val];
+  if (!isNaN(parseInt(val))) {
+    return `https://media.api-sports.io/football/leagues/${val}.png`;
   }
   
-  if (val.includes('copa do mundo')) return '/copadomundo.png';
-  if (val.includes('libertadores')) return '/libertadores.jpg';
-  if (val.includes('sudamericana')) return '/sudamericana.png';
-  if (val.includes('brasileirão') || val.includes('brasileirao') || val.includes('série a') || val.includes('série b') || val.includes('série c') || val.includes('copa do brasil')) {
-    return 'https://flagcdn.com/w40/br.png';
+  if (val.includes('copa do mundo')) return 'https://media.api-sports.io/football/leagues/1.png';
+  if (val.includes('libertadores')) return 'https://media.api-sports.io/football/leagues/13.png';
+  if (val.includes('sudamericana')) return 'https://media.api-sports.io/football/leagues/12.png';
+  if (val.includes('série a') || val.includes('série-a') || val.includes('serie a')) {
+    if (val.includes('itália') || val.includes('italia') || val.includes('italy')) return 'https://media.api-sports.io/football/leagues/135.png';
+    return 'https://media.api-sports.io/football/leagues/71.png';
   }
-  if (val.includes('premier')) return 'https://flagcdn.com/w40/gb.png';
-  if (val.includes('la liga') || val.includes('espanha')) return 'https://flagcdn.com/w40/es.png';
-  if (val.includes('serie a') && (val.includes('itália') || val.includes('italia'))) return 'https://flagcdn.com/w40/it.png';
-  if (val.includes('bundesliga') || val.includes('alemanha')) return 'https://flagcdn.com/w40/de.png';
+  if (val.includes('série b') || val.includes('série-b') || val.includes('serie b')) return 'https://media.api-sports.io/football/leagues/72.png';
+  if (val.includes('série c') || val.includes('série-c') || val.includes('serie c')) return 'https://media.api-sports.io/football/leagues/75.png';
+  if (val.includes('premier')) return 'https://media.api-sports.io/football/leagues/39.png';
+  if (val.includes('la liga') || val.includes('espanha')) return 'https://media.api-sports.io/football/leagues/140.png';
+  if (val.includes('bundesliga') || val.includes('alemanha')) return 'https://media.api-sports.io/football/leagues/78.png';
+  if (val.includes('europa league')) return 'https://media.api-sports.io/football/leagues/3.png';
+  if (val.includes('conference league')) return 'https://media.api-sports.io/football/leagues/848.png';
+  if (val.includes('argentina')) return 'https://media.api-sports.io/football/leagues/44.png';
   
   return '';
 };

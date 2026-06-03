@@ -245,10 +245,13 @@ export default function GestaoBancaPage() {
 
     async function loadFixtures() {
       try {
-        const [resA, resB, resC] = await Promise.all([
+        const [resA, resB, resC, resEuropa, resConf, resArg] = await Promise.all([
           fetch('/api/football/fixtures?league=71&all=true'),
           fetch('/api/football/fixtures?league=72&all=true'),
-          fetch('/api/football/fixtures?league=75&all=true')
+          fetch('/api/football/fixtures?league=75&all=true'),
+          fetch('/api/football/fixtures?league=3&all=true'),
+          fetch('/api/football/fixtures?league=848&all=true'),
+          fetch('/api/football/fixtures?league=44&all=true')
         ]);
         let allFixtures = [];
         if (resA.ok) {
@@ -262,6 +265,18 @@ export default function GestaoBancaPage() {
         if (resC.ok) {
           const dataC = await resC.json();
           if (dataC.fixtures) allFixtures = [...allFixtures, ...dataC.fixtures];
+        }
+        if (resEuropa.ok) {
+          const dataE = await resEuropa.json();
+          if (dataE.fixtures) allFixtures = [...allFixtures, ...dataE.fixtures];
+        }
+        if (resConf.ok) {
+          const dataCO = await resConf.json();
+          if (dataCO.fixtures) allFixtures = [...allFixtures, ...dataCO.fixtures];
+        }
+        if (resArg.ok) {
+          const dataAR = await resArg.json();
+          if (dataAR.fixtures) allFixtures = [...allFixtures, ...dataAR.fixtures];
         }
         setFixtures(allFixtures);
         return allFixtures;

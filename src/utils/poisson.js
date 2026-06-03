@@ -147,51 +147,52 @@ export function calculatePoissonMatchStats(homeXG, awayXG, isLive = false, minut
   const probCasaAH15 = probAH15_home;
   const probForaAH15 = probAH15_away;
 
-  // Identifica o melhor palpite para o jogo (com inteligência de aposta / valor +EV)
+  // 1. Identifica o palpite PADRÃO (seco, sem handicap) mais interessante para a tela principal
   let bestTip = { market: '', selection: '', prob: 0, odd: 0 };
 
+  if (probHome > 0.45 && probHome > probAway) {
+    bestTip = { market: '1X2', selection: 'Casa Vence', prob: probHome, odd: 1 / probHome };
+  } else if (probAway > 0.40 && probAway > probHome) {
+    bestTip = { market: '1X2', selection: 'Fora Vence', prob: probAway, odd: 1 / probAway };
+  } else if (probOver25 > 0.50) {
+    bestTip = { market: 'Gols', selection: 'Mais de 2.5 Gols', prob: probOver25, odd: 1 / probOver25 };
+  } else if (probBtts > 0.55) {
+    bestTip = { market: 'Ambas Marcam', selection: 'Sim', prob: probBtts, odd: 1 / probBtts };
+  } else if (probHome > 0.38 && probHome > probAway) {
+    bestTip = { market: '1X2', selection: 'Casa Vence', prob: probHome, odd: 1 / probHome };
+  } else if (probAway > 0.35 && probAway > probHome) {
+    bestTip = { market: '1X2', selection: 'Fora Vence', prob: probAway, odd: 1 / probAway };
+  } else {
+    bestTip = { market: '1X2', selection: 'Empate', prob: probDraw, odd: 1 / probDraw };
+  }
+
+  // 2. Identifica se existe uma BOA OPORTUNIDADE DE HANDICAP para servir como Alerta/Proteção
+  let bestHandicapTip = null;
   const probCasaAH05 = probHome + probDraw;
   const probForaAH05 = probAway + probDraw;
 
   if (probHome > 0.65 && probAH10_home_num > 0.55) {
     if (probAH15_home > 0.52) {
-      bestTip = { market: 'Handicap Asiático', selection: 'Casa AH -1.5', prob: probAH15_home, odd: 1 / probAH15_home };
+      bestHandicapTip = { market: 'Handicap Asiático', selection: 'Casa AH -1.5', prob: probAH15_home, odd: 1 / probAH15_home };
     } else {
       const probCond10 = probAH10_home_num / (probAH10_home_den || 1);
-      bestTip = { market: 'Handicap Asiático', selection: 'Casa AH -1.0', prob: probCond10, odd: 1 / probCond10 };
+      bestHandicapTip = { market: 'Handicap Asiático', selection: 'Casa AH -1.0', prob: probCond10, odd: 1 / probCond10 };
     }
   } else if (probAway > 0.60 && probAH10_away_num > 0.55) {
     if (probForaAH15 > 0.52) {
-      bestTip = { market: 'Handicap Asiático', selection: 'Fora AH -1.5', prob: probForaAH15, odd: 1 / probForaAH15 };
+      bestHandicapTip = { market: 'Handicap Asiático', selection: 'Fora AH -1.5', prob: probForaAH15, odd: 1 / probForaAH15 };
     } else {
       const probCond10 = probAH10_away_num / (probAH10_away_den || 1);
-      bestTip = { market: 'Handicap Asiático', selection: 'Fora AH -1.0', prob: probCond10, odd: 1 / probCond10 };
+      bestHandicapTip = { market: 'Handicap Asiático', selection: 'Fora AH -1.0', prob: probCond10, odd: 1 / probCond10 };
     }
   } else if (probHome > 0.38 && probCasaAH00 > 0.55) {
-    bestTip = { market: 'Handicap Asiático', selection: 'Casa AH 0.0', prob: probCasaAH00, odd: 1 / probCasaAH00 };
+    bestHandicapTip = { market: 'Handicap Asiático', selection: 'Casa AH 0.0', prob: probCasaAH00, odd: 1 / probCasaAH00 };
   } else if (probAway > 0.33 && probForaAH00 > 0.55) {
-    bestTip = { market: 'Handicap Asiático', selection: 'Fora AH 0.0', prob: probForaAH00, odd: 1 / probForaAH00 };
-  } else if (probHome > 0.45) {
-    bestTip = { market: '1X2', selection: 'Casa Vence', prob: probHome, odd: 1 / probHome };
-  } else if (probAway > 0.40) {
-    bestTip = { market: '1X2', selection: 'Fora Vence', prob: probAway, odd: 1 / probAway };
+    bestHandicapTip = { market: 'Handicap Asiático', selection: 'Fora AH 0.0', prob: probForaAH00, odd: 1 / probForaAH00 };
   } else if (probCasaAH05 > 0.65 && probHome > probAway) {
-    bestTip = { market: 'Handicap Asiático', selection: 'Casa AH +0.5', prob: probCasaAH05, odd: 1 / probCasaAH05 };
+    bestHandicapTip = { market: 'Handicap Asiático', selection: 'Casa AH +0.5', prob: probCasaAH05, odd: 1 / probCasaAH05 };
   } else if (probForaAH05 > 0.65 && probAway > probHome) {
-    bestTip = { market: 'Handicap Asiático', selection: 'Fora AH +0.5', prob: probForaAH05, odd: 1 / probForaAH05 };
-  } else if (probOver25 > 0.50) {
-    bestTip = { market: 'Gols', selection: 'Mais de 2.5 Gols', prob: probOver25, odd: 1 / probOver25 };
-  } else if (probBtts > 0.55) {
-    bestTip = { market: 'Ambas Marcam', selection: 'Sim', prob: probBtts, odd: 1 / probBtts };
-  } else if (probDraw > 0.30) {
-    bestTip = { market: '1X2', selection: 'Empate', prob: probDraw, odd: 1 / probDraw };
-  } else {
-    // Fallback de alta probabilidade (Double Chance / AH +0.5 do time favorito / mais forte no jogo)
-    if (probHome >= probAway) {
-      bestTip = { market: 'Handicap Asiático', selection: 'Casa AH +0.5', prob: probCasaAH05, odd: 1 / probCasaAH05 };
-    } else {
-      bestTip = { market: 'Handicap Asiático', selection: 'Fora AH +0.5', prob: probForaAH05, odd: 1 / probForaAH05 };
-    }
+    bestHandicapTip = { market: 'Handicap Asiático', selection: 'Fora AH +0.5', prob: probForaAH05, odd: 1 / probForaAH05 };
   }
 
   return {
@@ -215,7 +216,8 @@ export function calculatePoissonMatchStats(homeXG, awayXG, isLive = false, minut
     probForaAH10Pos,
     probAH15Pos_home,
     probAH15Pos_away,
-    bestTip
+    bestTip,
+    bestHandicapTip
   };
 }
 

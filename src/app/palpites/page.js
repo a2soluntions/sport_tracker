@@ -1888,18 +1888,77 @@ export default function PalpitesPage() {
                   {/* Bloco 3: Destaque do Palpite & Ações */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: '2 1 300px', width: '100%' }}>
                     {/* Card de Palpite */}
-                    <div className="game-card-highlight" style={{ flex: 'none' }}>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '0.8rem', letterSpacing: '2px', color: '#888', marginBottom: '4px' }}>P A L P I T E</div>
-                        <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px', color: '#fff' }}>{game.stats.bestTip.selection}</div>
-                        <div style={{ fontSize: '0.9rem', color: '#aaa' }}>Probabilidade <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>{formatPct(game.stats.bestTip.prob)}%</span></div>
+                    <div className="game-card-highlight" style={{ flex: 'none', flexDirection: 'column', alignItems: 'stretch', gap: '12px', padding: '16px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: '12px' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: '0.8rem', letterSpacing: '2px', color: '#888', marginBottom: '4px' }}>P A L P I T E</div>
+                          <div style={{ fontSize: '1.2rem', fontWeight: 'bold', marginBottom: '8px', color: '#fff' }}>{game.stats.bestTip.selection}</div>
+                          <div style={{ fontSize: '0.9rem', color: '#aaa' }}>Probabilidade <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>{formatPct(game.stats.bestTip.prob)}%</span></div>
+                        </div>
+                        
+                        {/* ODD Verde Redonda */}
+                        <div style={{ background: '#4CAF50', width: '70px', height: '70px', borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 4px 15px rgba(76, 175, 80, 0.4)', flexShrink: 0 }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>ODD</div>
+                          <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>@{formatOdd(game.stats.bestTip.prob)}</div>
+                        </div>
                       </div>
-                      
-                      {/* ODD Verde Redonda */}
-                      <div style={{ background: '#4CAF50', width: '70px', height: '70px', borderRadius: '50%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#fff', boxShadow: '0 4px 15px rgba(76, 175, 80, 0.4)', flexShrink: 0 }}>
-                        <div style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>ODD</div>
-                        <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>@{formatOdd(game.stats.bestTip.prob)}</div>
-                      </div>
+
+                      {game.stats.bestHandicapTip && (
+                        <div style={{ 
+                          background: 'rgba(204, 255, 0, 0.05)', 
+                          border: '1px solid rgba(204, 255, 0, 0.25)', 
+                          borderRadius: '8px', 
+                          padding: '8px 12px', 
+                          fontSize: '0.78rem',
+                          color: 'var(--brand-neon)',
+                          fontWeight: 'bold',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          width: '100%',
+                          boxShadow: '0 2px 10px rgba(204, 255, 0, 0.05)',
+                          gap: '8px'
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                            <span style={{ fontSize: '0.9rem' }}>🛡️</span>
+                            <span>Melhor Opção (Proteção): <strong style={{ color: '#fff' }}>{game.stats.bestHandicapTip.selection}</strong> ({formatPct(game.stats.bestHandicapTip.prob)}% de chance)</span>
+                          </div>
+                          <button
+                            onClick={async () => {
+                              const selection = game.stats.bestHandicapTip.selection;
+                              const fairOdd = (1 / game.stats.bestHandicapTip.prob).toFixed(2);
+                              const fakeGame = { ...game, stats: { ...game.stats, bestTip: game.stats.bestHandicapTip } };
+                              if (isFollowed(fakeGame)) return;
+                              
+                              setActiveFollowId(game.id);
+                              setFollowOdd(fairOdd);
+                              setFollowAmount('50');
+                              showToast(`Selecionou ${selection} (@${fairOdd}) para registrar na Banca!`, 'success');
+                            }}
+                            style={{
+                              background: 'var(--brand-neon)',
+                              color: '#000',
+                              border: 'none',
+                              padding: '4px 10px',
+                              borderRadius: '4px',
+                              fontSize: '0.72rem',
+                              fontWeight: '900',
+                              cursor: 'pointer',
+                              textTransform: 'uppercase',
+                              transition: 'all 0.2s',
+                              flexShrink: 0
+                            }}
+                            onMouseEnter={(e) => {
+                              e.currentTarget.style.boxShadow = '0 0 10px var(--brand-neon)';
+                            }}
+                            onMouseLeave={(e) => {
+                              e.currentTarget.style.boxShadow = 'none';
+                            }}
+                          >
+                            {isFollowed({ ...game, stats: { ...game.stats, bestTip: game.stats.bestHandicapTip } }) ? 'Seguido' : 'Seguir'}
+                          </button>
+                        </div>
+                      )}
                     </div>
 
                     {/* Botões de Ação Reposicionados (Estatísticas, Seguir Palpite, Criar Aposta, Telegram) */}

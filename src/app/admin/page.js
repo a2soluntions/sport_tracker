@@ -678,11 +678,12 @@ export default function AdminDashboard() {
                     label: '4. Assinantes VIP Elite', 
                     val: String(financialMetrics.vipCount), 
                     subtext: `${((financialMetrics.vipCount/2450)*100).toFixed(1)}% do trial`,
-                    width: '174px', // 78% de 223
-                    polygon: 'polygon(0% 0%, 100% 0%, 50% 100%, 50% 100%)', // Triângulo invertido!
-                    bg: 'linear-gradient(to bottom, rgba(179,57,255,0.2), rgba(100,20,150,0.45))',
-                    color: '#b339ff',
-                    height: '60px' // Um pouco mais alto para o triângulo fechar legal
+                    width: '185px', // Mais largo para o texto não encavalar
+                    polygon: 'polygon(0% 0%, 100% 0%, 30% 100%, 70% 100%)', // Trapézio invertido (com base plana) em vez de triângulo fechado
+                    bg: 'linear-gradient(to bottom, rgba(179,57,255,0.25), rgba(100,20,150,0.55))',
+                    color: '#e5a3ff', // Roxo claro neon para alta visibilidade/contraste
+                    height: '65px', // Mais alto para o texto respirar
+                    padding: '2px 8px' // Menos padding lateral para maximizar a área de texto disponível
                   }
                 ].map((level, idx) => (
                   <div 
@@ -703,7 +704,7 @@ export default function AdminDashboard() {
                       textAlign: 'center',
                       boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5)',
                       textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
-                      padding: '2px 20px',
+                      padding: level.padding || '2px 20px',
                       transition: 'all 0.3s ease'
                     }}
                     title={`${level.label}: ${level.val} (${level.subtext})`}

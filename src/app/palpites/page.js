@@ -2510,7 +2510,9 @@ export default function PalpitesPage() {
                         { label: `${game.home} AH -1.5`, prob: game.stats.probCasaAH15, name: `Casa AH -1.5` },
                         { label: `${game.away} AH -1.5`, prob: game.stats.probForaAH15, name: `Fora AH -1.5` },
                         { label: `${game.home} AH +1.0`, prob: game.stats.probCasaAH10Pos, name: `Casa AH +1.0` },
-                        { label: `${game.away} AH +1.0`, prob: game.stats.probForaAH10Pos, name: `Fora AH +1.0` }
+                        { label: `${game.away} AH +1.0`, prob: game.stats.probForaAH10Pos, name: `Fora AH +1.0` },
+                        { label: `${game.home} AH +1.5 (Segurança Máxima)`, prob: game.stats.probAH15Pos_home, name: `Casa AH +1.5` },
+                        { label: `${game.away} AH +1.5 (Segurança Máxima)`, prob: game.stats.probAH15Pos_away, name: `Fora AH +1.5` }
                       ].map((item, idx) => {
                         const fairOdd = item.prob > 0 ? (1 / item.prob).toFixed(2) : '1.01';
                         const pct = (item.prob * 100).toFixed(1);

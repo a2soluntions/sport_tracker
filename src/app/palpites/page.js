@@ -188,7 +188,7 @@ const getLeagueName = (leagueId) => {
     '72': 'Brasileirão Série B',
     '75': 'Brasileirão Série C',
     '13': 'Copa Libertadores',
-    '12': 'Copa Sudamericana',
+    '12': 'Copa Sulamericana',
     '39': 'Premier League',
     '140': 'La Liga',
     '135': 'Serie A (Itália)',
@@ -205,24 +205,33 @@ const getLeagueLogoUrl = (leagueIdOrName) => {
   const val = String(leagueIdOrName).toLowerCase().trim();
   
   if (!isNaN(parseInt(val))) {
+    if (val === '71') return '/brasileiraoa.png';
+    if (val === '72') return '/brasileiraob.png';
+    if (val === '75') return '/brasileiraoc.png';
+    if (val === '78') return '/bundesliga.png';
+    if (val === '12') return '/sudamericana.png';
+    if (val === '13') return '/libertadores.png';
+    if (val === '39') return '/premierleague.png';
+    if (val === '3') return '/europaleague.png';
+    if (val === '44') return '/ligaargentina.png';
     return `https://media.api-sports.io/football/leagues/${val}.png`;
   }
   
   if (val.includes('copa do mundo')) return 'https://media.api-sports.io/football/leagues/1.png';
-  if (val.includes('libertadores')) return 'https://media.api-sports.io/football/leagues/13.png';
-  if (val.includes('sudamericana')) return 'https://media.api-sports.io/football/leagues/12.png';
+  if (val.includes('libertadores')) return '/libertadores.png';
+  if (val.includes('sudamericana') || val.includes('sulamericana') || val.includes('sul-americana')) return '/sudamericana.png';
   if (val.includes('série a') || val.includes('série-a') || val.includes('serie a')) {
     if (val.includes('itália') || val.includes('italia') || val.includes('italy')) return 'https://media.api-sports.io/football/leagues/135.png';
-    return 'https://media.api-sports.io/football/leagues/71.png';
+    return '/brasileiraoa.png';
   }
-  if (val.includes('série b') || val.includes('série-b') || val.includes('serie b')) return 'https://media.api-sports.io/football/leagues/72.png';
-  if (val.includes('série c') || val.includes('série-c') || val.includes('serie c')) return 'https://media.api-sports.io/football/leagues/75.png';
-  if (val.includes('premier')) return 'https://media.api-sports.io/football/leagues/39.png';
+  if (val.includes('série b') || val.includes('série-b') || val.includes('serie b')) return '/brasileiraob.png';
+  if (val.includes('série c') || val.includes('série-c') || val.includes('serie c')) return '/brasileiraoc.png';
+  if (val.includes('premier')) return '/premierleague.png';
   if (val.includes('la liga') || val.includes('espanha')) return 'https://media.api-sports.io/football/leagues/140.png';
-  if (val.includes('bundesliga') || val.includes('alemanha')) return 'https://media.api-sports.io/football/leagues/78.png';
-  if (val.includes('europa league')) return 'https://media.api-sports.io/football/leagues/3.png';
+  if (val.includes('bundesliga') || val.includes('alemanha')) return '/bundesliga.png';
+  if (val.includes('europa league')) return '/europaleague.png';
   if (val.includes('conference league')) return 'https://media.api-sports.io/football/leagues/848.png';
-  if (val.includes('argentina')) return 'https://media.api-sports.io/football/leagues/44.png';
+  if (val.includes('argentina')) return '/ligaargentina.png';
   
   return '';
 };
@@ -1423,7 +1432,7 @@ export default function PalpitesPage() {
                 { id: '72', name: 'Série B', iconType: 'image', icon: getLeagueLogoUrl('72') },
                 { id: '75', name: 'Série C', iconType: 'image', icon: getLeagueLogoUrl('75') },
                 { id: '13', name: 'Libertadores', iconType: 'image', icon: getLeagueLogoUrl('13') },
-                { id: '12', name: 'Sudamericana', iconType: 'image', icon: getLeagueLogoUrl('12') },
+                { id: '12', name: 'Sulamericana', iconType: 'image', icon: getLeagueLogoUrl('12') },
                 { id: '39', name: 'Premier', iconType: 'image', icon: getLeagueLogoUrl('39') },
                 { id: '140', name: 'La Liga', iconType: 'image', icon: getLeagueLogoUrl('140') },
                 { id: '135', name: 'Serie A', iconType: 'image', icon: getLeagueLogoUrl('135') },

@@ -1454,9 +1454,9 @@ export default function PalpitesPage() {
                       gap: '8px',
                       borderRadius: '6px',
                       padding: '8px 14px',
-                      border: isActive ? '1px solid #ff8c00' : '1px solid #2d6a4f',
-                      background: isActive ? '#ff8c00' : '#1b4332',
-                      color: isActive ? '#000' : '#fff',
+                      border: isActive ? '1px solid #ff8c00' : '1px solid #CCFF00',
+                      background: isActive ? '#ff8c00' : '#CCFF00',
+                      color: '#000',
                       fontSize: '0.85rem',
                       fontWeight: 'bold',
                       transition: 'all 0.2s ease',
@@ -1465,16 +1465,16 @@ export default function PalpitesPage() {
                     }}
                     onMouseEnter={(e) => {
                       if (!isActive) {
-                        e.currentTarget.style.color = '#fff';
-                        e.currentTarget.style.borderColor = '#40916c';
-                        e.currentTarget.style.background = '#2d6a4f';
+                        e.currentTarget.style.color = '#000';
+                        e.currentTarget.style.borderColor = '#b3e600';
+                        e.currentTarget.style.background = '#b3e600';
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!isActive) {
-                        e.currentTarget.style.color = '#fff';
-                        e.currentTarget.style.borderColor = '#2d6a4f';
-                        e.currentTarget.style.background = '#1b4332';
+                        e.currentTarget.style.color = '#000';
+                        e.currentTarget.style.borderColor = '#CCFF00';
+                        e.currentTarget.style.background = '#CCFF00';
                       }
                     }}
                   >

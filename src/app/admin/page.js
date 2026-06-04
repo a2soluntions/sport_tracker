@@ -675,15 +675,18 @@ export default function AdminDashboard() {
                     color: 'var(--brand-neon)'
                   },
                   { 
-                    label: '4. Assinantes VIP Elite', 
+                    label: '4. VIP Elite', 
                     val: String(financialMetrics.vipCount), 
                     subtext: `${((financialMetrics.vipCount/2450)*100).toFixed(1)}% do trial`,
-                    width: '185px', // Mais largo para o texto não encavalar
-                    polygon: 'polygon(0% 0%, 100% 0%, 30% 100%, 70% 100%)', // Trapézio invertido (com base plana) em vez de triângulo fechado
+                    width: '174px', // Restaura a geometria perfeita do funil
+                    polygon: 'polygon(0% 0%, 100% 0%, 50% 100%, 50% 100%)', // Triângulo invertido perfeito (ponta do funil)
                     bg: 'linear-gradient(to bottom, rgba(179,57,255,0.25), rgba(100,20,150,0.55))',
-                    color: '#e5a3ff', // Roxo claro neon para alta visibilidade/contraste
-                    height: '65px', // Mais alto para o texto respirar
-                    padding: '2px 8px' // Menos padding lateral para maximizar a área de texto disponível
+                    color: '#e5a3ff', // Lindo roxo claro de excelente visibilidade/contraste
+                    height: '65px',
+                    justify: 'flex-start',
+                    paddingTop: '8px',
+                    paddingLeft: '4px',
+                    paddingRight: '4px'
                   }
                 ].map((level, idx) => (
                   <div 
@@ -697,14 +700,17 @@ export default function AdminDashboard() {
                       display: 'flex',
                       flexDirection: 'column',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      justifyContent: level.justify || 'center',
                       color: level.color,
                       fontSize: '0.78rem',
                       fontWeight: 'bold',
                       textAlign: 'center',
                       boxShadow: 'inset 0 0 10px rgba(0,0,0,0.5)',
                       textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
-                      padding: level.padding || '2px 20px',
+                      paddingTop: level.paddingTop || '2px',
+                      paddingBottom: '2px',
+                      paddingLeft: level.paddingLeft || '20px',
+                      paddingRight: level.paddingRight || '20px',
                       transition: 'all 0.3s ease'
                     }}
                     title={`${level.label}: ${level.val} (${level.subtext})`}

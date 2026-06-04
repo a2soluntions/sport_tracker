@@ -31,25 +31,9 @@ export default function AdminDashboard() {
     ];
   });
 
-  // 2. Base de Usuários (Simulação)
-  const [usersBase, setUsersBase] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ev_tracker_admin_users');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
-    }
-    return [
-      { id: 'usr_1', name: 'A2 Solutions Admin', email: 'a2soluntions@gmail.com', plan: 'vitalicio', createdAt: '2026-05-01' },
-      { id: 'usr_2', name: 'Thiago Martins', email: 'thiago.bet@gmail.com', plan: 'pro', createdAt: '2026-05-12' },
-      { id: 'usr_3', name: 'Rodrigo Silva', email: 'rodrigo.palpites@hotmail.com', plan: 'gratis', createdAt: '2026-05-18' },
-      { id: 'usr_4', name: 'Felipe Santana', email: 'felipe.poisson@yahoo.com', plan: 'vip', createdAt: '2026-05-22' },
-      { id: 'usr_5', name: 'Diego Santos', email: 'diego.santos@gmail.com', plan: 'pro', createdAt: '2026-05-28' },
-      { id: 'usr_6', name: 'Carla Pereira', email: 'carla.financeiro@gmail.com', plan: 'gratis', createdAt: '2026-05-30' },
-      { id: 'usr_7', name: 'Alexandre Souza', email: 'alexandre.souza@gmail.com', plan: 'pro', createdAt: '2026-06-01' },
-      { id: 'usr_8', name: 'Marina Abreu', email: 'marina.abreu@gmail.com', plan: 'gratis', createdAt: '2026-06-01' }
-    ];
-  });
+  // 2. Base de Usuários (Reais do Supabase)
+  const [usersBase, setUsersBase] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(true);
 
   // 3. Sub-Administradores autorizados
   const [subAdmins, setSubAdmins] = useState(() => {
@@ -144,9 +128,26 @@ export default function AdminDashboard() {
     localStorage.setItem('ev_tracker_admin_gastos_categorias', JSON.stringify(gastosCategorias));
   }, [gastosCategorias]);
 
+  // Buscar usuários reais do Supabase
   useEffect(() => {
-    localStorage.setItem('ev_tracker_admin_users', JSON.stringify(usersBase));
-  }, [usersBase]);
+    async function fetchRealUsers() {
+      try {
+        setLoadingUsers(true);
+        const res = await fetch('/api/admin/users');
+        if (res.ok) {
+          const data = await res.json();
+          setUsersBase(data.users || []);
+        } else {
+          console.error('Erro ao buscar usuários do Supabase');
+        }
+      } catch (err) {
+        console.error('Falha de conexão ao carregar usuários:', err);
+      } finally {
+        setLoadingUsers(false);
+      }
+    }
+    fetchRealUsers();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('ev_tracker_admin_emails', JSON.stringify(subAdmins));
@@ -160,7 +161,7 @@ export default function AdminDashboard() {
     localStorage.setItem('ev_tracker_admin_cupons', JSON.stringify(cupons));
   }, [cupons]);
 
-  // --- CÁLCULO DE MÉTRICAS SaaS ---
+  // --- CÁLCULO DE MÉTRICAS SaaS REAL ---
   const financialMetrics = useMemo(() => {
     let proCount = 0;
     let vipCount = 0;
@@ -172,25 +173,20 @@ export default function AdminDashboard() {
       else gratisCount++;
     });
 
-    const baseMultiplier = 30;
-    const simulatedPro = proCount * baseMultiplier;
-    const simulatedVip = vipCount * baseMultiplier;
-    const simulatedTotalUsers = usersBase.length * baseMultiplier;
-
-    const mrr = (simulatedPro * 19.90) + (simulatedVip * 49.90);
+    const mrr = (proCount * 19.90) + (vipCount * 49.90);
     const totalExpenses = gastos.reduce((sum, g) => sum + g.value, 0);
     const netProfit = mrr - totalExpenses;
     const baseChurn = 2.4; 
-    const dynamicChurn = Math.max(1.2, parseFloat((baseChurn + (totalExpenses / 5000) - (simulatedVip / 500)).toFixed(1)));
+    const dynamicChurn = Math.max(1.2, parseFloat((baseChurn + (totalExpenses / 5000) - (vipCount / 500)).toFixed(1)));
 
     return {
       mrr,
       expenses: totalExpenses,
       profit: netProfit,
       churn: dynamicChurn,
-      proCount: simulatedPro,
-      vipCount: simulatedVip,
-      totalUsers: simulatedTotalUsers
+      proCount,
+      vipCount,
+      totalUsers: usersBase.length
     };
   }, [usersBase, gastos]);
 
@@ -331,14 +327,33 @@ export default function AdminDashboard() {
     setEditingExpenseCatName('');
   };
 
-  const handleToggleUserPlan = (id) => {
-    setUsersBase(prev => prev.map(u => {
-      if (u.id === id) {
-        const nextPlan = u.plan === 'gratis' ? 'pro' : u.plan === 'pro' ? 'vip' : u.plan === 'vip' ? 'vitalicio' : 'gratis';
-        return { ...u, plan: nextPlan };
+  const handleToggleUserPlan = async (id) => {
+    const userToUpdate = usersBase.find(u => u.id === id);
+    if (!userToUpdate) return;
+
+    const nextPlan = userToUpdate.plan === 'gratis' ? 'pro' : userToUpdate.plan === 'pro' ? 'vip' : userToUpdate.plan === 'vip' ? 'vitalicio' : 'gratis';
+
+    // Otimista: atualiza localmente
+    setUsersBase(prev => prev.map(u => u.id === id ? { ...u, plan: nextPlan } : u));
+
+    try {
+      const res = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ userId: id, plan: nextPlan }),
+      });
+
+      if (!res.ok) {
+        throw new Error('Falha ao atualizar plano');
       }
-      return u;
-    }));
+    } catch (e) {
+      console.error('[Admin Dashboard] Erro ao atualizar plano:', e);
+      // Reverter alteração otimista
+      setUsersBase(prev => prev.map(u => u.id === id ? { ...u, plan: userToUpdate.plan } : u));
+      alert('Erro ao atualizar plano no Supabase: ' + e.message);
+    }
   };
 
   // Verificação de Segurança (Super Admin ou Admin Secundário)
@@ -983,7 +998,16 @@ export default function AdminDashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredUsers.length === 0 ? (
+                  {loadingUsers ? (
+                    <tr>
+                      <td colSpan="3" style={{ textAlign: 'center', padding: '24px', color: 'var(--brand-neon)' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                          <RefreshCw size={20} className="spin" />
+                          <span>Carregando usuários do banco...</span>
+                        </div>
+                      </td>
+                    </tr>
+                  ) : filteredUsers.length === 0 ? (
                     <tr>
                       <td colSpan="3" style={{ textAlign: 'center', padding: '24px', color: '#666' }}>
                         Nenhum usuário encontrado.

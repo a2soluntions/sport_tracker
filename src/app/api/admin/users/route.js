@@ -1,0 +1,114 @@
+import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+
+// Criar cliente Supabase com service_role key (acesso total, server-side only)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+function getAdminSupabase() {
+  if (!supabaseUrl || !supabaseServiceKey) return null;
+  return createClient(supabaseUrl, supabaseServiceKey, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
+}
+
+// GET /api/admin/users — Lista todos os perfis
+export async function GET(request) {
+  try {
+    const supabase = getAdminSupabase();
+    
+    // Se não tem service key, tentar com anon key (fallback limitado)
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    const client = supabase || (supabaseUrl && anonKey 
+      ? createClient(supabaseUrl, anonKey) 
+      : null);
+    
+    if (!client) {
+      return NextResponse.json({ error: 'Supabase não configurado' }, { status: 500 });
+    }
+
+    const { data: profiles, error } = await client
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('[Admin API] Erro ao buscar profiles:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    // Calcular métricas SaaS
+    let proCount = 0;
+    let vipCount = 0;
+    let gratisCount = 0;
+    let vitalicioCount = 0;
+
+    (profiles || []).forEach(p => {
+      switch (p.plan) {
+        case 'pro': proCount++; break;
+        case 'vip': vipCount++; break;
+        case 'vitalicio': vitalicioCount++; break;
+        default: gratisCount++;
+      }
+    });
+
+    const mrr = (proCount * 19.90) + ((vipCount + vitalicioCount) * 49.90);
+
+    return NextResponse.json({
+      users: profiles || [],
+      metrics: {
+        totalUsers: (profiles || []).length,
+        proCount,
+        vipCount: vipCount + vitalicioCount,
+        gratisCount,
+        mrr
+      }
+    });
+  } catch (err) {
+    console.error('[Admin API] Erro interno:', err);
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+  }
+}
+
+// PATCH /api/admin/users — Atualizar plano/role de um usuário
+export async function PATCH(request) {
+  try {
+    const body = await request.json();
+    const { userId, plan, role } = body;
+
+    if (!userId) {
+      return NextResponse.json({ error: 'userId obrigatório' }, { status: 400 });
+    }
+
+    const supabase = getAdminSupabase();
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    const client = supabase || (supabaseUrl && anonKey 
+      ? createClient(supabaseUrl, anonKey) 
+      : null);
+
+    if (!client) {
+      return NextResponse.json({ error: 'Supabase não configurado' }, { status: 500 });
+    }
+
+    const updateData = {};
+    if (plan) updateData.plan = plan;
+    if (role) updateData.role = role;
+
+    const { data, error } = await client
+      .from('profiles')
+      .update(updateData)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('[Admin API] Erro ao atualizar perfil:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ user: data });
+  } catch (err) {
+    console.error('[Admin API] Erro interno:', err);
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+  }
+}

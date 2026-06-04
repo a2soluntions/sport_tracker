@@ -108,16 +108,13 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
-  // Helper para buscar perfil ou gerar mock
+  // Helper para buscar perfil do Supabase ou criar se não existir
   async function fetchOrCreateProfile(supabaseUser) {
     const metadata = supabaseUser.user_metadata || {};
     const createdAt = supabaseUser.created_at || new Date().toISOString();
-    
-    // Tenta ler plano salvo localmente para manter consistência
-    const localPlanKey = `ev_tracker_plan_${supabaseUser.id}`;
-    let savedPlan = localStorage.getItem(localPlanKey) || 'gratis';
+    const userName = metadata.name || supabaseUser.email.split('@')[0];
 
-    // Lista de administradores secundários cadastrados localmente
+    // Determinar role baseado no e-mail
     let adminEmails = [];
     try {
       const savedAdmins = localStorage.getItem('ev_tracker_admin_emails');
@@ -128,21 +125,71 @@ export function AuthProvider({ children }) {
 
     const isSuperAdmin = supabaseUser.email === 'a2soluntions@gmail.com';
     const isSubAdmin = adminEmails.includes(supabaseUser.email);
-    
-    let role = 'user';
-    if (isSuperAdmin) {
-      role = 'super_admin';
-      savedPlan = 'vitalicio';
-    } else if (isSubAdmin) {
-      role = 'admin';
+    let role = isSuperAdmin ? 'super_admin' : isSubAdmin ? 'admin' : 'user';
+
+    // Tentar buscar perfil existente no Supabase
+    let plan = 'gratis';
+    if (supabase) {
+      try {
+        const { data: existingProfile, error: selectError } = await supabase
+          .from('profiles')
+          .select('plan, role, name')
+          .eq('id', supabaseUser.id)
+          .maybeSingle();
+
+        if (!selectError && existingProfile) {
+          // Perfil já existe — usar dados do Supabase
+          plan = existingProfile.plan || 'gratis';
+          // Super admin sempre vitalicio
+          if (isSuperAdmin) plan = 'vitalicio';
+        } else {
+          // Perfil não existe — criar
+          if (isSuperAdmin) plan = 'vitalicio';
+          
+          // Tentar migrar plano do localStorage (legado)
+          const localPlanKey = `ev_tracker_plan_${supabaseUser.id}`;
+          const localPlan = localStorage.getItem(localPlanKey);
+          if (localPlan && localPlan !== 'gratis' && !isSuperAdmin) {
+            plan = localPlan;
+          }
+
+          const { error: insertError } = await supabase
+            .from('profiles')
+            .upsert({
+              id: supabaseUser.id,
+              email: supabaseUser.email,
+              name: userName,
+              plan: plan,
+              role: role,
+              created_at: createdAt
+            });
+          if (insertError) {
+            console.warn('Erro ao criar perfil no Supabase:', insertError.message);
+          }
+        }
+      } catch (e) {
+        console.warn('Erro ao acessar profiles no Supabase:', e);
+        // Fallback: ler do localStorage
+        const localPlanKey = `ev_tracker_plan_${supabaseUser.id}`;
+        plan = localStorage.getItem(localPlanKey) || 'gratis';
+        if (isSuperAdmin) plan = 'vitalicio';
+      }
+    } else {
+      // Sem Supabase — fallback localStorage
+      const localPlanKey = `ev_tracker_plan_${supabaseUser.id}`;
+      plan = localStorage.getItem(localPlanKey) || 'gratis';
+      if (isSuperAdmin) plan = 'vitalicio';
     }
+
+    // Cache local
+    localStorage.setItem(`ev_tracker_plan_${supabaseUser.id}`, plan);
 
     return {
       id: supabaseUser.id,
       email: supabaseUser.email,
-      name: metadata.name || supabaseUser.email.split('@')[0],
-      plan: savedPlan, // 'gratis' | 'pro' | 'vip' | 'vitalicio'
-      role: role,      // 'user' | 'admin' | 'super_admin'
+      name: userName,
+      plan: plan,
+      role: role,
       createdAt: createdAt
     };
   }
@@ -280,12 +327,24 @@ export function AuthProvider({ children }) {
     return { success: true };
   };
 
-  const upgradePlan = (newPlan) => {
+  const upgradePlan = async (newPlan) => {
     if (!user) return;
     const updatedUser = { ...user, plan: newPlan };
     setUser(updatedUser);
     localStorage.setItem('ev_tracker_user_session', JSON.stringify(updatedUser));
     localStorage.setItem(`ev_tracker_plan_${user.id}`, newPlan);
+    
+    // Atualizar no Supabase profiles
+    if (supabase) {
+      try {
+        await supabase
+          .from('profiles')
+          .update({ plan: newPlan })
+          .eq('id', user.id);
+      } catch (e) {
+        console.warn('Erro ao atualizar plano no Supabase:', e);
+      }
+    }
     
     // Atualizar no banco mock se local
     const localAccounts = JSON.parse(localStorage.getItem('ev_tracker_mock_accounts') || '[]');

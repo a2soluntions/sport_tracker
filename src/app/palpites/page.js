@@ -205,8 +205,9 @@ const getLeagueLogoUrl = (leagueIdOrName) => {
   const val = String(leagueIdOrName).toLowerCase().trim();
   
   if (!isNaN(parseInt(val))) {
-    if (val === '71') return '/brasileiraoa.png';
-    if (val === '72') return '/brasileiraob.png';
+    if (val === '1') return '/copadomundo.png';
+    if (val === '71') return '/brasileiraoc.png';
+    if (val === '72') return '/brasileiraoc.png';
     if (val === '75') return '/brasileiraoc.png';
     if (val === '78') return '/bundesliga.png';
     if (val === '12') return '/sudamericana.png';
@@ -217,14 +218,14 @@ const getLeagueLogoUrl = (leagueIdOrName) => {
     return `https://media.api-sports.io/football/leagues/${val}.png`;
   }
   
-  if (val.includes('copa do mundo')) return 'https://media.api-sports.io/football/leagues/1.png';
+  if (val.includes('copa do mundo')) return '/copadomundo.png';
   if (val.includes('libertadores')) return '/libertadores.png';
   if (val.includes('sudamericana') || val.includes('sulamericana') || val.includes('sul-americana')) return '/sudamericana.png';
   if (val.includes('série a') || val.includes('série-a') || val.includes('serie a')) {
     if (val.includes('itália') || val.includes('italia') || val.includes('italy')) return 'https://media.api-sports.io/football/leagues/135.png';
-    return '/brasileiraoa.png';
+    return '/brasileiraoc.png';
   }
-  if (val.includes('série b') || val.includes('série-b') || val.includes('serie b')) return '/brasileiraob.png';
+  if (val.includes('série b') || val.includes('série-b') || val.includes('serie b')) return '/brasileiraoc.png';
   if (val.includes('série c') || val.includes('série-c') || val.includes('serie c')) return '/brasileiraoc.png';
   if (val.includes('premier')) return '/premierleague.png';
   if (val.includes('la liga') || val.includes('espanha')) return 'https://media.api-sports.io/football/leagues/140.png';
@@ -1453,27 +1454,27 @@ export default function PalpitesPage() {
                       gap: '8px',
                       borderRadius: '6px',
                       padding: '8px 14px',
-                      border: isActive ? '1px solid var(--brand-neon)' : '1px solid rgba(255, 255, 255, 0.05)',
-                      background: isActive ? 'var(--brand-neon)' : '#16161a',
-                      color: isActive ? '#000' : '#aaa',
+                      border: isActive ? '1px solid #ff8c00' : '1px solid #2d6a4f',
+                      background: isActive ? '#ff8c00' : '#1b4332',
+                      color: isActive ? '#000' : '#fff',
                       fontSize: '0.85rem',
                       fontWeight: 'bold',
                       transition: 'all 0.2s ease',
                       cursor: 'pointer',
-                      boxShadow: isActive ? '0 0 10px rgba(204, 255, 0, 0.25)' : 'none'
+                      boxShadow: isActive ? '0 0 10px rgba(255, 140, 0, 0.35)' : 'none'
                     }}
                     onMouseEnter={(e) => {
                       if (!isActive) {
                         e.currentTarget.style.color = '#fff';
-                        e.currentTarget.style.borderColor = 'rgba(255,255,255,0.2)';
-                        e.currentTarget.style.background = '#222';
+                        e.currentTarget.style.borderColor = '#40916c';
+                        e.currentTarget.style.background = '#2d6a4f';
                       }
                     }}
                     onMouseLeave={(e) => {
                       if (!isActive) {
-                        e.currentTarget.style.color = '#aaa';
-                        e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.05)';
-                        e.currentTarget.style.background = '#16161a';
+                        e.currentTarget.style.color = '#fff';
+                        e.currentTarget.style.borderColor = '#2d6a4f';
+                        e.currentTarget.style.background = '#1b4332';
                       }
                     }}
                   >

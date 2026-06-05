@@ -15,11 +15,19 @@ export default function PricingPage() {
   const [copied, setCopied] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState('idle'); // 'idle' | 'processing' | 'success'
   
-  // Dados de cartão fictícios
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardName, setCardName] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCVV, setCardCVV] = useState('');
+  // Controle de Cupons
+  const [couponInput, setCouponInput] = useState('');
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [couponError, setCouponError] = useState('');
+  const [couponLoading, setCouponLoading] = useState(false);
+
+  // Estados de Pagamento do Mercado Pago
+  const [realPixCode, setRealPixCode] = useState('');
+  const [realPixQrCodeBase64, setRealPixQrCodeBase64] = useState('');
+  const [realPaymentId, setRealPaymentId] = useState(null);
+  const [loadingPix, setLoadingPix] = useState(false);
+  const [errorPix, setErrorPix] = useState('');
+  const [loadingPreference, setLoadingPreference] = useState(false);
 
   const plans = {
     gratis: { name: 'Grátis (Trial)', price: 'R$ 0,00', days: 7 },
@@ -27,16 +35,55 @@ export default function PricingPage() {
     vip: { name: 'VIP Elite', price: 'R$ 49,90', priceVal: 49.90 }
   };
 
-  // Simular contagem regressiva para confirmação automática do Pix (7 segundos)
+  // Efeito para tratar o retorno do Checkout Pro (Mercado Pago)
   useEffect(() => {
-    let timer;
-    if (showCheckout && activeTab === 'pix' && paymentStatus === 'idle') {
-      timer = setTimeout(() => {
-        handlePaymentSuccess();
-      }, 7000);
+    const searchParams = new URLSearchParams(window.location.search);
+    const status = searchParams.get('status');
+    const paymentId = searchParams.get('payment_id');
+
+    if ((status === 'success' || status === 'approved') && paymentId) {
+      setPaymentStatus('success');
+      
+      // Forçar atualização via status API no backend
+      fetch(`/api/payments/mercadopago/status?id=${paymentId}`)
+        .then(res => res.json())
+        .then(data => {
+          console.log('[Checkout Pro Return] Sincronização:', data.status);
+        })
+        .catch(err => console.error(err));
+      
+      setSelectedPlan('pro'); // Valor fictício para renderizar o modal
+      setShowCheckout(true);
     }
-    return () => clearTimeout(timer);
-  }, [showCheckout, activeTab, paymentStatus]);
+  }, []);
+
+  // Polling para checar status do pagamento Pix
+  useEffect(() => {
+    let interval;
+    if (showCheckout && realPaymentId && paymentStatus === 'idle') {
+      interval = setInterval(async () => {
+        try {
+          const res = await fetch(`/api/payments/mercadopago/status?id=${realPaymentId}`);
+          const data = await res.json();
+          if (data.status === 'approved') {
+            clearInterval(interval);
+            handlePaymentSuccess();
+          }
+        } catch (err) {
+          console.warn('Erro ao consultar status do Pix:', err);
+        }
+      }, 3000);
+    }
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [showCheckout, realPaymentId, paymentStatus]);
+
+  // Calcular preço final com desconto
+  const basePrice = plans[selectedPlan]?.priceVal || 0;
+  const discountPercent = appliedCoupon ? appliedCoupon.discount : 0;
+  const discountVal = (basePrice * discountPercent) / 100;
+  const finalPrice = Math.max(0, basePrice - discountVal);
 
   const handleOpenCheckout = (planKey) => {
     if (!user) {
@@ -47,28 +94,130 @@ export default function PricingPage() {
     setShowCheckout(true);
     setPaymentStatus('idle');
     setCopied(false);
+    // Resetar cupom
+    setCouponInput('');
+    setAppliedCoupon(null);
+    setCouponError('');
+    
+    // Resetar dados do Mercado Pago
+    setRealPixCode('');
+    setRealPixQrCodeBase64('');
+    setRealPaymentId(null);
+    setErrorPix('');
+  };
+
+  // Carregar Pix Real do Mercado Pago
+  useEffect(() => {
+    let active = true;
+    if (showCheckout && selectedPlan && activeTab === 'pix' && !realPaymentId && !loadingPix && finalPrice > 0) {
+      async function generatePix() {
+        setLoadingPix(true);
+        setErrorPix('');
+        try {
+          const res = await fetch('/api/payments/mercadopago/pix', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              planKey: selectedPlan,
+              couponCode: appliedCoupon?.code || null,
+              email: user.email,
+              name: user.name || '',
+              userId: user.id
+            })
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.error || 'Erro ao gerar Pix.');
+          
+          if (active) {
+            setRealPixCode(data.qrCode);
+            setRealPixQrCodeBase64(data.qrCodeBase64);
+            setRealPaymentId(data.paymentId);
+          }
+        } catch (err) {
+          console.error(err);
+          if (active) {
+            setErrorPix(err.message || 'Erro de conexão.');
+          }
+        } finally {
+          if (active) {
+            setLoadingPix(false);
+          }
+        }
+      }
+      generatePix();
+    }
+    return () => { active = false; };
+  }, [showCheckout, selectedPlan, activeTab, realPaymentId, appliedCoupon, finalPrice, user]);
+
+  const handleApplyCoupon = async () => {
+    if (!couponInput.trim()) return;
+    setCouponLoading(true);
+    setCouponError('');
+    try {
+      const { supabase } = await import('../../lib/supabaseClient');
+      const { data, error } = await supabase
+        .from('saas_coupons')
+        .select('*')
+        .eq('code', couponInput.trim().toUpperCase())
+        .maybeSingle();
+
+      if (error) throw error;
+
+      if (data) {
+        setAppliedCoupon(data);
+        // Limpar o ID do Pix para forçar a geração de um novo Pix com o desconto aplicado
+        setRealPaymentId(null);
+        setRealPixCode('');
+        setRealPixQrCodeBase64('');
+      } else {
+        setCouponError('Cupom inválido ou expirado');
+      }
+    } catch (err) {
+      console.error(err);
+      setCouponError('Erro ao validar cupom.');
+    } finally {
+      setCouponLoading(false);
+    }
   };
 
   const handleCopyPix = () => {
-    const pixCode = `00020101021226870014br.gov.bcb.pix2565mercadopago.pix.a2sporttrackers.com/checkout/pay?ref=ev_prod_${selectedPlan}_${Date.now()}`;
-    navigator.clipboard.writeText(pixCode);
+    if (!realPixCode) return;
+    navigator.clipboard.writeText(realPixCode);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleCardSubmit = (e) => {
-    e.preventDefault();
-    if (!cardNumber || !cardName || !cardExpiry || !cardCVV) return;
+  const handleCheckoutProRedirect = async () => {
+    if (!selectedPlan || !user) return;
+    setLoadingPreference(true);
+    try {
+      const res = await fetch('/api/payments/mercadopago/preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          planKey: selectedPlan,
+          couponCode: appliedCoupon?.code || null,
+          email: user.email,
+          name: user.name || '',
+          userId: user.id
+        })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao gerar link de pagamento.');
 
-    setPaymentStatus('processing');
-    setTimeout(() => {
-      handlePaymentSuccess();
-    }, 2500);
+      // Redireciona o usuário para o Mercado Pago
+      window.location.href = data.init_point;
+    } catch (err) {
+      console.error(err);
+      alert(err.message || 'Erro ao redirecionar para o Mercado Pago.');
+    } finally {
+      setLoadingPreference(false);
+    }
   };
 
   const handlePaymentSuccess = () => {
     setPaymentStatus('success');
-    // Efetivar plano
+    // Efetivar plano localmente
     upgradePlan(selectedPlan);
   };
 
@@ -454,7 +603,7 @@ export default function PricingPage() {
                 <button
                   onClick={() => {
                     setShowCheckout(false);
-                    router.push('/');
+                    window.location.href = '/';
                   }}
                   style={{
                     background: '#009ee3',
@@ -490,250 +639,366 @@ export default function PricingPage() {
                   <div style={{ fontSize: '0.78rem', color: '#666', fontWeight: 'bold', textTransform: 'uppercase' }}>Produto selecionado:</div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '4px' }}>
                     <span style={{ fontWeight: 'bold', fontSize: '1rem', color: '#111' }}>Assinatura {plans[selectedPlan]?.name}</span>
-                    <span style={{ fontWeight: '900', fontSize: '1.1rem', color: '#009ee3' }}>{plans[selectedPlan]?.price}</span>
+                    <span style={{ fontWeight: '900', fontSize: '1.1rem', color: '#009ee3' }}>
+                      {appliedCoupon ? (
+                        <>
+                          <span style={{ textDecoration: 'line-through', color: '#aaa', marginRight: '8px', fontSize: '0.9rem' }}>
+                            {plans[selectedPlan]?.price}
+                          </span>
+                          <span>
+                            {finalPrice === 0 ? 'Grátis' : finalPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                          </span>
+                        </>
+                      ) : (
+                        plans[selectedPlan]?.price
+                      )}
+                    </span>
                   </div>
                 </div>
 
-                {/* Seletor de abas de pagamento */}
-                <div style={{ display: 'flex', borderBottom: '1px solid #e1e1e5', marginBottom: '20px' }}>
-                  <button 
-                    onClick={() => setActiveTab('pix')}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      background: 'transparent',
-                      border: 'none',
-                      borderBottom: activeTab === 'pix' ? '3px solid #009ee3' : 'none',
-                      color: activeTab === 'pix' ? '#009ee3' : '#666',
-                      fontWeight: 'bold',
-                      fontSize: '0.9rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px'
-                    }}
-                  >
-                    <QrCode size={18} />
-                    <span>Pix Instantâneo</span>
-                  </button>
-                  <button 
-                    onClick={() => setActiveTab('card')}
-                    style={{
-                      flex: 1,
-                      padding: '12px',
-                      background: 'transparent',
-                      border: 'none',
-                      borderBottom: activeTab === 'card' ? '3px solid #009ee3' : 'none',
-                      color: activeTab === 'card' ? '#009ee3' : '#666',
-                      fontWeight: 'bold',
-                      fontSize: '0.9rem',
-                      cursor: 'pointer',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '8px'
-                    }}
-                  >
-                    <CreditCard size={18} />
-                    <span>Cartão de Crédito</span>
-                  </button>
-                </div>
-
-                {/* Conteúdo Aba Pix */}
-                {activeTab === 'pix' && (
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
-                    {/* QR Code Fake */}
-                    <div style={{ 
-                      background: '#fff', 
-                      border: '1px solid #e1e1e5', 
-                      borderRadius: '8px', 
-                      padding: '12px', 
-                      boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      alignItems: 'center',
-                      gap: '8px'
-                    }}>
-                      {/* SVG representativo do QR Code com logo do Mercado Pago e Pix */}
-                      <svg width="150" height="150" viewBox="0 0 150 150">
-                        {/* Fundo Branco */}
-                        <rect width="150" height="150" fill="#fff" />
-                        {/* Simulação de QR Code Pix */}
-                        <rect x="10" y="10" width="35" height="35" fill="#000" />
-                        <rect x="15" y="15" width="25" height="25" fill="#fff" />
-                        <rect x="20" y="20" width="15" height="15" fill="#000" />
-                        
-                        <rect x="105" y="10" width="35" height="35" fill="#000" />
-                        <rect x="110" y="15" width="25" height="25" fill="#fff" />
-                        <rect x="115" y="20" width="15" height="15" fill="#000" />
-                        
-                        <rect x="10" y="105" width="35" height="35" fill="#000" />
-                        <rect x="15" y="110" width="25" height="25" fill="#fff" />
-                        <rect x="20" y="115" width="15" height="15" fill="#000" />
-                        
-                        {/* Detalhes aleatórios simulando QR code */}
-                        <rect x="55" y="15" width="10" height="20" fill="#000" />
-                        <rect x="75" y="10" width="15" height="10" fill="#000" />
-                        <rect x="55" y="45" width="25" height="15" fill="#000" />
-                        <rect x="90" y="35" width="10" height="25" fill="#000" />
-                        <rect x="15" y="55" width="20" height="10" fill="#000" />
-                        <rect x="10" y="75" width="30" height="15" fill="#000" />
-                        
-                        <rect x="55" y="70" width="40" height="20" fill="#32b5ad" /> {/* Cor Pix */}
-                        <rect x="105" y="55" width="30" height="10" fill="#000" />
-                        <rect x="115" y="75" width="15" height="25" fill="#000" />
-                        <rect x="55" y="105" width="15" height="15" fill="#000" />
-                        <rect x="80" y="100" width="20" height="35" fill="#000" />
-                        <rect x="110" y="115" width="25" height="20" fill="#000" />
-
-                        {/* Logo Centralizado Pix */}
-                        <rect x="62" y="62" width="26" height="26" rx="4" fill="#32b5ad" />
-                        <polygon points="75,66 82,75 75,84 68,75" fill="#fff" />
-                      </svg>
-                      <span style={{ fontSize: '0.72rem', color: '#666', fontWeight: 'bold' }}>Chave Pix ID: a2sporttrackers_mp_prod</span>
-                    </div>
-
-                    <p style={{ color: '#666', fontSize: '0.8rem', textAlign: 'center', lineHeight: 1.4, margin: '0 10px' }}>
-                      Escaneie o QR Code acima usando o aplicativo do seu banco ou copie a chave Pix abaixo.
-                    </p>
-
-                    {/* Copia e Cola */}
-                    <div style={{ width: '100%', display: 'flex', gap: '8px' }}>
-                      <input 
-                        type="text" 
-                        readOnly 
-                        value="a2sporttrackers_mp_checkout_code_98374987239847239" 
-                        style={{
-                          flex: 1,
-                          padding: '10px',
-                          border: '1px solid #e1e1e5',
-                          borderRadius: '6px',
-                          fontSize: '0.8rem',
-                          background: '#f5f5f7',
-                          color: '#555',
-                          outline: 'none',
-                          fontFamily: 'monospace'
+                {/* Campo de Cupom */}
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', fontSize: '0.75rem', color: '#666', fontWeight: 'bold', marginBottom: '6px' }}>
+                    Possui um cupom de desconto?
+                  </label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input 
+                      type="text" 
+                      placeholder="Código do cupom"
+                      value={couponInput}
+                      onChange={(e) => setCouponInput(e.target.value.toUpperCase())}
+                      disabled={appliedCoupon || couponLoading}
+                      style={{
+                        flex: 1,
+                        padding: '8px 12px',
+                        border: '1px solid #e1e1e5',
+                        borderRadius: '6px',
+                        fontSize: '0.85rem',
+                        color: '#333',
+                        outline: 'none',
+                        background: appliedCoupon ? '#f5f5f7' : '#fff'
+                      }}
+                    />
+                    {appliedCoupon ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAppliedCoupon(null);
+                          setCouponInput('');
                         }}
-                      />
-                      <button 
-                        onClick={handleCopyPix}
                         style={{
-                          padding: '10px 14px',
-                          background: copied ? '#4CAF50' : '#009ee3',
+                          padding: '8px 14px',
+                          background: '#f44336',
                           color: '#fff',
                           border: 'none',
                           borderRadius: '6px',
                           cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
                           fontWeight: 'bold',
-                          fontSize: '0.8rem',
-                          transition: 'background 0.2s',
-                          minWidth: '100px'
+                          fontSize: '0.8rem'
                         }}
                       >
-                        {copied ? <ClipboardCheck size={16} /> : <Clipboard size={16} />}
-                        <span>{copied ? 'Copiado' : 'Copiar'}</span>
+                        Remover
                       </button>
-                    </div>
-
-                    {/* Info de Aguardando */}
-                    <div style={{ 
-                      width: '100%', 
-                      background: 'rgba(0, 158, 227, 0.05)', 
-                      border: '1px solid rgba(0, 158, 227, 0.15)', 
-                      borderRadius: '8px', 
-                      padding: '10px', 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      gap: '10px',
-                      fontSize: '0.78rem',
-                      color: '#009ee3',
-                      fontWeight: '500'
-                    }}>
-                      <Loader2 className="spin" size={14} />
-                      <span>Aguardando sinal Pix... (Confirma automaticamente em 7s)</span>
-                    </div>
-
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={handleApplyCoupon}
+                        disabled={couponLoading || !couponInput.trim()}
+                        style={{
+                          padding: '8px 14px',
+                          background: '#009ee3',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '6px',
+                          cursor: 'pointer',
+                          fontWeight: 'bold',
+                          fontSize: '0.8rem',
+                          opacity: (!couponInput.trim() || couponLoading) ? 0.5 : 1
+                        }}
+                      >
+                        {couponLoading ? 'Validando...' : 'Aplicar'}
+                      </button>
+                    )}
                   </div>
-                )}
-
-                {/* Conteúdo Aba Cartão */}
-                {activeTab === 'card' && (
-                  <form onSubmit={handleCardSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '0.75rem', color: '#666', fontWeight: 'bold' }}>Número do Cartão</label>
-                      <input 
-                        type="text" 
-                        placeholder="0000 0000 0000 0000"
-                        required
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim())}
-                        maxLength="19"
-                        style={{ padding: '10px 14px', border: '1px solid #e1e1e5', borderRadius: '6px', fontSize: '0.9rem', color: '#333', outline: 'none' }}
-                      />
+                  {couponError && (
+                    <div style={{ color: '#f44336', fontSize: '0.75rem', marginTop: '4px', fontWeight: '500' }}>
+                      ❌ {couponError}
                     </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '0.75rem', color: '#666', fontWeight: 'bold' }}>Nome Impresso no Cartão</label>
-                      <input 
-                        type="text" 
-                        placeholder="Ex: JOÃO SILVA"
-                        required
-                        value={cardName}
-                        onChange={(e) => setCardName(e.target.value.toUpperCase())}
-                        style={{ padding: '10px 14px', border: '1px solid #e1e1e5', borderRadius: '6px', fontSize: '0.9rem', color: '#333', outline: 'none' }}
-                      />
+                  )}
+                  {appliedCoupon && (
+                    <div style={{ color: '#4CAF50', fontSize: '0.75rem', marginTop: '4px', fontWeight: 'bold' }}>
+                      ✓ Cupom aplicado: {appliedCoupon.code} (-{appliedCoupon.discount}%)
                     </div>
-
-                    <div style={{ display: 'flex', gap: '12px' }}>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-                        <label style={{ fontSize: '0.75rem', color: '#666', fontWeight: 'bold' }}>Vencimento (MM/AA)</label>
-                        <input 
-                          type="text" 
-                          placeholder="MM/AA"
-                          required
-                          value={cardExpiry}
-                          onChange={(e) => setCardExpiry(e.target.value)}
-                          maxLength="5"
-                          style={{ padding: '10px 14px', border: '1px solid #e1e1e5', borderRadius: '6px', fontSize: '0.9rem', color: '#333', outline: 'none', textAlign: 'center' }}
-                        />
-                      </div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1 }}>
-                        <label style={{ fontSize: '0.75rem', color: '#666', fontWeight: 'bold' }}>CVV (Segurança)</label>
-                        <input 
-                          type="text" 
-                          placeholder="123"
-                          required
-                          value={cardCVV}
-                          onChange={(e) => setCardCVV(e.target.value)}
-                          maxLength="4"
-                          style={{ padding: '10px 14px', border: '1px solid #e1e1e5', borderRadius: '6px', fontSize: '0.9rem', color: '#333', outline: 'none', textAlign: 'center' }}
-                        />
-                      </div>
+                  )}
+                </div>
+                {finalPrice === 0 ? (
+                  /* Checkout de 100% de Desconto (Liberar Acesso Direto) */
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', padding: '10px 0 20px 0' }}>
+                    <div style={{
+                      background: 'rgba(76, 175, 80, 0.08)',
+                      border: '1px solid rgba(76, 175, 80, 0.2)',
+                      padding: '16px',
+                      borderRadius: '8px',
+                      textAlign: 'center',
+                      color: '#2e7d32',
+                      fontSize: '0.85rem',
+                      fontWeight: 'bold',
+                      width: '100%',
+                      lineHeight: 1.4
+                    }}>
+                      🎉 Cupom de 100% de desconto aplicado com sucesso! O valor da sua assinatura foi zerado e nenhum pagamento será cobrado.
                     </div>
-
+                    
                     <button
-                      type="submit"
+                      type="button"
+                      onClick={handlePaymentSuccess}
                       style={{
-                        background: '#009ee3',
+                        background: '#4CAF50',
                         color: '#fff',
                         border: 'none',
-                        padding: '12px',
+                        padding: '14px',
                         borderRadius: '6px',
                         fontWeight: 'bold',
                         cursor: 'pointer',
                         fontSize: '0.95rem',
-                        marginTop: '10px',
-                        boxShadow: '0 4px 10px rgba(0, 158, 227, 0.2)'
+                        width: '100%',
+                        boxShadow: '0 4px 15px rgba(76, 175, 80, 0.25)',
+                        transition: 'transform 0.2s'
                       }}
+                      onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                      onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
                     >
-                      Pagar com Cartão {plans[selectedPlan]?.price}
+                      Liberar Acesso Grátis Agora! 🚀
                     </button>
-                  </form>
+                  </div>
+                ) : (
+                  /* Checkout Comum (Pix ou Cartão) */
+                  <>
+                    {/* Seletor de abas de pagamento */}
+                    <div style={{ display: 'flex', borderBottom: '1px solid #e1e1e5', marginBottom: '20px' }}>
+                      <button 
+                        onClick={() => setActiveTab('pix')}
+                        style={{
+                          flex: 1,
+                          padding: '12px',
+                          background: 'transparent',
+                          border: 'none',
+                          borderBottom: activeTab === 'pix' ? '3px solid #009ee3' : 'none',
+                          color: activeTab === 'pix' ? '#009ee3' : '#666',
+                          fontWeight: 'bold',
+                          fontSize: '0.9rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <QrCode size={18} />
+                        <span>Pix Instantâneo</span>
+                      </button>
+                      <button 
+                        onClick={() => setActiveTab('card')}
+                        style={{
+                          flex: 1,
+                          padding: '12px',
+                          background: 'transparent',
+                          border: 'none',
+                          borderBottom: activeTab === 'card' ? '3px solid #009ee3' : 'none',
+                          color: activeTab === 'card' ? '#009ee3' : '#666',
+                          fontWeight: 'bold',
+                          fontSize: '0.9rem',
+                          cursor: 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px'
+                        }}
+                      >
+                        <CreditCard size={18} />
+                        <span>Cartão de Crédito</span>
+                      </button>
+                    </div>
+
+                    {/* Conteúdo Aba Pix */}
+                    {activeTab === 'pix' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px' }}>
+                        {loadingPix ? (
+                          <div style={{ padding: '40px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px' }}>
+                            <Loader2 className="spin" size={36} color="#009ee3" />
+                            <span style={{ fontSize: '0.85rem', color: '#666', fontWeight: '500' }}>Gerando QR Code Pix...</span>
+                          </div>
+                        ) : errorPix ? (
+                          <div style={{ padding: '20px', textAlign: 'center', color: '#f44336', fontSize: '0.85rem', fontWeight: '500' }}>
+                            ❌ {errorPix}
+                            <button
+                              onClick={() => {
+                                setRealPaymentId(null);
+                                setRealPixCode('');
+                                setRealPixQrCodeBase64('');
+                              }}
+                              style={{
+                                display: 'block',
+                                margin: '10px auto 0 auto',
+                                background: '#009ee3',
+                                color: '#fff',
+                                border: 'none',
+                                padding: '6px 12px',
+                                borderRadius: '4px',
+                                fontSize: '0.75rem',
+                                fontWeight: 'bold',
+                                cursor: 'pointer'
+                              }}
+                            >
+                              Tentar Novamente
+                            </button>
+                          </div>
+                        ) : (
+                          <>
+                            {/* QR Code Real */}
+                            {realPixQrCodeBase64 && (
+                              <div style={{ 
+                                background: '#fff', 
+                                border: '1px solid #e1e1e5', 
+                                borderRadius: '8px', 
+                                padding: '12px', 
+                                boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                alignItems: 'center',
+                                gap: '8px'
+                              }}>
+                                <img 
+                                  src={`data:image/png;base64,${realPixQrCodeBase64}`} 
+                                  alt="Pix QR Code" 
+                                  style={{ width: '180px', height: '180px' }} 
+                                />
+                                <span style={{ fontSize: '0.72rem', color: '#666', fontWeight: 'bold' }}>Sports EV Tracker - Mercado Pago</span>
+                              </div>
+                            )}
+
+                            <p style={{ color: '#666', fontSize: '0.8rem', textAlign: 'center', lineHeight: 1.4, margin: '0 10px' }}>
+                              Escaneie o QR Code acima usando o aplicativo do seu banco ou copie a chave Pix abaixo.
+                            </p>
+
+                            {/* Copia e Cola */}
+                            <div style={{ width: '100%', display: 'flex', gap: '8px' }}>
+                              <input 
+                                type="text" 
+                                readOnly 
+                                value={realPixCode} 
+                                style={{
+                                  flex: 1,
+                                  padding: '10px',
+                                  border: '1px solid #e1e1e5',
+                                  borderRadius: '6px',
+                                  fontSize: '0.8rem',
+                                  background: '#f5f5f7',
+                                  color: '#555',
+                                  outline: 'none',
+                                  fontFamily: 'monospace'
+                                }}
+                              />
+                              <button 
+                                type="button"
+                                onClick={handleCopyPix}
+                                style={{
+                                  padding: '10px 14px',
+                                  background: copied ? '#4CAF50' : '#009ee3',
+                                  color: '#fff',
+                                  border: 'none',
+                                  borderRadius: '6px',
+                                  cursor: 'pointer',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  gap: '6px',
+                                  fontWeight: 'bold',
+                                  fontSize: '0.8rem',
+                                  transition: 'background 0.2s',
+                                  minWidth: '100px'
+                                }}
+                              >
+                                {copied ? <ClipboardCheck size={16} /> : <Clipboard size={16} />}
+                                <span>{copied ? 'Copiado' : 'Copiar'}</span>
+                              </button>
+                            </div>
+
+                            {/* Info de Aguardando */}
+                            <div style={{ 
+                              width: '100%', 
+                              background: 'rgba(0, 158, 227, 0.05)', 
+                              border: '1px solid rgba(0, 158, 227, 0.15)', 
+                              borderRadius: '8px', 
+                              padding: '10px', 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '10px',
+                              fontSize: '0.78rem',
+                              color: '#009ee3',
+                              fontWeight: '500'
+                            }}>
+                              <Loader2 className="spin" size={14} />
+                              <span>Aguardando pagamento Pix... (Confirmação automática instantânea)</span>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Conteúdo Aba Cartão */}
+                    {activeTab === 'card' && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', padding: '10px 0' }}>
+                        <div style={{
+                          background: 'rgba(0, 158, 227, 0.04)',
+                          border: '1px solid rgba(0, 158, 227, 0.15)',
+                          padding: '16px',
+                          borderRadius: '8px',
+                          color: '#555',
+                          fontSize: '0.85rem',
+                          lineHeight: 1.4
+                        }}>
+                          💳 **Checkout Seguro via Mercado Pago**<br />
+                          Ao clicar no botão abaixo, você será redirecionado para a página oficial do Mercado Pago para realizar o pagamento com total segurança via **Cartão de Crédito, Pix ou Boleto**.
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={handleCheckoutProRedirect}
+                          disabled={loadingPreference}
+                          style={{
+                            background: '#009ee3',
+                            color: '#fff',
+                            border: 'none',
+                            padding: '14px',
+                            borderRadius: '6px',
+                            fontWeight: 'bold',
+                            cursor: 'pointer',
+                            fontSize: '0.95rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '10px',
+                            boxShadow: '0 4px 10px rgba(0, 158, 227, 0.2)',
+                            transition: 'opacity 0.2s',
+                            opacity: loadingPreference ? 0.7 : 1
+                          }}
+                        >
+                          {loadingPreference ? (
+                            <>
+                              <Loader2 className="spin" size={18} />
+                              <span>Redirecionando...</span>
+                            </>
+                          ) : (
+                            <>
+                              <CreditCard size={18} />
+                              <span>Pagar com Mercado Pago {finalPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
 
                 {/* Rodapé Fechar */}

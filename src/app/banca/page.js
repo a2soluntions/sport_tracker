@@ -564,10 +564,12 @@ export default function GestaoBancaPage() {
           const updated = [data[0], ...transactions];
           updated.sort((a, b) => new Date(b.date) - new Date(a.date));
           setTransactions(updated);
+          localStorage.setItem(userTxsKey, JSON.stringify(updated));
         } else {
           const updated = [newTxLocal, ...transactions];
           updated.sort((a, b) => new Date(b.date) - new Date(a.date));
           setTransactions(updated);
+          localStorage.setItem(userTxsKey, JSON.stringify(updated));
         }
       } catch (err) {
         console.warn("Erro ao salvar no Supabase. Salvando localmente:", err);
@@ -589,6 +591,7 @@ export default function GestaoBancaPage() {
   // Handler para deletar transação
   const handleDeleteTransaction = async (id) => {
     const userTxIdsKey = `ev_tracker_user_tx_ids_${user?.id || 'guest'}`;
+    const userTxsKey = `ev_tracker_banca_txs_${user?.id || 'guest'}`;
 
     if (syncStatus === 'cloud' && supabase) {
       try {
@@ -606,6 +609,7 @@ export default function GestaoBancaPage() {
 
         const updated = transactions.filter(t => t.id !== id);
         setTransactions(updated);
+        localStorage.setItem(userTxsKey, JSON.stringify(updated));
         showToast('Transação excluída com sucesso!', 'success');
       } catch (err) {
         console.warn("Erro ao deletar no Supabase:", err);

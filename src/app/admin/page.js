@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import { supabase } from '../../lib/supabaseClient';
 import { 
   ShieldCheck, ShieldAlert, Users, TrendingUp, DollarSign, ArrowUpRight, 
   Trash2, Plus, Sparkles, Filter, Search, Award, RefreshCw, BarChart2,
@@ -12,81 +13,63 @@ export default function AdminDashboard() {
   const { user, loading } = useAuth();
   const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' | 'finance' | 'settings'
 
+  // Helper para requisições administrativas anexando token de autorização
+  const adminFetch = async (url, options = {}) => {
+    console.log("[AdminDashboard adminFetch] Interceptando:", url, "method:", options.method || 'GET');
+    if (typeof url === 'string' && url.startsWith('/api/admin')) {
+      let headers = options.headers || {};
+      try {
+        if (supabase) {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.access_token) {
+            headers = {
+              ...headers,
+              'Authorization': `Bearer ${session.access_token}`
+            };
+            console.log("[AdminDashboard adminFetch] Token de autorização anexado");
+          } else {
+            console.log("[AdminDashboard adminFetch] Sem token de acesso na sessão");
+          }
+        }
+      } catch (e) {
+        console.warn("[AdminDashboard adminFetch] Erro ao anexar token do Supabase:", e);
+      }
+      console.log("[AdminDashboard adminFetch] Executando globalThis.fetch com headers:", headers);
+      return globalThis.fetch(url, { ...options, headers, cache: 'no-store' });
+    }
+    console.log("[AdminDashboard adminFetch] Repassando chamada padrão para:", url);
+    return globalThis.fetch(url, options);
+  };
+
   // --- ESTADOS PERSISTIDOS EM LOCALSTORAGE ---
   
   // 1. Controle de Gastos
-  const [gastos, setGastos] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ev_tracker_admin_gastos');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
-    }
-    return [
-      { id: 1, name: 'API-Football (api-sports.io)', value: 450.00, category: 'API' },
-      { id: 2, name: 'Supabase Database & Auth', value: 150.00, category: 'Database' },
-      { id: 3, name: 'Vercel Serverless Hosting', value: 100.00, category: 'Hosting' },
-      { id: 4, name: 'Telegram Bot (VPS)', value: 50.00, category: 'Server' },
-      { id: 5, name: 'Marketing & Anúncios (Meta/Google)', value: 1200.00, category: 'Marketing' }
-    ];
-  });
-
-  // 2. Base de Usuários (Reais do Supabase)
+  // --- ESTADOS INTEGRADOS COM SUPABASE ---
+  const [gastos, setGastos] = useState([]);
   const [usersBase, setUsersBase] = useState([]);
-  const [loadingUsers, setLoadingUsers] = useState(true);
+  const [loadingUsers, setLoadingUsers] = useState(false); // Mantido por retrocompatibilidade de layout
+  const [subAdmins, setSubAdmins] = useState([]);
+  const [categorias, setCategorias] = useState([]);
+  const [cupons, setCupons] = useState([]);
+  const [gastosCategorias, setGastosCategorias] = useState([]);
+  const [funnelMetrics, setFunnelMetrics] = useState({ visitors: 10200, trials: 2450 });
 
-  // 3. Sub-Administradores autorizados
-  const [subAdmins, setSubAdmins] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ev_tracker_admin_emails');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
-    }
-    return ['admin.suporte@gmail.com', 'parceiro.a2@gmail.com'];
-  });
+  const [loadingData, setLoadingData] = useState(true);
 
-  // 4. Categorias Futuras
-  const [categorias, setCategorias] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ev_tracker_admin_categorias');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
-    }
-    return [
-      { id: 1, name: 'Basquete NBA (Poisson)', description: 'Alertas de Handicap e Over/Under para NBA.', active: true },
-      { id: 2, name: 'E-sports (Counter-Strike/LoL)', description: 'True Odds de vencedor e total de mapas.', active: false },
-      { id: 3, name: 'Mercado de Cartões (Poisson Live)', description: 'Sinais +EV ao vivo para cartões amarelos.', active: true },
-      { id: 4, name: 'WhatsApp Push Notifications', description: 'Disparo de oportunidades diretamente no celular.', active: true }
-    ];
-  });
+  // Custom Toast Notification System
+  const [notification, setNotification] = useState(null);
+  const showNotification = (message, type = 'success') => {
+    setNotification({ message, type });
+  };
 
-  // 5. Cupons de Promoção
-  const [cupons, setCupons] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ev_tracker_admin_cupons');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => {
+        setNotification(null);
+      }, 4000);
+      return () => clearTimeout(timer);
     }
-    return [
-      { id: 1, code: 'BRUTAL20', discount: 20, description: '20% OFF na primeira mensalidade do plano PRO/VIP' },
-      { id: 2, code: 'VIPFIRST', discount: 40, description: '40% OFF no primeiro mês do plano VIP' },
-      { id: 3, code: 'A2SOLUTIONS', discount: 100, description: 'Acesso vitalício gratuito para parceiros' }
-    ];
-  });
-
-  // 6. Categorias de Gastos/Despesas
-  const [gastosCategorias, setGastosCategorias] = useState(() => {
-    if (typeof window !== 'undefined') {
-      const saved = localStorage.getItem('ev_tracker_admin_gastos_categorias');
-      if (saved) {
-        try { return JSON.parse(saved); } catch (e) {}
-      }
-    }
-    return ['Servidor', 'Database', 'API', 'Marketing', 'Outros'];
-  });
+  }, [notification]);
 
   // Modal States para Categorias de Gastos
   const [showExpenseCatModal, setShowExpenseCatModal] = useState(false);
@@ -104,9 +87,7 @@ export default function AdminDashboard() {
   // --- OUTROS ESTADOS AUXILIARES ---
   const [novoGastoNome, setNovoGastoNome] = useState('');
   const [novoGastoValor, setNovoGastoValor] = useState('');
-  const [novoGastoCat, setNovoGastoCat] = useState(() => {
-    return gastosCategorias && gastosCategorias.length > 0 ? gastosCategorias[0] : 'Outros';
-  });
+  const [novoGastoCat, setNovoGastoCat] = useState('Outros');
 
   const [searchUser, setSearchUser] = useState('');
   const [planFilter, setPlanFilter] = useState('todos');
@@ -119,62 +100,83 @@ export default function AdminDashboard() {
   const [novoCupomDesc, setNovoCupomDesc] = useState('');
   const [novoCupomDisc, setNovoCupomDisc] = useState('');
 
-  // Persistir Estados
+  // Carregar dados reais do Supabase
   useEffect(() => {
-    localStorage.setItem('ev_tracker_admin_gastos', JSON.stringify(gastos));
-  }, [gastos]);
-
-  useEffect(() => {
-    localStorage.setItem('ev_tracker_admin_gastos_categorias', JSON.stringify(gastosCategorias));
-  }, [gastosCategorias]);
-
-  // Buscar usuários reais do Supabase
-  useEffect(() => {
-    async function fetchRealUsers() {
+    async function loadDashboardData() {
       try {
+        setLoadingData(true);
         setLoadingUsers(true);
-        const res = await fetch('/api/admin/users');
-        if (res.ok) {
-          const data = await res.json();
+        
+        const [resUsers, resExpenses, resCoupons, resFeatures, resSettings] = await Promise.all([
+          adminFetch('/api/admin/users'),
+          adminFetch('/api/admin/expenses'),
+          adminFetch('/api/admin/coupons'),
+          adminFetch('/api/admin/features'),
+          adminFetch('/api/admin/settings')
+        ]);
+
+        if (resUsers.ok) {
+          const data = await resUsers.json();
           setUsersBase(data.users || []);
-        } else {
-          console.error('Erro ao buscar usuários do Supabase');
+        }
+        if (resExpenses.ok) {
+          const data = await resExpenses.json();
+          setGastos(data.expenses || []);
+        }
+        if (resCoupons.ok) {
+          const data = await resCoupons.json();
+          setCupons(data.coupons || []);
+        }
+        if (resFeatures.ok) {
+          const data = await resFeatures.json();
+          setCategorias(data.features || []);
+        }
+        if (resSettings.ok) {
+          const data = await resSettings.json();
+          const settings = data.settings || {};
+          setSubAdmins(settings.sub_admins || []);
+          setGastosCategorias(settings.expense_categories || []);
+          if (settings.expense_categories && settings.expense_categories.length > 0) {
+            setNovoGastoCat(settings.expense_categories[0]);
+          }
+          setFunnelMetrics({
+            visitors: settings.visitors_count !== undefined ? settings.visitors_count : 10200,
+            trials: settings.trial_count !== undefined ? settings.trial_count : 2450
+          });
         }
       } catch (err) {
-        console.error('Falha de conexão ao carregar usuários:', err);
+        console.error('[Admin Dashboard] Erro ao carregar dados:', err);
       } finally {
+        setLoadingData(false);
         setLoadingUsers(false);
       }
     }
-    fetchRealUsers();
-  }, []);
 
-  useEffect(() => {
-    localStorage.setItem('ev_tracker_admin_emails', JSON.stringify(subAdmins));
-  }, [subAdmins]);
-
-  useEffect(() => {
-    localStorage.setItem('ev_tracker_admin_categorias', JSON.stringify(categorias));
-  }, [categorias]);
-
-  useEffect(() => {
-    localStorage.setItem('ev_tracker_admin_cupons', JSON.stringify(cupons));
-  }, [cupons]);
+    if (user) {
+      loadDashboardData();
+    }
+  }, [user]);
 
   // --- CÁLCULO DE MÉTRICAS SaaS REAL ---
   const financialMetrics = useMemo(() => {
     let proCount = 0;
     let vipCount = 0;
     let gratisCount = 0;
+    let couponCount = 0;
 
     usersBase.forEach(u => {
+      // Usuários com cupom aplicado não geram receita
+      if (u.coupon_code) {
+        couponCount++;
+        return;
+      }
       if (u.plan === 'pro') proCount++;
       else if (u.plan === 'vip' || u.plan === 'vitalicio') vipCount++;
       else gratisCount++;
     });
 
     const mrr = (proCount * 19.90) + (vipCount * 49.90);
-    const totalExpenses = gastos.reduce((sum, g) => sum + g.value, 0);
+    const totalExpenses = gastos.reduce((sum, g) => sum + parseFloat(g.value || 0), 0);
     const netProfit = mrr - totalExpenses;
     const baseChurn = 2.4; 
     const dynamicChurn = Math.max(1.2, parseFloat((baseChurn + (totalExpenses / 5000) - (vipCount / 500)).toFixed(1)));
@@ -186,6 +188,7 @@ export default function AdminDashboard() {
       churn: dynamicChurn,
       proCount,
       vipCount,
+      couponCount,
       totalUsers: usersBase.length
     };
   }, [usersBase, gastos]);
@@ -193,138 +196,358 @@ export default function AdminDashboard() {
   // Filtragem de Usuários
   const filteredUsers = useMemo(() => {
     return usersBase.filter(u => {
-      const matchSearch = u.name.toLowerCase().includes(searchUser.toLowerCase()) || 
-                          u.email.toLowerCase().includes(searchUser.toLowerCase());
+      const matchSearch = (u.name || '').toLowerCase().includes(searchUser.toLowerCase()) || 
+                          (u.email || '').toLowerCase().includes(searchUser.toLowerCase());
       const matchPlan = planFilter === 'todos' || u.plan === planFilter;
       return matchSearch && matchPlan;
     });
   }, [usersBase, searchUser, planFilter]);
 
-  // --- MANIPULADORES DE SUB-ADMINS ---
-  const handleAddAdmin = (e) => {
+  // --- MANIPULADORES DE SUB-ADMINS (SUPABASE) ---
+  const handleAddAdmin = async (e) => {
     e.preventDefault();
     if (!novoAdminEmail || !novoAdminEmail.includes('@')) return;
     const email = novoAdminEmail.trim().toLowerCase();
     if (subAdmins.includes(email) || email === 'a2soluntions@gmail.com') return;
 
-    setSubAdmins(prev => [...prev, email]);
-    setNovoAdminEmail('');
+    const newAdmins = [...subAdmins, email];
+    try {
+      const res = await adminFetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'sub_admins', value: newAdmins })
+      });
+      if (res.ok) {
+        setSubAdmins(newAdmins);
+        setNovoAdminEmail('');
+        showNotification('Administrador autorizado com sucesso!');
+      } else {
+        showNotification('Erro ao salvar novo administrador', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão/servidor ao adicionar administrador: ' + err.message, 'error');
+    }
   };
 
-  const handleRemoveAdmin = (email) => {
-    setSubAdmins(prev => prev.filter(adm => adm !== email));
+  const handleRemoveAdmin = async (email) => {
+    const newAdmins = subAdmins.filter(adm => adm !== email);
+    try {
+      const res = await adminFetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'sub_admins', value: newAdmins })
+      });
+      if (res.ok) {
+        setSubAdmins(newAdmins);
+        showNotification('Autorização de administrador removida com sucesso!');
+      } else {
+        showNotification('Erro ao remover administrador', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão/servidor ao remover administrador: ' + err.message, 'error');
+    }
   };
 
-  // --- MANIPULADORES DE CATEGORIAS ---
-  const handleAddCategoria = (e) => {
-    e.preventDefault();
+  // --- MANIPULADORES DE CATEGORIAS / MÓDULOS FUTUROS (SUPABASE) ---
+  const handleAddCategoria = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!novaCatNome) return;
+    const cleanName = novaCatNome.trim();
+    if (!cleanName) return;
 
-    const newCat = {
-      id: Date.now(),
-      name: novaCatNome.trim(),
+    const newCatPayload = {
+      name: cleanName,
       description: novaCatDesc.trim() || 'Sem descrição cadastrada.',
       active: true
     };
 
-    setCategorias(prev => [...prev, newCat]);
-    setNovaCatNome('');
-    setNovaCatDesc('');
+    try {
+      const res = await adminFetch('/api/admin/features', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCatPayload)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCategorias(prev => [...prev, data.feature]);
+        setNovaCatNome('');
+        setNovaCatDesc('');
+        showNotification('Módulo futuro criado com sucesso!');
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showNotification('Erro ao criar módulo futuro: ' + (errData.error || res.statusText), 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão/servidor ao criar módulo: ' + err.message, 'error');
+    }
   };
 
-  const handleToggleCategoria = (id) => {
-    setCategorias(prev => prev.map(c => c.id === id ? { ...c, active: !c.active } : c));
+  const handleToggleCategoria = async (id) => {
+    const item = categorias.find(c => c.id === id);
+    if (!item) return;
+
+    const newActiveState = !item.active;
+    try {
+      const res = await adminFetch('/api/admin/features', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, active: newActiveState })
+      });
+      if (res.ok) {
+        setCategorias(prev => prev.map(c => c.id === id ? { ...c, active: newActiveState } : c));
+        showNotification(`Módulo futuro ${newActiveState ? 'ativado' : 'pausado'} com sucesso!`);
+      } else {
+        showNotification('Erro ao alterar status do módulo', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão/servidor ao alterar status do módulo: ' + err.message, 'error');
+    }
   };
 
-  const handleRemoveCategoria = (id) => {
-    setCategorias(prev => prev.filter(c => c.id !== id));
+  const handleRemoveCategoria = async (id) => {
+    try {
+      const res = await adminFetch(`/api/admin/features?id=${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setCategorias(prev => prev.filter(c => c.id !== id));
+        showNotification('Módulo futuro removido com sucesso!');
+      } else {
+        showNotification('Erro ao remover módulo', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão/servidor ao remover módulo: ' + err.message, 'error');
+    }
   };
 
-  // --- MANIPULADORES DE CUPONS ---
-  const handleAddCupom = (e) => {
+  // --- MANIPULADORES DE CUPONS (SUPABASE) ---
+  const handleAddCupom = async (e) => {
     e.preventDefault();
     if (!novoCupomCode || !novoCupomDisc || isNaN(parseInt(novoCupomDisc))) return;
 
-    const newCup = {
-      id: Date.now(),
+    const newCupPayload = {
       code: novoCupomCode.trim().toUpperCase(),
       discount: parseInt(novoCupomDisc),
       description: novoCupomDesc.trim() || 'Sem descrição.'
     };
 
-    setCupons(prev => [...prev, newCup]);
-    setNovoCupomCode('');
-    setNovoCupomDisc('');
-    setNovoCupomDesc('');
+    try {
+      const res = await adminFetch('/api/admin/coupons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newCupPayload)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setCupons(prev => [...prev, data.coupon]);
+        setNovoCupomCode('');
+        setNovoCupomDisc('');
+        setNovoCupomDesc('');
+        showNotification('Cupom de desconto criado com sucesso!');
+      } else {
+        const errData = await res.json();
+        showNotification(errData.error || 'Erro ao criar cupom', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão/servidor ao criar cupom: ' + err.message, 'error');
+    }
   };
 
-  const handleRemoveCupom = (id) => {
-    setCupons(prev => prev.filter(c => c.id !== id));
+  const handleRemoveCupom = async (id) => {
+    try {
+      const res = await adminFetch(`/api/admin/coupons?id=${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setCupons(prev => prev.filter(c => c.id !== id));
+        showNotification('Cupom de desconto removido com sucesso!');
+      } else {
+        showNotification('Erro ao remover cupom', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão/servidor ao remover cupom: ' + err.message, 'error');
+    }
   };
 
-  // --- OUTROS DIRETOS ---
-  const handleAddGasto = (e) => {
+  // --- OUTROS DIRETOS - DESPESAS (SUPABASE) ---
+  const handleAddGasto = async (e) => {
     e.preventDefault();
     if (!novoGastoNome || !novoGastoValor || isNaN(parseFloat(novoGastoValor))) return;
     
-    const newG = {
-      id: Date.now(),
+    const newGPayload = {
       name: novoGastoNome.trim(),
       value: parseFloat(novoGastoValor),
       category: novoGastoCat
     };
 
-    setGastos(prev => [...prev, newG]);
-    setNovoGastoNome('');
-    setNovoGastoValor('');
+    try {
+      const res = await adminFetch('/api/admin/expenses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newGPayload)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGastos(prev => [...prev, data.expense]);
+        setNovoGastoNome('');
+        setNovoGastoValor('');
+        showNotification('Despesa registrada com sucesso!');
+      } else {
+        showNotification('Erro ao registrar despesa', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão/servidor ao registrar despesa: ' + err.message, 'error');
+    }
   };
 
-  const handleRemoveGasto = (id) => {
-    setGastos(prev => prev.filter(g => g.id !== id));
+  const handleRemoveGasto = async (id) => {
+    try {
+      const res = await adminFetch(`/api/admin/expenses?id=${id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        setGastos(prev => prev.filter(g => g.id !== id));
+        showNotification('Despesa operacional removida com sucesso!');
+      } else {
+        showNotification('Erro ao remover despesa', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão/servidor ao remover despesa: ' + err.message, 'error');
+    }
   };
 
-  const handleUpdateGasto = (e) => {
+  const handleUpdateGasto = async (e) => {
     e.preventDefault();
     if (!editingExpense || !editExpenseName || !editExpenseValue || isNaN(parseFloat(editExpenseValue))) return;
 
-    const updated = {
-      ...editingExpense,
+    const editPayload = {
+      id: editingExpense.id,
       name: editExpenseName.trim(),
       value: parseFloat(editExpenseValue),
       category: editExpenseCategory
     };
 
-    setGastos(prev => prev.map(g => g.id === editingExpense.id ? updated : g));
-    setShowEditExpenseModal(false);
-    setEditingExpense(null);
+    try {
+      const res = await adminFetch('/api/admin/expenses', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editPayload)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGastos(prev => prev.map(g => g.id === editingExpense.id ? data.expense : g));
+        setShowEditExpenseModal(false);
+        setEditingExpense(null);
+        showNotification('Despesa operacional atualizada com sucesso!');
+      } else {
+        showNotification('Erro ao atualizar despesa', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão/servidor ao atualizar despesa: ' + err.message, 'error');
+    }
   };
 
-  const handleAddGastoCategory = (e) => {
-    e.preventDefault();
+  const handleAddGastoCategory = async (e) => {
+    if (e && e.preventDefault) e.preventDefault();
     if (!newExpenseCatName) return;
     const clean = newExpenseCatName.trim();
-    if (gastosCategorias.includes(clean)) return;
-    setGastosCategorias(prev => [...prev, clean]);
-    setNewExpenseCatName('');
+    if (!clean) return;
+
+    if (gastosCategorias.includes(clean)) {
+      showNotification('Esta categoria de despesas já existe!', 'error');
+      return;
+    }
+
+    const newCats = [...gastosCategorias, clean];
+    try {
+      const res = await adminFetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'expense_categories', value: newCats })
+      });
+      if (res.ok) {
+        setGastosCategorias(newCats);
+        setNewExpenseCatName('');
+        showNotification('Categoria de despesas adicionada com sucesso!');
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showNotification('Erro ao adicionar categoria de despesas: ' + (errData.error || res.statusText), 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão/servidor ao adicionar categoria: ' + err.message, 'error');
+    }
   };
 
-  const handleRemoveGastoCategory = (catName) => {
+  const handleRemoveGastoCategory = async (catName) => {
     if (catName === 'Outros') return;
-    setGastosCategorias(prev => prev.filter(c => c !== catName));
-    setGastos(prev => prev.map(g => g.category === catName ? { ...g, category: 'Outros' } : g));
+    const newCats = gastosCategorias.filter(c => c !== catName);
+    
+    try {
+      const res = await adminFetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'expense_categories', value: newCats })
+      });
+      if (res.ok) {
+        setGastosCategorias(newCats);
+        // Atualizar lista de despesas após o remapeamento no backend
+        const resExpenses = await adminFetch('/api/admin/expenses');
+        if (resExpenses.ok) {
+          const data = await resExpenses.json();
+          setGastos(data.expenses || []);
+        }
+        showNotification('Categoria de despesas removida com sucesso!');
+      } else {
+        showNotification('Erro ao remover categoria de despesas', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão/servidor ao remover categoria: ' + err.message, 'error');
+    }
   };
 
-  const handleSaveGastoCategoryName = (index, newName) => {
+  const handleSaveGastoCategoryName = async (index, newName) => {
     if (!newName) return;
     const clean = newName.trim();
     const oldName = gastosCategorias[index];
     if (oldName === 'Outros') return;
     if (gastosCategorias.includes(clean) && clean !== oldName) return;
 
-    setGastosCategorias(prev => prev.map((c, i) => i === index ? clean : c));
-    setGastos(prev => prev.map(g => g.category === oldName ? { ...g, category: clean } : g));
-    setEditingExpenseCatIndex(null);
-    setEditingExpenseCatName('');
+    const newCats = gastosCategorias.map((c, i) => i === index ? clean : c);
+    try {
+      const res = await adminFetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'expense_categories', value: newCats })
+      });
+      if (res.ok) {
+        setGastosCategorias(newCats);
+        const resExpenses = await adminFetch('/api/admin/expenses');
+        if (resExpenses.ok) {
+          const data = await resExpenses.json();
+          setGastos(data.expenses || []);
+        }
+        setEditingExpenseCatIndex(null);
+        setEditingExpenseCatName('');
+        showNotification('Categoria de despesas renomeada com sucesso!');
+      } else {
+        showNotification('Erro ao renomear categoria de despesas', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão/servidor ao renomear categoria: ' + err.message, 'error');
+    }
   };
 
   const handleToggleUserPlan = async (id) => {
@@ -337,7 +560,7 @@ export default function AdminDashboard() {
     setUsersBase(prev => prev.map(u => u.id === id ? { ...u, plan: nextPlan } : u));
 
     try {
-      const res = await fetch('/api/admin/users', {
+      const res = await adminFetch('/api/admin/users', {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
@@ -348,17 +571,57 @@ export default function AdminDashboard() {
       if (!res.ok) {
         throw new Error('Falha ao atualizar plano');
       }
+      showNotification('Plano do usuário atualizado com sucesso!');
     } catch (e) {
       console.error('[Admin Dashboard] Erro ao atualizar plano:', e);
       // Reverter alteração otimista
       setUsersBase(prev => prev.map(u => u.id === id ? { ...u, plan: userToUpdate.plan } : u));
-      alert('Erro ao atualizar plano no Supabase: ' + e.message);
+      showNotification('Erro ao atualizar plano no Supabase: ' + e.message, 'error');
+    }
+  };
+
+  // Aplicar/Remover cupom de um usuário
+  const handleApplyCoupon = async (userId, couponCode) => {
+    const userToUpdate = usersBase.find(u => u.id === userId);
+    if (!userToUpdate) return;
+
+    const isRemoving = !couponCode;
+    const selectedCoupon = isRemoving ? null : cupons.find(c => c.code === couponCode);
+
+    // Se o cupom é de 100%, o plano vira 'gratis' (acesso total sem gerar receita)
+    const isFullAccess = selectedCoupon && selectedCoupon.discount === 100;
+    const newPlan = isFullAccess ? 'gratis' : userToUpdate.plan;
+
+    // Otimista: atualiza localmente
+    setUsersBase(prev => prev.map(u => u.id === userId ? { ...u, coupon_code: couponCode || null, plan: newPlan } : u));
+
+    try {
+      const body = { userId, coupon_code: couponCode || null };
+      if (isFullAccess) body.plan = 'gratis';
+
+      const res = await adminFetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!res.ok) throw new Error('Falha ao aplicar cupom');
+      showNotification(
+        isRemoving 
+          ? 'Cupom removido do usuário com sucesso!' 
+          : `Cupom ${couponCode} aplicado com sucesso!${isFullAccess ? ' (Acesso total gratuito)' : ''}`
+      );
+    } catch (e) {
+      console.error('[Admin Dashboard] Erro ao aplicar cupom:', e);
+      // Reverter
+      setUsersBase(prev => prev.map(u => u.id === userId ? { ...u, coupon_code: userToUpdate.coupon_code, plan: userToUpdate.plan } : u));
+      showNotification('Erro ao aplicar cupom: ' + e.message, 'error');
     }
   };
 
   // Verificação de Segurança (Super Admin ou Admin Secundário)
-  const isSuperAdmin = user && user.email === 'a2soluntions@gmail.com';
-  const isSubAdmin = user && subAdmins.includes(user.email);
+  const isSuperAdmin = user && (user.email === 'a2soluntions@gmail.com' || user.role === 'super_admin');
+  const isSubAdmin = user && (user.role === 'admin' || subAdmins.includes(user.email));
   const isAdmin = isSuperAdmin || isSubAdmin;
 
   if (loading) {
@@ -378,10 +641,27 @@ export default function AdminDashboard() {
     );
   }
 
+  // Se estiver carregando os dados do banco e o usuário não for o super admin, aguarda
+  if (loadingData && !isSuperAdmin) {
+    return (
+      <div style={{
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '80vh',
+        fontFamily: 'monospace',
+        color: 'var(--brand-neon)'
+      }}>
+        <RefreshCw size={32} className="spin" style={{ marginBottom: '16px' }} />
+        <span>VALIDANDO CREDENCIAIS...</span>
+      </div>
+    );
+  }
+
   if (!isAdmin) {
     return (
       <div style={{
-        maxWidth: '550px',
         margin: '100px auto 40px auto',
         padding: '32px',
         textAlign: 'center',
@@ -664,7 +944,7 @@ export default function AdminDashboard() {
                 {[
                   { 
                     label: '1. Visitantes Únicos', 
-                    val: '10.200', 
+                    val: funnelMetrics.visitors.toLocaleString('pt-BR'), 
                     subtext: '100% de tráfego',
                     width: '320px', 
                     polygon: 'polygon(0% 0%, 100% 0%, 85% 100%, 15% 100%)',
@@ -673,8 +953,8 @@ export default function AdminDashboard() {
                   },
                   { 
                     label: '2. Trials Ativados', 
-                    val: '2.450', 
-                    subtext: '24% conversão',
+                    val: funnelMetrics.trials.toLocaleString('pt-BR'), 
+                    subtext: `${((funnelMetrics.trials / (funnelMetrics.visitors || 1)) * 100).toFixed(1)}% conversão`,
                     width: '272px', // 85% de 320
                     polygon: 'polygon(0% 0%, 100% 0%, 82% 100%, 18% 100%)',
                     bg: 'linear-gradient(90deg, rgba(0,210,255,0.15), rgba(0,150,220,0.3))',
@@ -683,7 +963,7 @@ export default function AdminDashboard() {
                   { 
                     label: '3. Assinantes PRO', 
                     val: String(financialMetrics.proCount), 
-                    subtext: `${((financialMetrics.proCount/2450)*100).toFixed(1)}% do trial`,
+                    subtext: `${((financialMetrics.proCount / (funnelMetrics.trials || 1)) * 100).toFixed(1)}% do trial`,
                     width: '223px', // 82% de 272
                     polygon: 'polygon(0% 0%, 100% 0%, 78% 100%, 22% 100%)',
                     bg: 'linear-gradient(90deg, rgba(204,255,0,0.15), rgba(150,200,0,0.3))',
@@ -692,7 +972,7 @@ export default function AdminDashboard() {
                   { 
                     label: '4. VIP Elite', 
                     val: String(financialMetrics.vipCount), 
-                    subtext: `${((financialMetrics.vipCount/2450)*100).toFixed(1)}% do trial`,
+                    subtext: `${((financialMetrics.vipCount / (funnelMetrics.trials || 1)) * 100).toFixed(1)}% do trial`,
                     width: '174px', // Restaura a geometria perfeita do funil
                     polygon: 'polygon(0% 0%, 100% 0%, 50% 100%, 50% 100%)', // Triângulo invertido perfeito (ponta do funil)
                     bg: 'linear-gradient(to bottom, rgba(179,57,255,0.25), rgba(100,20,150,0.55))',
@@ -893,7 +1173,7 @@ export default function AdminDashboard() {
                         </span>
                       </td>
                       <td style={{ padding: '10px 4px', textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace', color: '#ff9800' }}>
-                        R$ {g.value.toFixed(2)}
+                        R$ {parseFloat(g.value || 0).toFixed(2)}
                       </td>
                       <td style={{ padding: '10px 4px', textAlign: 'center' }}>
                         <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
@@ -988,19 +1268,20 @@ export default function AdminDashboard() {
               </select>
             </div>
 
-            <div style={{ overflowX: 'auto', maxHeight: '270px', overflowY: 'auto' }} className="no-scrollbar">
+            <div style={{ overflowX: 'auto', maxHeight: '350px', overflowY: 'auto' }} className="no-scrollbar">
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                 <thead>
                   <tr style={{ borderBottom: '1px solid #333', color: '#888', textAlign: 'left' }}>
                     <th style={{ padding: '8px 4px' }}>Nome / E-mail</th>
                     <th style={{ padding: '8px 4px' }}>Plano</th>
+                    <th style={{ padding: '8px 4px' }}>Cupom</th>
                     <th style={{ padding: '8px 4px', textAlign: 'center' }}>Promover</th>
                   </tr>
                 </thead>
                 <tbody>
                   {loadingUsers ? (
                     <tr>
-                      <td colSpan="3" style={{ textAlign: 'center', padding: '24px', color: 'var(--brand-neon)' }}>
+                      <td colSpan="4" style={{ textAlign: 'center', padding: '24px', color: 'var(--brand-neon)' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
                           <RefreshCw size={20} className="spin" />
                           <span>Carregando usuários do banco...</span>
@@ -1009,12 +1290,16 @@ export default function AdminDashboard() {
                     </tr>
                   ) : filteredUsers.length === 0 ? (
                     <tr>
-                      <td colSpan="3" style={{ textAlign: 'center', padding: '24px', color: '#666' }}>
+                      <td colSpan="4" style={{ textAlign: 'center', padding: '24px', color: '#666' }}>
                         Nenhum usuário encontrado.
                       </td>
                     </tr>
                   ) : (
-                    filteredUsers.map(u => (
+                    filteredUsers.map(u => {
+                      const userCoupon = u.coupon_code ? cupons.find(c => c.code === u.coupon_code) : null;
+                      const isFullAccessCoupon = userCoupon && userCoupon.discount === 100;
+                      
+                      return (
                       <tr key={u.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
                         <td style={{ padding: '10px 4px' }}>
                           <div style={{ fontWeight: 'bold' }}>{u.name}</div>
@@ -1022,16 +1307,41 @@ export default function AdminDashboard() {
                         </td>
                         <td style={{ padding: '10px 4px' }}>
                           <span style={{
-                            background: u.plan === 'vitalicio' ? 'rgba(204,255,0,0.15)' : u.plan === 'vip' ? 'rgba(179,57,255,0.15)' : u.plan === 'pro' ? 'rgba(204,255,0,0.1)' : '#222',
-                            color: u.plan === 'vitalicio' ? 'var(--brand-neon)' : u.plan === 'vip' ? '#b339ff' : u.plan === 'pro' ? 'var(--brand-neon)' : '#888',
-                            border: '1px solid ' + (u.plan === 'vitalicio' ? 'var(--brand-neon)' : u.plan === 'vip' ? '#b339ff' : u.plan === 'pro' ? 'var(--brand-neon)' : '#333'),
+                            background: isFullAccessCoupon ? 'rgba(0, 210, 255, 0.12)' : u.plan === 'vitalicio' ? 'rgba(204,255,0,0.15)' : u.plan === 'vip' ? 'rgba(179,57,255,0.15)' : u.plan === 'pro' ? 'rgba(204,255,0,0.1)' : '#222',
+                            color: isFullAccessCoupon ? '#00d2ff' : u.plan === 'vitalicio' ? 'var(--brand-neon)' : u.plan === 'vip' ? '#b339ff' : u.plan === 'pro' ? 'var(--brand-neon)' : '#888',
+                            border: '1px solid ' + (isFullAccessCoupon ? '#00d2ff' : u.plan === 'vitalicio' ? 'var(--brand-neon)' : u.plan === 'vip' ? '#b339ff' : u.plan === 'pro' ? 'var(--brand-neon)' : '#333'),
                             padding: '2px 6px',
                             borderRadius: '4px',
                             fontSize: '0.65rem',
                             fontWeight: 'bold'
                           }}>
-                            {u.plan === 'vitalicio' ? 'VITALÍCIO' : u.plan === 'vip' ? 'VIP ELITE' : u.plan === 'pro' ? 'PRO' : 'TRIAL'}
+                            {isFullAccessCoupon ? 'GRATUITO ★' : u.plan === 'vitalicio' ? 'VITALÍCIO' : u.plan === 'vip' ? 'VIP ELITE' : u.plan === 'pro' ? 'PRO' : 'TRIAL'}
                           </span>
+                        </td>
+                        <td style={{ padding: '10px 4px' }}>
+                          <select
+                            value={u.coupon_code || ''}
+                            onChange={(e) => handleApplyCoupon(u.id, e.target.value)}
+                            style={{
+                              background: u.coupon_code ? 'rgba(179, 57, 255, 0.08)' : '#16161a',
+                              border: '1px solid ' + (u.coupon_code ? '#b339ff' : '#333'),
+                              color: u.coupon_code ? '#b339ff' : '#888',
+                              padding: '3px 6px',
+                              borderRadius: '4px',
+                              fontSize: '0.68rem',
+                              cursor: 'pointer',
+                              fontWeight: u.coupon_code ? 'bold' : 'normal',
+                              outline: 'none',
+                              maxWidth: '120px'
+                            }}
+                          >
+                            <option value="">Sem cupom</option>
+                            {cupons.map(cup => (
+                              <option key={cup.id} value={cup.code}>
+                                {cup.code} ({cup.discount === 100 ? 'FREE' : `-${cup.discount}%`})
+                              </option>
+                            ))}
+                          </select>
                         </td>
                         <td style={{ padding: '10px 4px', textAlign: 'center' }}>
                           <button
@@ -1060,7 +1370,7 @@ export default function AdminDashboard() {
                           </button>
                         </td>
                       </tr>
-                    ))
+                    );})
                   )}
                 </tbody>
               </table>
@@ -1381,6 +1691,122 @@ export default function AdminDashboard() {
               </div>
             </div>
 
+            {/* 4. Métricas do Funil do SaaS */}
+            <div className="glass-panel" style={{ padding: '20px' }}>
+              <h3 style={{ fontSize: '1.02rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 16px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <TrendingUp size={16} color="#00d2ff" /> Tráfego & Funil do SaaS
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: '#888', lineHeight: 1.4, marginBottom: '16px' }}>
+                Ajuste os números globais de visitas e trials convertidos exibidos no funil de vendas do painel geral.
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>Visitantes Únicos</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input 
+                      type="number"
+                      value={funnelMetrics.visitors}
+                      onChange={(e) => setFunnelMetrics(prev => ({ ...prev, visitors: parseInt(e.target.value) || 0 }))}
+                      style={{
+                        flex: 1,
+                        background: '#16161a',
+                        border: '1px solid #333',
+                        color: '#fff',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        fontSize: '0.82rem',
+                        outline: 'none'
+                      }}
+                    />
+                    <button 
+                      onClick={async () => {
+                        try {
+                          const res = await adminFetch('/api/admin/settings', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ key: 'visitors_count', value: funnelMetrics.visitors })
+                          });
+                          if (res.ok) {
+                            showNotification('Métrica de visitantes atualizada no banco!');
+                          } else {
+                            showNotification('Erro ao atualizar métrica', 'error');
+                          }
+                        } catch (err) {
+                          console.error(err);
+                          showNotification('Erro ao atualizar métrica de visitantes: ' + err.message, 'error');
+                        }
+                      }}
+                      style={{
+                        background: '#00d2ff',
+                        color: '#000',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '8px 16px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        fontSize: '0.82rem'
+                      }}
+                    >
+                      Salvar
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label style={{ display: 'block', fontSize: '0.78rem', color: '#aaa', marginBottom: '6px', fontWeight: 'bold' }}>Trials Ativados</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input 
+                      type="number"
+                      value={funnelMetrics.trials}
+                      onChange={(e) => setFunnelMetrics(prev => ({ ...prev, trials: parseInt(e.target.value) || 0 }))}
+                      style={{
+                        flex: 1,
+                        background: '#16161a',
+                        border: '1px solid #333',
+                        color: '#fff',
+                        padding: '8px 12px',
+                        borderRadius: '6px',
+                        fontSize: '0.82rem',
+                        outline: 'none'
+                      }}
+                    />
+                    <button 
+                      onClick={async () => {
+                        try {
+                          const res = await adminFetch('/api/admin/settings', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ key: 'trial_count', value: funnelMetrics.trials })
+                          });
+                          if (res.ok) {
+                            showNotification('Métrica de trials atualizada no banco!');
+                          } else {
+                            showNotification('Erro ao atualizar métrica', 'error');
+                          }
+                        } catch (err) {
+                          console.error(err);
+                          showNotification('Erro ao atualizar métrica de trials: ' + err.message, 'error');
+                        }
+                      }}
+                      style={{
+                        background: '#00d2ff',
+                        color: '#000',
+                        border: 'none',
+                        borderRadius: '6px',
+                        padding: '8px 16px',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        fontSize: '0.82rem'
+                      }}
+                    >
+                      Salvar
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
       )}
@@ -1682,6 +2108,74 @@ export default function AdminDashboard() {
         </div>
       )}
 
+      {/* Toast Notification */}
+      {notification && (
+        <div 
+          className="toast-notification"
+          style={{
+            position: 'fixed',
+            top: '24px',
+            right: '24px',
+            zIndex: 11000,
+            background: 'rgba(20, 20, 25, 0.85)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid ' + (notification.type === 'error' ? 'var(--alert-red)' : notification.type === 'info' ? '#00d2ff' : 'var(--brand-neon)'),
+            borderLeft: '5px solid ' + (notification.type === 'error' ? 'var(--alert-red)' : notification.type === 'info' ? '#00d2ff' : 'var(--brand-neon)'),
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)',
+            borderRadius: '8px',
+            padding: '14px 18px',
+            minWidth: '280px',
+            maxWidth: '400px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px',
+            color: '#fff',
+            fontFamily: 'var(--font-family), system-ui, sans-serif'
+          }}
+        >
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '28px',
+            height: '28px',
+            borderRadius: '50%',
+            background: notification.type === 'error' ? 'var(--alert-red-dim)' : notification.type === 'info' ? 'rgba(0, 210, 255, 0.15)' : 'var(--brand-neon-dim)',
+            color: notification.type === 'error' ? 'var(--alert-red)' : notification.type === 'info' ? '#00d2ff' : 'var(--brand-neon)'
+          }}>
+            {notification.type === 'error' ? <ShieldAlert size={16} /> : notification.type === 'info' ? <HelpCircle size={16} /> : <ShieldCheck size={16} />}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: '0.82rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#fff' }}>
+              {notification.type === 'error' ? 'Atenção' : notification.type === 'info' ? 'Informação' : 'Sucesso'}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: '#aaa', marginTop: '2px', lineHeight: 1.4 }}>
+              {notification.message}
+            </div>
+          </div>
+          <button 
+            onClick={() => setNotification(null)}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#666',
+              cursor: 'pointer',
+              fontSize: '1rem',
+              fontWeight: 'bold',
+              padding: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'color 0.2s'
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.color = '#fff'}
+            onMouseLeave={(e) => e.currentTarget.style.color = '#666'}
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
       <style jsx>{`
         .glass-panel {
           background: #111116;
@@ -1690,10 +2184,6 @@ export default function AdminDashboard() {
           box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3);
         }
         
-        .spin {
-          animation: spin 1s linear infinite;
-        }
-
         @keyframes spin {
           to { transform: rotate(360deg); }
         }

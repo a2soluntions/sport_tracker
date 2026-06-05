@@ -50,13 +50,18 @@ export function AuthProvider({ children }) {
   // Carregar sessão inicial
   useEffect(() => {
     async function loadSession() {
+      console.log("[AuthContext] loadSession iniciou");
       // 1. Tentar Supabase Auth se ativo
       if (supabase) {
         try {
+          console.log("[AuthContext] getSession iniciando...");
           const { data: { session }, error } = await supabase.auth.getSession();
+          console.log("[AuthContext] getSession finalizado, error:", error, "user:", session?.user?.email);
           if (!error && session?.user) {
             // Buscar perfil estendido ou criar mock
+            console.log("[AuthContext] Usuário logado encontrado via getSession. Carregando profile...");
             const profile = await fetchOrCreateProfile(session.user);
+            console.log("[AuthContext] Profile carregado com sucesso:", profile.email);
             setUser(profile);
             setLoading(false);
             return;
@@ -67,14 +72,18 @@ export function AuthProvider({ children }) {
       }
 
       // 2. Fallback para LocalStorage
+      console.log("[AuthContext] Sem sessão ativa no Supabase, tentando fallback LocalStorage");
       const savedUser = localStorage.getItem('ev_tracker_user_session');
       if (savedUser) {
         try {
-          setUser(JSON.parse(savedUser));
+          const parsed = JSON.parse(savedUser);
+          console.log("[AuthContext] Usuário carregado do LocalStorage:", parsed.email);
+          setUser(parsed);
         } catch (e) {
           console.error("Falha ao ler sessão local:", e);
         }
       }
+      console.log("[AuthContext] loadSession encerrado (setLoading(false))");
       setLoading(false);
     }
 
@@ -86,6 +95,7 @@ export function AuthProvider({ children }) {
     if (!supabase) return;
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log("[AuthContext] onAuthStateChange disparado, evento:", event, "user:", session?.user?.email);
       if (event === 'PASSWORD_RECOVERY') {
         const profile = await fetchOrCreateProfile(session.user);
         setUser(profile);
@@ -129,19 +139,24 @@ export function AuthProvider({ children }) {
 
     // Tentar buscar perfil existente no Supabase
     let plan = 'gratis';
+    let couponCode = null;
     if (supabase) {
       try {
+        console.log("[AuthContext] fetchOrCreateProfile consultando banco para:", supabaseUser.id);
         const { data: existingProfile, error: selectError } = await supabase
           .from('profiles')
           .select('plan, role, name')
           .eq('id', supabaseUser.id)
           .maybeSingle();
 
+        console.log("[AuthContext] fetchOrCreateProfile consulta finalizada, error:", selectError, "data:", existingProfile);
         if (!selectError && existingProfile) {
           // Perfil já existe — usar dados do Supabase
           plan = existingProfile.plan || 'gratis';
           // Super admin sempre vitalicio
           if (isSuperAdmin) plan = 'vitalicio';
+          // Recuperar coupon_code do perfil
+          couponCode = existingProfile.coupon_code || null;
         } else {
           // Perfil não existe — criar
           if (isSuperAdmin) plan = 'vitalicio';
@@ -190,6 +205,7 @@ export function AuthProvider({ children }) {
       name: userName,
       plan: plan,
       role: role,
+      coupon_code: couponCode,
       createdAt: createdAt
     };
   }
@@ -387,7 +403,9 @@ export function AuthProvider({ children }) {
 
   const isTrialActive = () => {
     if (!user) return false;
-    if (user.plan === 'pro' || user.plan === 'vip') return true;
+    if (user.plan === 'pro' || user.plan === 'vip' || user.plan === 'vitalicio') return true;
+    // Cupom de acesso total (100%) libera todas as funcionalidades
+    if (user.coupon_code) return true;
     return getTrialDaysLeft() > 0;
   };
 

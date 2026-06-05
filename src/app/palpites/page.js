@@ -532,7 +532,9 @@ export default function PalpitesPage() {
     }
 
     if (success && savedTx) {
-      setTransactions(prev => [savedTx, ...prev]);
+      const updated = [savedTx, ...transactions];
+      setTransactions(updated);
+      localStorage.setItem(userTxsKey, JSON.stringify(updated));
       showToast('Aposta salva com sucesso na sua Banca! 🚀', 'success');
     }
 
@@ -1113,7 +1115,9 @@ export default function PalpitesPage() {
     }
 
     if (success && savedTx) {
-      setTransactions(prev => [savedTx, ...prev]);
+      const updated = [savedTx, ...transactions];
+      setTransactions(updated);
+      localStorage.setItem(userTxsKey, JSON.stringify(updated));
       showToast('Palpite registrado com sucesso no seu Controle de Banca!', 'success');
     }
 
@@ -2612,7 +2616,9 @@ export default function PalpitesPage() {
                                 }
 
                                 if (success && savedTx) {
-                                  setTransactions(prev => [savedTx, ...prev]);
+                                  const updated = [savedTx, ...transactions];
+                                  setTransactions(updated);
+                                  localStorage.setItem(userTxsKey, JSON.stringify(updated));
                                   showToast(`Seguindo ${selection} (R$ 50 @${fairOdd}) registrado na Banca!`, 'success');
                                 }
                               }}

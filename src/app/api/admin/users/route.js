@@ -1,5 +1,8 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { verifyAdmin } from '@/lib/adminAuth';
+
+export const dynamic = 'force-dynamic';
 
 // Criar cliente Supabase com service_role key (acesso total, server-side only)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -15,6 +18,10 @@ function getAdminSupabase() {
 // GET /api/admin/users — Lista todos os perfis
 export async function GET(request) {
   try {
+    if (!await verifyAdmin(request)) {
+      return NextResponse.json({ error: 'Acesso não autorizado' }, { status: 401 });
+    }
+
     const supabase = getAdminSupabase();
     
     // Se não tem service key, tentar com anon key (fallback limitado)
@@ -73,6 +80,10 @@ export async function GET(request) {
 // PATCH /api/admin/users — Atualizar plano/role de um usuário
 export async function PATCH(request) {
   try {
+    if (!await verifyAdmin(request)) {
+      return NextResponse.json({ error: 'Acesso não autorizado' }, { status: 401 });
+    }
+
     const body = await request.json();
     const { userId, plan, role } = body;
 
@@ -93,6 +104,7 @@ export async function PATCH(request) {
     const updateData = {};
     if (plan) updateData.plan = plan;
     if (role) updateData.role = role;
+    if (body.coupon_code !== undefined) updateData.coupon_code = body.coupon_code;
 
     const { data, error } = await client
       .from('profiles')

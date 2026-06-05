@@ -4,8 +4,11 @@
 -- https://supabase.com/dashboard → SQL Editor
 -- =============================================
 
+-- Remover a tabela antiga caso ela exista com tipo de ID incompatível (ex: integer)
+DROP TABLE IF EXISTS public.user_settings CASCADE;
+
 -- 1. Criar tabela de configurações do usuário
-CREATE TABLE IF NOT EXISTS public.user_settings (
+CREATE TABLE public.user_settings (
   id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
   banca NUMERIC(12, 2) DEFAULT 1000.00,
   created_at TIMESTAMPTZ DEFAULT now(),

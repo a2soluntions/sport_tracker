@@ -32,6 +32,7 @@ import {
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
+import ConfirmModal from '../../components/ConfirmModal';
 
 const getTeamLogoUrl = (teamName) => {
   if (!teamName) return '';
@@ -153,6 +154,7 @@ export default function RelatorioApostasPage() {
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [selectedTxForDetail, setSelectedTxForDetail] = useState(null);
   const [fixtures, setFixtures] = useState([]);
+  const [confirmDeleteModal, setConfirmDeleteModal] = useState({ show: false, txId: null });
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -418,8 +420,15 @@ export default function RelatorioApostasPage() {
     init();
   }, [user]);
 
-  const handleDeleteTransaction = async (id) => {
-    if (!window.confirm("Deseja realmente excluir este palpite seguido da sua banca?")) return;
+  const handleDeleteTransaction = (id) => {
+    setConfirmDeleteModal({ show: true, txId: id });
+  };
+
+  const executeDeleteTransaction = async () => {
+    const id = confirmDeleteModal.txId;
+    setConfirmDeleteModal({ show: false, txId: null });
+    if (!id) return;
+
     const updated = transactions.filter(t => t.id !== id);
     setTransactions(updated);
 
@@ -433,6 +442,9 @@ export default function RelatorioApostasPage() {
           .delete()
           .eq('id', id);
         if (error) throw error;
+
+        // Atualizar lista local no localStorage para evitar ressincronização no refresh
+        localStorage.setItem(userTxsKey, JSON.stringify(updated));
 
         // Remover da lista de IDs do usuário
         const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
@@ -1278,6 +1290,18 @@ export default function RelatorioApostasPage() {
           </div>
         </div>
       )}
+
+      {/* Confirmar Exclusão da Aposta */}
+      <ConfirmModal
+        isOpen={confirmDeleteModal.show}
+        onClose={() => setConfirmDeleteModal({ show: false, txId: null })}
+        onConfirm={executeDeleteTransaction}
+        title="Excluir da Banca"
+        message="Deseja realmente excluir este palpite seguido da sua banca?"
+        confirmText="Excluir"
+        cancelText="Cancelar"
+        isDestructive={true}
+      />
 
       <style>{`
         @keyframes slideIn {

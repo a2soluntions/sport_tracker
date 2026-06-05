@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Zap, CheckCircle2, ShieldCheck, CreditCard, QrCode, Clipboard, ClipboardCheck, Loader2, ArrowLeft } from 'lucide-react';
+import AlertModal from '../../components/AlertModal';
 
 export default function PricingPage() {
   const router = useRouter();
@@ -28,6 +29,7 @@ export default function PricingPage() {
   const [loadingPix, setLoadingPix] = useState(false);
   const [errorPix, setErrorPix] = useState('');
   const [loadingPreference, setLoadingPreference] = useState(false);
+  const [alertState, setAlertState] = useState({ show: false, title: 'Erro', message: '', type: 'error' });
 
   const plans = {
     gratis: { name: 'Grátis (Trial)', price: 'R$ 0,00', days: 7 },
@@ -209,7 +211,12 @@ export default function PricingPage() {
       window.location.href = data.init_point;
     } catch (err) {
       console.error(err);
-      alert(err.message || 'Erro ao redirecionar para o Mercado Pago.');
+      setAlertState({
+        show: true,
+        title: 'Falha no Pagamento',
+        message: err.message || 'Erro ao redirecionar para o Mercado Pago.',
+        type: 'error'
+      });
     } finally {
       setLoadingPreference(false);
     }
@@ -1026,6 +1033,15 @@ export default function PricingPage() {
 
         </div>
       )}
+
+      {/* Modal de Alerta Customizado */}
+      <AlertModal
+        isOpen={alertState.show}
+        onClose={() => setAlertState({ ...alertState, show: false })}
+        title={alertState.title}
+        message={alertState.message}
+        type={alertState.type}
+      />
 
       {/* Animações CSS */}
       <style jsx>{`

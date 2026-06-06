@@ -841,7 +841,7 @@ export default function GestaoBancaPage() {
         <div className="responsive-chart-wrapper">
           {mounted ? (
             <ResponsiveContainer width="100%" height="100%">
-              <RechartsLineChart data={chartData} margin={{ top: 10, right: 10, left: 15, bottom: 0 }}>
+              <RechartsLineChart data={chartData} margin={{ top: 10, right: 10, left: 25, bottom: 0 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
                 <XAxis dataKey="date" stroke="#666" tick={{ fill: '#666', fontSize: 11 }} />
                 <YAxis stroke="#666" tick={{ fill: '#666', fontSize: 11 }} tickFormatter={(val) => `R$${val}`} />

@@ -50,10 +50,12 @@ export function AuthProvider({ children }) {
   // Carregar sessão inicial
   useEffect(() => {
     let active = true;
+    let timedOut = false;
 
     // Safety timeout to prevent infinite loading screen (e.g. if getSession hangs)
     const safetyTimeout = setTimeout(() => {
       if (active) {
+        timedOut = true;
         console.warn("[AuthContext] Timeout de segurança carregando sessão. Forçando carregamento do app.");
         try {
           const savedUser = localStorage.getItem('ev_tracker_user_session');
@@ -69,49 +71,65 @@ export function AuthProvider({ children }) {
 
     async function loadSession() {
       console.log("[AuthContext] loadSession iniciou");
+      let sessionUser = null;
+      let profile = null;
+
       // 1. Tentar Supabase Auth se ativo
       if (supabase) {
         try {
           console.log("[AuthContext] getSession iniciando...");
           const { data: { session }, error } = await supabase.auth.getSession();
           console.log("[AuthContext] getSession finalizado, error:", error, "user:", session?.user?.email);
-          if (active) {
-            clearTimeout(safetyTimeout);
-          }
           if (!error && session?.user) {
-            // Buscar perfil estendido ou criar mock
-            console.log("[AuthContext] Usuário logado encontrado via getSession. Carregando profile...");
-            const profile = await fetchOrCreateProfile(session.user);
-            console.log("[AuthContext] Profile carregado com sucesso:", profile.email);
-            if (active) {
-              setUser(profile);
-              setLoading(false);
-            }
-            return;
+            sessionUser = session.user;
           }
         } catch (e) {
-          console.warn("Supabase Auth falhou, usando LocalStorage fallback:", e);
+          console.warn("Supabase Auth getSession falhou, usando LocalStorage fallback:", e);
         }
       }
 
-      // 2. Fallback para LocalStorage
-      console.log("[AuthContext] Sem sessão ativa no Supabase, tentando fallback LocalStorage");
-      const savedUser = localStorage.getItem('ev_tracker_user_session');
-      if (savedUser) {
+      if (sessionUser) {
         try {
-          const parsed = JSON.parse(savedUser);
-          console.log("[AuthContext] Usuário carregado do LocalStorage:", parsed.email);
-          if (active) {
-            setUser(parsed);
-          }
+          console.log("[AuthContext] Usuário logado encontrado. Carregando profile...");
+          profile = await fetchOrCreateProfile(sessionUser);
+          console.log("[AuthContext] Profile carregado com sucesso:", profile?.email);
         } catch (e) {
-          console.error("Falha ao ler sessão local:", e);
+          console.warn("Erro ao buscar/criar perfil no Supabase, usando LocalStorage fallback:", e);
         }
       }
-      console.log("[AuthContext] loadSession encerrado (setLoading(false))");
+
+      // 2. Fallback para LocalStorage se não carregou profile
+      if (!profile) {
+        console.log("[AuthContext] Sem sessão ativa no Supabase ou falha no profile, tentando fallback LocalStorage");
+        const savedUser = localStorage.getItem('ev_tracker_user_session');
+        if (savedUser) {
+          try {
+            profile = JSON.parse(savedUser);
+            console.log("[AuthContext] Usuário carregado do LocalStorage:", profile.email);
+          } catch (e) {
+            console.error("Falha ao ler sessão local:", e);
+          }
+        }
+      }
+
+      // 3. Finalizar o carregamento
       if (active) {
         clearTimeout(safetyTimeout);
-        setLoading(false);
+        if (!timedOut) {
+          if (profile) {
+            setUser(profile);
+          } else {
+            setUser(null);
+          }
+          console.log("[AuthContext] loadSession finalizado com sucesso. setLoading(false)");
+          setLoading(false);
+        } else {
+          // Se já deu timeout, apenas atualiza o user caso tenha carregado com sucesso tardiamente
+          if (profile) {
+            setUser(profile);
+          }
+          console.log("[AuthContext] loadSession finalizado após timeout. Usuário atualizado se disponível.");
+        }
       }
     }
 
@@ -129,20 +147,24 @@ export function AuthProvider({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("[AuthContext] onAuthStateChange disparado, evento:", event, "user:", session?.user?.email);
-      if (event === 'PASSWORD_RECOVERY') {
-        const profile = await fetchOrCreateProfile(session.user);
-        setUser(profile);
-        localStorage.setItem('ev_tracker_user_session', JSON.stringify(profile));
-        window.location.href = '/redefinir-senha';
-        return;
-      }
-      if (session?.user) {
-        const profile = await fetchOrCreateProfile(session.user);
-        setUser(profile);
-        localStorage.setItem('ev_tracker_user_session', JSON.stringify(profile));
-      } else {
-        setUser(null);
-        localStorage.removeItem('ev_tracker_user_session');
+      try {
+        if (event === 'PASSWORD_RECOVERY') {
+          const profile = await fetchOrCreateProfile(session.user);
+          setUser(profile);
+          localStorage.setItem('ev_tracker_user_session', JSON.stringify(profile));
+          window.location.href = '/redefinir-senha';
+          return;
+        }
+        if (session?.user) {
+          const profile = await fetchOrCreateProfile(session.user);
+          setUser(profile);
+          localStorage.setItem('ev_tracker_user_session', JSON.stringify(profile));
+        } else {
+          setUser(null);
+          localStorage.removeItem('ev_tracker_user_session');
+        }
+      } catch (err) {
+        console.error("[AuthContext] Erro no fluxo de onAuthStateChange:", err);
       }
     });
 
@@ -153,9 +175,11 @@ export function AuthProvider({ children }) {
 
   // Helper para buscar perfil do Supabase ou criar se não existir
   async function fetchOrCreateProfile(supabaseUser) {
+    if (!supabaseUser) return null;
     const metadata = supabaseUser.user_metadata || {};
     const createdAt = supabaseUser.created_at || new Date().toISOString();
-    const userName = metadata.name || supabaseUser.email.split('@')[0];
+    const userEmail = supabaseUser.email || '';
+    const userName = metadata.name || (userEmail ? userEmail.split('@')[0] : 'Usuário');
 
     // Determinar role baseado no e-mail
     let adminEmails = [];
@@ -166,8 +190,8 @@ export function AuthProvider({ children }) {
       }
     } catch (e) {}
 
-    const isSuperAdmin = supabaseUser.email === 'a2soluntions@gmail.com';
-    const isSubAdmin = adminEmails.includes(supabaseUser.email);
+    const isSuperAdmin = userEmail === 'a2soluntions@gmail.com';
+    const isSubAdmin = adminEmails.includes(userEmail);
     let role = isSuperAdmin ? 'super_admin' : isSubAdmin ? 'admin' : 'user';
 
     // Tentar buscar perfil existente no Supabase
@@ -205,7 +229,7 @@ export function AuthProvider({ children }) {
             .from('profiles')
             .upsert({
               id: supabaseUser.id,
-              email: supabaseUser.email,
+              email: userEmail,
               name: userName,
               plan: plan,
               role: role,
@@ -234,7 +258,7 @@ export function AuthProvider({ children }) {
 
     return {
       id: supabaseUser.id,
-      email: supabaseUser.email,
+      email: userEmail,
       name: userName,
       plan: plan,
       role: role,

@@ -168,35 +168,51 @@ export default function ResponsiveDashboard() {
     }
 
     let currentBanca = initial;
+    let loadedFromSupabase = false;
+
     if (supabase) {
-      const { data } = await supabase
-        .from('banca_transactions')
-        .select('*')
-        .eq('user_id', user.id);
-      if (data) {
-        data.forEach(t => {
-          const isGain = t.type === 'ganho' || t.type === 'alavancagem' || t.description === 'Alavancagem';
-          if (isGain) {
-            const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;
-            currentBanca += profit;
-          } else if (t.type === 'perda') {
-            currentBanca -= t.amount;
-          }
-        });
+      try {
+        const { data, error } = await supabase
+          .from('banca_transactions')
+          .select('*')
+          .eq('user_id', user.id);
+        
+        if (error) throw error;
+        
+        if (data) {
+          data.forEach(t => {
+            const isGain = t.type === 'ganho' || t.type === 'alavancagem' || t.description === 'Alavancagem';
+            if (isGain) {
+              const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;
+              currentBanca += profit;
+            } else if (t.type === 'perda') {
+              currentBanca -= t.amount;
+            }
+          });
+          loadedFromSupabase = true;
+        }
+      } catch (err) {
+        console.warn("[Dashboard] Erro ao buscar transações da banca no Supabase, usando LocalStorage:", err);
       }
-    } else {
+    }
+
+    if (!loadedFromSupabase) {
       const savedTxs = localStorage.getItem(userTxsKey);
       if (savedTxs) {
-        const txs = JSON.parse(savedTxs);
-        txs.forEach(t => {
-          const isGain = t.type === 'ganho' || t.type === 'alavancagem' || t.description === 'Alavancagem';
-          if (isGain) {
-            const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;
-            currentBanca += profit;
-          } else if (t.type === 'perda') {
-            currentBanca -= t.amount;
-          }
-        });
+        try {
+          const txs = JSON.parse(savedTxs);
+          txs.forEach(t => {
+            const isGain = t.type === 'ganho' || t.type === 'alavancagem' || t.description === 'Alavancagem';
+            if (isGain) {
+              const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;
+              currentBanca += profit;
+            } else if (t.type === 'perda') {
+              currentBanca -= t.amount;
+            }
+          });
+        } catch (e) {
+          console.error("[Dashboard] Erro ao processar transações locais:", e);
+        }
       }
     }
     setBanca(currentBanca);
@@ -209,19 +225,47 @@ export default function ResponsiveDashboard() {
 
   // Load Opportunities from Supabase
   useEffect(() => {
+    let active = true;
+    let timedOut = false;
+
+    // Safety timeout to prevent stuck loading screen (e.g. if database query hangs)
+    const safetyTimeout = setTimeout(() => {
+      if (active) {
+        timedOut = true;
+        console.warn("[Dashboard] Timeout de segurança carregando oportunidades. Forçando exibição do app.");
+        setLoading(false);
+      }
+    }, 4500);
+
     if (!supabase) {
+      clearTimeout(safetyTimeout);
       setLoading(false);
       return;
     }
 
     const fetchOpp = async () => {
-      const { data } = await supabase
-        .from('ev_opportunities')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(30);
-      if (data) setOpportunities(data);
-      setLoading(false);
+      try {
+        console.log("[Dashboard] Buscando oportunidades...");
+        const { data, error } = await supabase
+          .from('ev_opportunities')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(30);
+        
+        if (error) throw error;
+        if (active && data) {
+          setOpportunities(data);
+        }
+      } catch (err) {
+        console.warn("[Dashboard] Erro ao carregar oportunidades do Supabase:", err);
+      } finally {
+        if (active) {
+          clearTimeout(safetyTimeout);
+          if (!timedOut) {
+            setLoading(false);
+          }
+        }
+      }
     };
     fetchOpp();
 
@@ -229,18 +273,24 @@ export default function ResponsiveDashboard() {
     const channel = supabase.channel('dashboard-feed')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ev_opportunities' }, 
         (payload) => {
-          setOpportunities(curr => [payload.new, ...curr].slice(0, 30));
-          
-          // Log live alert on the terminal
-          const now = new Date().toLocaleTimeString('pt-BR');
-          setTerminalLogs(currLogs => [
-            ...currLogs, 
-            { time: now, text: `🔥 NOVO ALERTA +EV: ${payload.new.confronto} (${payload.new.mercado}) - Margem: +${parseFloat(payload.new.vantagem_ev_porcentagem).toFixed(1)}%` }
-          ].slice(-50));
+          if (active) {
+            setOpportunities(curr => [payload.new, ...curr].slice(0, 30));
+            
+            // Log live alert on the terminal
+            const now = new Date().toLocaleTimeString('pt-BR');
+            setTerminalLogs(currLogs => [
+              ...currLogs, 
+              { time: now, text: `🔥 NOVO ALERTA +EV: ${payload.new.confronto} (${payload.new.mercado}) - Margem: +${parseFloat(payload.new.vantagem_ev_porcentagem).toFixed(1)}%` }
+            ].slice(-50));
+          }
         }
       ).subscribe();
 
-    return () => supabase.removeChannel(channel);
+    return () => {
+      active = false;
+      clearTimeout(safetyTimeout);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const activeOpportunities = useMemo(() => {

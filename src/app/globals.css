@@ -808,7 +808,7 @@ input[type=number] {
 
   /* Compact Charts */
   .responsive-chart-wrapper {
-    height: 110px !important;
+    height: 180px !important;
   }
   .responsive-chart-panel {
     gap: 8px !important;

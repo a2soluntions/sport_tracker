@@ -22,16 +22,9 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Acesso não autorizado' }, { status: 401 });
     }
 
-    const supabase = getAdminSupabase();
-    
-    // Se não tem service key, tentar com anon key (fallback limitado)
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    const client = supabase || (supabaseUrl && anonKey 
-      ? createClient(supabaseUrl, anonKey) 
-      : null);
-    
+    const client = getAdminSupabase();
     if (!client) {
-      return NextResponse.json({ error: 'Supabase não configurado' }, { status: 500 });
+      return NextResponse.json({ error: 'Erro de Configuração: A variável SUPABASE_SERVICE_ROLE_KEY está ausente no servidor.' }, { status: 500 });
     }
 
     const { data: profiles, error } = await client
@@ -91,14 +84,9 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'userId obrigatório' }, { status: 400 });
     }
 
-    const supabase = getAdminSupabase();
-    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-    const client = supabase || (supabaseUrl && anonKey 
-      ? createClient(supabaseUrl, anonKey) 
-      : null);
-
+    const client = getAdminSupabase();
     if (!client) {
-      return NextResponse.json({ error: 'Supabase não configurado' }, { status: 500 });
+      return NextResponse.json({ error: 'Erro de Configuração: A variável SUPABASE_SERVICE_ROLE_KEY está ausente no servidor.' }, { status: 500 });
     }
 
     const updateData = {};

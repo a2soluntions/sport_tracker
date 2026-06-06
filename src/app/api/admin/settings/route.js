@@ -14,17 +14,6 @@ function getAdminSupabase() {
   });
 }
 
-function getSupabaseClient() {
-  const adminClient = getAdminSupabase();
-  if (adminClient) return adminClient;
-
-  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
-  if (supabaseUrl && anonKey) {
-    return createClient(supabaseUrl, anonKey);
-  }
-  return null;
-}
-
 // GET /api/admin/settings — Retorna todas as configurações da tabela saas_settings
 export async function GET(request) {
   try {
@@ -32,9 +21,9 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Acesso não autorizado' }, { status: 401 });
     }
 
-    const client = getSupabaseClient();
+    const client = getAdminSupabase();
     if (!client) {
-      return NextResponse.json({ error: 'Supabase não configurado' }, { status: 500 });
+      return NextResponse.json({ error: 'Erro de Configuração: A variável SUPABASE_SERVICE_ROLE_KEY está ausente no servidor.' }, { status: 500 });
     }
 
     const { data: settingsList, error } = await client
@@ -87,9 +76,9 @@ export async function PATCH(request) {
       return NextResponse.json({ error: 'Chave e valor obrigatórios' }, { status: 400 });
     }
 
-    const client = getSupabaseClient();
+    const client = getAdminSupabase();
     if (!client) {
-      return NextResponse.json({ error: 'Supabase não configurado' }, { status: 500 });
+      return NextResponse.json({ error: 'Erro de Configuração: A variável SUPABASE_SERVICE_ROLE_KEY está ausente no servidor.' }, { status: 500 });
     }
 
     const { data, error } = await client

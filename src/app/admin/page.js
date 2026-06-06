@@ -118,18 +118,30 @@ export default function AdminDashboard() {
         if (resUsers.ok) {
           const data = await resUsers.json();
           setUsersBase(data.users || []);
+        } else {
+          const data = await resUsers.json().catch(() => ({}));
+          showNotification('Erro ao carregar usuários: ' + (data.error || 'Erro interno'), 'error');
         }
         if (resExpenses.ok) {
           const data = await resExpenses.json();
           setGastos(data.expenses || []);
+        } else {
+          const data = await resExpenses.json().catch(() => ({}));
+          showNotification('Erro ao carregar despesas: ' + (data.error || 'Erro interno'), 'error');
         }
         if (resCoupons.ok) {
           const data = await resCoupons.json();
           setCupons(data.coupons || []);
+        } else {
+          const data = await resCoupons.json().catch(() => ({}));
+          showNotification('Erro ao carregar cupons: ' + (data.error || 'Erro interno'), 'error');
         }
         if (resFeatures.ok) {
           const data = await resFeatures.json();
           setCategorias(data.features || []);
+        } else {
+          const data = await resFeatures.json().catch(() => ({}));
+          showNotification('Erro ao carregar módulos: ' + (data.error || 'Erro interno'), 'error');
         }
         if (resSettings.ok) {
           const data = await resSettings.json();
@@ -143,6 +155,9 @@ export default function AdminDashboard() {
             visitors: settings.visitors_count !== undefined ? settings.visitors_count : 10200,
             trials: settings.trial_count !== undefined ? settings.trial_count : 2450
           });
+        } else {
+          const data = await resSettings.json().catch(() => ({}));
+          showNotification('Erro ao carregar configurações SaaS: ' + (data.error || 'Erro interno'), 'error');
         }
       } catch (err) {
         console.error('[Admin Dashboard] Erro ao carregar dados:', err);
@@ -569,7 +584,8 @@ export default function AdminDashboard() {
       });
 
       if (!res.ok) {
-        throw new Error('Falha ao atualizar plano');
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Falha ao atualizar plano');
       }
       showNotification('Plano do usuário atualizado com sucesso!');
     } catch (e) {
@@ -605,7 +621,10 @@ export default function AdminDashboard() {
         body: JSON.stringify(body),
       });
 
-      if (!res.ok) throw new Error('Falha ao aplicar cupom');
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Falha ao aplicar cupom');
+      }
       showNotification(
         isRemoving 
           ? 'Cupom removido do usuário com sucesso!' 

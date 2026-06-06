@@ -751,7 +751,9 @@ export default function PalpitesPage() {
           { label: 'Casa AH -1.5', prob: stats.probCasaAH15, odd: getOdd(stats.probCasaAH15), market: 'Handicap' },
           { label: 'Fora AH -1.5', prob: stats.probForaAH15, odd: getOdd(stats.probForaAH15), market: 'Handicap' },
           { label: 'Casa AH +1.0', prob: stats.probCasaAH10Pos, odd: getOdd(stats.probCasaAH10Pos), market: 'Handicap' },
-          { label: 'Fora AH +1.0', prob: stats.probForaAH10Pos, odd: getOdd(stats.probForaAH10Pos), market: 'Handicap' }
+          { label: 'Fora AH +1.0', prob: stats.probForaAH10Pos, odd: getOdd(stats.probForaAH10Pos), market: 'Handicap' },
+          { label: 'Casa AH +1.5', prob: stats.probAH15Pos_home, odd: getOdd(stats.probAH15Pos_home), market: 'Handicap' },
+          { label: 'Fora AH +1.5', prob: stats.probAH15Pos_away, odd: getOdd(stats.probAH15Pos_away), market: 'Handicap' }
         ]
       },
       {

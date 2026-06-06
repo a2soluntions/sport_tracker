@@ -82,6 +82,22 @@ const evaluateSelection = (selection, gh, ga) => {
   if (!selection) return true;
   const cleanSel = selection.trim().toLowerCase();
   
+  // Handicap Asiático (ex: "casa ah -1.0", "fora ah 0.0", "casa ah +1.5")
+  if (cleanSel.includes('ah') || cleanSel.includes('handicap')) {
+    const isHome = cleanSel.includes('casa');
+    const isAway = cleanSel.includes('fora');
+    const valueMatch = cleanSel.match(/[+-]?\d+(?:\.\d+)?/);
+    if (valueMatch && (isHome || isAway)) {
+      const hc = parseFloat(valueMatch[0]);
+      const diff = isHome ? (gh - ga) : (ga - gh);
+      const total = diff + hc;
+      
+      if (total > 0) return true;      // Venceu
+      if (total < 0) return false;     // Perdeu
+      return null;                     // Reembolso (Aposta nula/devolvida)
+    }
+  }
+
   // 1X2
   if (cleanSel === 'casa' || cleanSel === 'casa vence' || cleanSel === 'casa vencer') return gh > ga;
   if (cleanSel === 'fora' || cleanSel === 'fora vence' || cleanSel === 'fora vencer') return ga > gh;

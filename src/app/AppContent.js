@@ -20,10 +20,15 @@ export default function AppContent({ children }) {
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
+        width: '100vw',
         height: '100vh',
+        position: 'fixed',
+        top: 0,
+        left: 0,
         background: '#09090b',
         color: 'var(--brand-neon)',
-        fontFamily: 'monospace'
+        fontFamily: 'monospace',
+        zIndex: 999999
       }}>
         <Loader2 className="spin" size={40} />
         <span style={{ marginTop: '16px', fontWeight: 'bold' }}>CONECTANDO A CENTRAL...</span>

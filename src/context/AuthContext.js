@@ -49,6 +49,24 @@ export function AuthProvider({ children }) {
 
   // Carregar sessão inicial
   useEffect(() => {
+    let active = true;
+
+    // Safety timeout to prevent infinite loading screen (e.g. if getSession hangs)
+    const safetyTimeout = setTimeout(() => {
+      if (active) {
+        console.warn("[AuthContext] Timeout de segurança carregando sessão. Forçando carregamento do app.");
+        try {
+          const savedUser = localStorage.getItem('ev_tracker_user_session');
+          if (savedUser) {
+            setUser(JSON.parse(savedUser));
+          }
+        } catch (err) {
+          console.error("Falha ao ler sessão local no timeout:", err);
+        }
+        setLoading(false);
+      }
+    }, 4500);
+
     async function loadSession() {
       console.log("[AuthContext] loadSession iniciou");
       // 1. Tentar Supabase Auth se ativo
@@ -57,13 +75,18 @@ export function AuthProvider({ children }) {
           console.log("[AuthContext] getSession iniciando...");
           const { data: { session }, error } = await supabase.auth.getSession();
           console.log("[AuthContext] getSession finalizado, error:", error, "user:", session?.user?.email);
+          if (active) {
+            clearTimeout(safetyTimeout);
+          }
           if (!error && session?.user) {
             // Buscar perfil estendido ou criar mock
             console.log("[AuthContext] Usuário logado encontrado via getSession. Carregando profile...");
             const profile = await fetchOrCreateProfile(session.user);
             console.log("[AuthContext] Profile carregado com sucesso:", profile.email);
-            setUser(profile);
-            setLoading(false);
+            if (active) {
+              setUser(profile);
+              setLoading(false);
+            }
             return;
           }
         } catch (e) {
@@ -78,16 +101,26 @@ export function AuthProvider({ children }) {
         try {
           const parsed = JSON.parse(savedUser);
           console.log("[AuthContext] Usuário carregado do LocalStorage:", parsed.email);
-          setUser(parsed);
+          if (active) {
+            setUser(parsed);
+          }
         } catch (e) {
           console.error("Falha ao ler sessão local:", e);
         }
       }
       console.log("[AuthContext] loadSession encerrado (setLoading(false))");
-      setLoading(false);
+      if (active) {
+        clearTimeout(safetyTimeout);
+        setLoading(false);
+      }
     }
 
     loadSession();
+
+    return () => {
+      active = false;
+      clearTimeout(safetyTimeout);
+    };
   }, []);
 
   // Monitorar mudanças de auth no Supabase

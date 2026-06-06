@@ -14,6 +14,9 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     await logout();
+    if (typeof window !== 'undefined') {
+      window.close();
+    }
     router.push('/login');
   };
 

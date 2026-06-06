@@ -101,6 +101,101 @@ export async function GET(request) {
     const targetYear = dateObj.getFullYear();
     const targetMonth = dateObj.getMonth();
 
+    if (leagueId === 'all') {
+      let matches = [];
+      let fromCache = false;
+      const fixturesCacheKey = `date_${targetDate}`;
+      const nowTimestamp = Date.now();
+
+      if (cache.fixtures[fixturesCacheKey] && (nowTimestamp - cache.fixtures[fixturesCacheKey].timestamp) < CACHE_DURATION_FIXTURES) {
+        matches = cache.fixtures[fixturesCacheKey].data;
+        fromCache = true;
+      } else {
+        try {
+          const url = `${API_HOST}/fixtures?date=${targetDate}`;
+          const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
+          const data = await res.json();
+          if (data.errors && Object.keys(data.errors).length > 0) {
+            console.error(`[API-Sports] Erro retornado pela API para a data ${targetDate}:`, data.errors);
+          }
+          matches = data.response || [];
+          if (matches.length > 0) {
+            cache.fixtures[fixturesCacheKey] = {
+              data: matches,
+              timestamp: nowTimestamp
+            };
+          }
+        } catch (err) {
+          console.warn(`[API-Sports] Erro ao buscar fixtures da data ${targetDate}:`, err);
+          matches = cache.fixtures[fixturesCacheKey]?.data || [];
+          fromCache = !!cache.fixtures[fixturesCacheKey];
+        }
+      }
+
+      const formattedFixtures = matches.map((m) => {
+        const isFinished = ['FT', 'AET', 'PEN'].includes(m.fixture.status.short);
+        const isLive = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT'].includes(m.fixture.status.short);
+        let statusLabel = isLive ? `Em Andamento ⚽ ${m.fixture.status.elapsed}'` : isFinished ? 'Finalizado' : 'Não Iniciado';
+
+        // Usar fallbacks padrão para xG já que não podemos buscar classificação de centenas de ligas
+        const homeXG = 1.3;
+        const awayXG = 1.3;
+
+        // Timezone-aware date formatting (Brazil timezone)
+        const dateObj = new Date(m.fixture.date);
+        const localDateStr = dateObj.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'short' }).replace('.', '');
+        const localTimeStr = dateObj.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
+        const displayDate = `${localDateStr} • ${localTimeStr}`;
+
+        const rawDate = (() => {
+          const formatter = new Intl.DateTimeFormat('en-US', {
+            timeZone: 'America/Sao_Paulo',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit'
+          });
+          const parts = formatter.formatToParts(dateObj);
+          const year = parts.find(p => p.type === 'year').value;
+          const month = parts.find(p => p.type === 'month').value;
+          const day = parts.find(p => p.type === 'day').value;
+          return `${year}-${month}-${day}`;
+        })();
+
+        return {
+          id: m.fixture.id,
+          homeTeamId: m.teams.home.id,
+          awayTeamId: m.teams.away.id,
+          date: displayDate,
+          rawDate: rawDate,
+          dayCategory: 'TODOS',
+          round: m.league.round.replace('Regular Season - ', '') || '?',
+          home: m.teams.home.name,
+          away: m.teams.away.name,
+          homeLogo: m.teams.home.logo,
+          awayLogo: m.teams.away.logo,
+          homeXG,
+          awayXG,
+          goalsHome: m.goals.home ?? 0,
+          goalsAway: m.goals.away ?? 0,
+          status: statusLabel,
+          isLive,
+          isFinished,
+          minute: m.fixture.status.elapsed || 0,
+          venue: m.fixture.venue?.name || '',
+          homePosition: '-',
+          awayPosition: '-',
+          sourceLeagueId: String(m.league.id)
+        };
+      });
+
+      return NextResponse.json({ 
+        fixtures: formattedFixtures, 
+        round: 'Várias',
+        season: targetYear,
+        fromCache: fromCache 
+      });
+    }
+
     let activeSeason = String(targetYear);
     const europeanLeagues = ['39', '140', '135', '78'];
     if (europeanLeagues.includes(leagueId)) {

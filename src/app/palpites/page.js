@@ -1052,15 +1052,18 @@ export default function PalpitesPage() {
       if (pendingTxs.length === 0) return txList;
 
       try {
-        const fetchPromises = activeLeagues.map(async (liga) => {
+        const uniqueDates = [...new Set(pendingTxs.map(t => t.date).filter(Boolean))];
+        if (uniqueDates.length === 0) return txList;
+
+        const fetchPromises = uniqueDates.map(async (dateStr) => {
           try {
-            const res = await fetch(`/api/football/fixtures?league=${liga.id}&all=true`);
+            const res = await fetch(`/api/football/fixtures?league=all&date=${dateStr}`);
             if (res.ok) {
               const data = await res.json();
               return data.fixtures || [];
             }
           } catch (e) {
-            console.warn(`[AutoResolve] Falha ao buscar fixtures da liga ${liga.id}:`, e);
+            console.warn(`[AutoResolve] Falha ao buscar fixtures da data ${dateStr}:`, e);
           }
           return [];
         });
@@ -1077,19 +1080,45 @@ export default function PalpitesPage() {
         let didUpdate = false;
 
         for (const t of pendingTxs) {
-          if (!t.description || !t.description.startsWith('[Palpite] ')) continue;
+          if (!t.description) continue;
           
-          const matchName = t.description.replace('[Palpite] ', '').split(' (')[0];
-          const bestTip = t.description.split(' (')[1]?.replace(')', '');
+          let isPalpite = t.description.startsWith('[Palpite] ');
+          let isApostaCriada = t.description.startsWith('[Aposta Criada] ');
+          if (!isPalpite && !isApostaCriada) continue;
+
+          const prefix = isPalpite ? '[Palpite] ' : '[Aposta Criada] ';
+          const matchName = t.description.replace(prefix, '').split(' (')[0];
+          const selectionsStr = t.description.split(' (')[1]?.replace(')', '') || '';
           
           const game = allFixtures.find(f => {
             const gameName = `${f.home.trim()} x ${f.away.trim()}`.toLowerCase();
             return gameName === matchName.trim().toLowerCase();
           });
+
           if (game && game.isFinished) {
             const gh = game.goalsHome;
             const ga = game.goalsAway;
-            const isHit = evaluateSelection(bestTip, gh, ga); // true = ganho, false = perda, null = reembolso (devolvida)
+            let isHit = true; // true = ganho, false = perda, null = reembolso (devolvida)
+
+            const selections = selectionsStr.split(',').map(s => s.trim()).filter(Boolean);
+            if (selections.length === 0) {
+              isHit = false;
+            } else {
+              let hasRefund = false;
+              for (const sel of selections) {
+                const res = evaluateSelection(sel, gh, ga);
+                if (res === false) {
+                  isHit = false;
+                  hasRefund = false;
+                  break;
+                } else if (res === null) {
+                  hasRefund = true;
+                }
+              }
+              if (isHit !== false && hasRefund) {
+                isHit = null; // Aposta devolvida (anulada)
+              }
+            }
 
             const resolvedType = isHit === false ? 'perda' : 'ganho';
             const finalOdd = isHit === null ? 1.0 : t.odd;
@@ -1141,7 +1170,7 @@ export default function PalpitesPage() {
     }
 
     loadTransactions();
-  }, [user]);
+  }, [user, selectedDate, selectedLeague]);
 
   const myStats = useMemo(() => {
     // Filtrar apenas transações associadas a palpites da página (iniciam com [Palpite])
@@ -1276,35 +1305,23 @@ export default function PalpitesPage() {
       setPageLoading(true);
       setApiError(null);
       try {
-        const leaguesToFetch = selectedLeague === 'all'
-          ? activeLeagues.map(l => l.id)
-          : [selectedLeague];
-
-        const fetchPromises = leaguesToFetch.map(async (lgId) => {
-          try {
-            const response = await fetch(`/api/football/fixtures?league=${lgId}&date=${selectedDate}`);
-            if (!response.ok) return { fixtures: [], round: '?', leagueId: lgId };
-            const data = await response.json();
-            return { fixtures: data.fixtures || [], round: data.round || '?', leagueId: lgId };
-          } catch (e) {
-            return { fixtures: [], round: '?', leagueId: lgId };
-          }
-        });
-
-        const results = await Promise.all(fetchPromises);
-        
         let allFixtures = [];
-        let primaryRound = null;
+        let primaryRound = 'Várias';
 
-        results.forEach(res => {
-          const gamesWithLeague = res.fixtures.map(g => ({ ...g, sourceLeagueId: res.leagueId }));
-          allFixtures = [...allFixtures, ...gamesWithLeague];
-          
-          const isPrimary = res.leagueId === selectedLeague || (selectedLeague === 'all' && res.leagueId === (activeLeagues[0]?.id || '71') && res.fixtures.length > 0);
-          if (isPrimary) {
-            primaryRound = res.round;
-          }
-        });
+        if (selectedLeague === 'all') {
+          const response = await fetch(`/api/football/fixtures?league=all&date=${selectedDate}`);
+          if (!response.ok) throw new Error('API response not ok');
+          const data = await response.json();
+          const activeLeagueIds = new Set(activeLeagues.map(l => String(l.id)));
+          allFixtures = (data.fixtures || []).filter(f => activeLeagueIds.has(String(f.sourceLeagueId)));
+          primaryRound = data.round || 'Várias';
+        } else {
+          const response = await fetch(`/api/football/fixtures?league=${selectedLeague}&date=${selectedDate}`);
+          if (!response.ok) throw new Error('API response not ok');
+          const data = await response.json();
+          allFixtures = (data.fixtures || []).map(f => ({ ...f, sourceLeagueId: selectedLeague }));
+          primaryRound = data.round || '?';
+        }
 
         const processedGames = allFixtures.map(game => {
           const stats = calculatePoissonMatchStats(
@@ -1325,13 +1342,7 @@ export default function PalpitesPage() {
         });
 
         setGames(processedGames);
-        
-        if (selectedLeague === 'all') {
-          setRoundInfo({ round: primaryRound || 'Várias', season: '2026' });
-        } else {
-          const selectedRes = results.find(r => r.leagueId === selectedLeague);
-          setRoundInfo({ round: selectedRes?.round || '?', season: '2026' });
-        }
+        setRoundInfo({ round: primaryRound, season: '2026' });
       } catch (err) {
         console.error('Erro ao buscar jogos:', err);
         setApiError('Falha ao conectar com a API de futebol.');
@@ -1341,7 +1352,7 @@ export default function PalpitesPage() {
     };
 
     fetchFixtures();
-  }, [selectedLeague, selectedDate]);
+  }, [selectedLeague, selectedDate, activeLeagues]);
 
   // === MOTOR DE ENVIO AUTOMÁTICO ===
   useEffect(() => {

@@ -203,41 +203,42 @@ export default function RelatorioApostasPage() {
       }
     }
 
-    async function loadFixtures() {
+    async function loadFixturesForTransactions(txList) {
       try {
-        const [resA, resB, resC, resEuropa, resConf, resArg] = await Promise.all([
-          fetch('/api/football/fixtures?league=71&all=true'),
-          fetch('/api/football/fixtures?league=72&all=true'),
-          fetch('/api/football/fixtures?league=75&all=true'),
-          fetch('/api/football/fixtures?league=3&all=true'),
-          fetch('/api/football/fixtures?league=848&all=true'),
-          fetch('/api/football/fixtures?league=44&all=true')
-        ]);
+        const pendingOrRecent = txList.filter(t => {
+          if (t.type === 'pendente') return true;
+          if (t.date) {
+            const txDate = new Date(t.date + 'T00:00:00-03:00');
+            const now = new Date();
+            const diffTime = Math.abs(now - txDate);
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            return diffDays <= 3;
+          }
+          return false;
+        });
+
+        const uniqueDates = [...new Set(pendingOrRecent.map(t => t.date).filter(Boolean))];
+        if (uniqueDates.length === 0) return [];
+
+        const fetchPromises = uniqueDates.map(async (dateStr) => {
+          try {
+            const res = await fetch(`/api/football/fixtures?league=all&date=${dateStr}`);
+            if (res.ok) {
+              const data = await res.json();
+              return data.fixtures || [];
+            }
+          } catch (e) {
+            console.warn(`[LoadFixtures] Falha ao buscar fixtures da data ${dateStr}:`, e);
+          }
+          return [];
+        });
+
+        const results = await Promise.all(fetchPromises);
         let allFixtures = [];
-        if (resA.ok) {
-          const dataA = await resA.json();
-          if (dataA.fixtures) allFixtures = [...allFixtures, ...dataA.fixtures];
-        }
-        if (resB.ok) {
-          const dataB = await resB.json();
-          if (dataB.fixtures) allFixtures = [...allFixtures, ...dataB.fixtures];
-        }
-        if (resC.ok) {
-          const dataC = await resC.json();
-          if (dataC.fixtures) allFixtures = [...allFixtures, ...dataC.fixtures];
-        }
-        if (resEuropa.ok) {
-          const dataE = await resEuropa.json();
-          if (dataE.fixtures) allFixtures = [...allFixtures, ...dataE.fixtures];
-        }
-        if (resConf.ok) {
-          const dataCO = await resConf.json();
-          if (dataCO.fixtures) allFixtures = [...allFixtures, ...dataCO.fixtures];
-        }
-        if (resArg.ok) {
-          const dataAR = await resArg.json();
-          if (dataAR.fixtures) allFixtures = [...allFixtures, ...dataAR.fixtures];
-        }
+        results.forEach(fixtures => {
+          allFixtures = [...allFixtures, ...fixtures];
+        });
+
         setFixtures(allFixtures);
         return allFixtures;
       } catch (e) {
@@ -264,7 +265,7 @@ export default function RelatorioApostasPage() {
         const syncedList = await syncLocalTransactionsToCloud(filteredData);
         
         // Carregar fixtures primeiro
-        const allFixtures = await loadFixtures();
+        const allFixtures = await loadFixturesForTransactions(syncedList);
 
         // Auto resolver palpites pendentes
         const resolvedList = await autoResolvePendingBets(syncedList, allFixtures);
@@ -400,7 +401,7 @@ export default function RelatorioApostasPage() {
       if (savedTxs) {
         try {
           const parsed = JSON.parse(savedTxs);
-          loadFixtures().then(allFixtures => {
+          loadFixturesForTransactions(parsed).then(allFixtures => {
             autoResolvePendingBets(parsed, allFixtures).then(resolved => {
               setTransactions(resolved);
             });

@@ -21,6 +21,9 @@ export default function AppContent({ children }) {
       .then(data => {
         if (data && data.version) {
           currentVersion.current = data.version;
+          if (typeof window !== 'undefined') {
+            localStorage.removeItem('ev_tracker_update_available');
+          }
         }
       })
       .catch(err => console.warn('Erro ao checar versão inicial:', err));
@@ -34,6 +37,9 @@ export default function AppContent({ children }) {
             if (data.version !== currentVersion.current) {
               console.log('[PWA Manager] Nova versão disponível:', data.version);
               setUpdateAvailable(true);
+              if (typeof window !== 'undefined') {
+                localStorage.setItem('ev_tracker_update_available', 'true');
+              }
             }
           }
         })
@@ -136,7 +142,12 @@ export default function AppContent({ children }) {
           </p>
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '4px' }}>
             <button 
-              onClick={() => setUpdateAvailable(false)}
+              onClick={() => {
+                setUpdateAvailable(false);
+                if (typeof window !== 'undefined') {
+                  localStorage.setItem('ev_tracker_update_available', 'dismissed');
+                }
+              }}
               style={{
                 background: 'transparent',
                 border: '1px solid rgba(255, 255, 255, 0.15)',
@@ -153,6 +164,7 @@ export default function AppContent({ children }) {
             <button 
               onClick={() => {
                 if (typeof window !== 'undefined') {
+                  localStorage.removeItem('ev_tracker_update_available');
                   window.location.reload();
                 }
               }}

@@ -21,7 +21,7 @@ export function AuthProvider({ children }) {
       } catch (e) {}
     }
 
-    const isSuperAdmin = userState.email === 'a2soluntions@gmail.com';
+    const isSuperAdmin = userState.email === 'a2soluntions@gmail.com' || userState.email === 'araujoexcel@gmail.com';
     const isSubAdmin = adminEmails.includes(userState.email);
     
     let role = 'user';
@@ -226,7 +226,7 @@ export function AuthProvider({ children }) {
       }
     } catch (e) {}
 
-    const isSuperAdmin = userEmail === 'a2soluntions@gmail.com';
+    const isSuperAdmin = userEmail === 'a2soluntions@gmail.com' || userEmail === 'araujoexcel@gmail.com';
     const isSubAdmin = adminEmails.includes(userEmail);
     let role = isSuperAdmin ? 'super_admin' : isSubAdmin ? 'admin' : 'user';
 
@@ -246,6 +246,9 @@ export function AuthProvider({ children }) {
         if (!selectError && existingProfile) {
           // Perfil já existe — usar dados do Supabase
           plan = existingProfile.plan || 'gratis';
+          if (existingProfile.role) {
+            role = existingProfile.role;
+          }
           // Super admin sempre vitalicio
           if (isSuperAdmin) plan = 'vitalicio';
           // Recuperar coupon_code do perfil

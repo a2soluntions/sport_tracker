@@ -50,7 +50,7 @@ export async function verifyAdmin(request) {
     console.log('[adminAuth] verifyAdmin - user authenticated:', user.email);
 
     // Super admin sempre é autorizado
-    if (user.email === 'a2soluntions@gmail.com') {
+    if (user.email === 'a2soluntions@gmail.com' || user.email === 'araujoexcel@gmail.com') {
       console.log('[adminAuth] verifyAdmin - authorized super_admin by email');
       return true;
     }

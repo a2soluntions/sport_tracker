@@ -223,7 +223,7 @@ export default function AdminDashboard() {
     e.preventDefault();
     if (!novoAdminEmail || !novoAdminEmail.includes('@')) return;
     const email = novoAdminEmail.trim().toLowerCase();
-    if (subAdmins.includes(email) || email === 'a2soluntions@gmail.com') return;
+    if (subAdmins.includes(email) || email === 'a2soluntions@gmail.com' || email === 'araujoexcel@gmail.com') return;
 
     const newAdmins = [...subAdmins, email];
     try {
@@ -639,7 +639,7 @@ export default function AdminDashboard() {
   };
 
   // Verificação de Segurança (Super Admin ou Admin Secundário)
-  const isSuperAdmin = user && (user.email === 'a2soluntions@gmail.com' || user.role === 'super_admin');
+  const isSuperAdmin = user && (user.email === 'a2soluntions@gmail.com' || user.email === 'araujoexcel@gmail.com' || user.role === 'super_admin');
   const isSubAdmin = user && (user.role === 'admin' || subAdmins.includes(user.email));
   const isAdmin = isSuperAdmin || isSubAdmin;
 

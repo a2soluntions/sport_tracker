@@ -69,7 +69,7 @@ export default function SettingsPage() {
     }
 
     // Só busca do banco de dados se o usuário for admin
-    const isAdminUser = user && (user.role === 'admin' || user.role === 'super_admin' || user.email === 'a2soluntions@gmail.com');
+    const isAdminUser = user && (user.role === 'admin' || user.role === 'super_admin' || user.email === 'a2soluntions@gmail.com' || user.email === 'araujoexcel@gmail.com');
     if (user && isAdminUser) {
       loadDatabaseSettings();
     } else if (user) {
@@ -133,7 +133,7 @@ export default function SettingsPage() {
     setConfig(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin' || user.email === 'a2soluntions@gmail.com');
+  const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin' || user.email === 'a2soluntions@gmail.com' || user.email === 'araujoexcel@gmail.com');
 
   if (loadingAuth || (loadingConfig && !loadError)) {
     return (

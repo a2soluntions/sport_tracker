@@ -1909,22 +1909,100 @@ export default function AdminDashboard() {
                 Gerencie as ligas de futebol exibidas na aba de palpites e consultas de jogos. As partidas dessas ligas serão integradas dinamicamente.
               </p>
 
-              <form onSubmit={handleAddLiga} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
-                <div style={{ display: 'flex', gap: '8px' }}>
-                  <input 
-                    type="text" 
-                    placeholder="Nome da Liga (ex: Copa do Mundo)"
-                    value={novaLigaNome}
-                    onChange={(e) => setNovaLigaNome(e.target.value)}
+              <form onSubmit={handleAddLiga} style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#aaa', fontWeight: 'bold' }}>Escolher Liga API-Football</label>
+                  <select
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (!val) {
+                        setNovaLigaNome('');
+                        setNovaLigaId('');
+                        return;
+                      }
+                      if (val === 'custom') {
+                        setNovaLigaNome('');
+                        setNovaLigaId('');
+                        return;
+                      }
+                      const predefined = [
+                        { id: '71', name: 'Série A' },
+                        { id: '72', name: 'Série B' },
+                        { id: '75', name: 'Série C' },
+                        { id: '73', name: 'Copa do Brasil' },
+                        { id: '13', name: 'Libertadores' },
+                        { id: '12', name: 'Sulamericana' },
+                        { id: '39', name: 'Premier League' },
+                        { id: '140', name: 'La Liga' },
+                        { id: '135', name: 'Serie A' },
+                        { id: '78', name: 'Bundesliga' },
+                        { id: '61', name: 'Ligue 1' },
+                        { id: '94', name: 'Liga Portugal' },
+                        { id: '88', name: 'Eredivisie' },
+                        { id: '2', name: 'Champions League' },
+                        { id: '3', name: 'Europa League' },
+                        { id: '848', name: 'Conference League' },
+                        { id: '1', name: 'Copa do Mundo' },
+                        { id: '44', name: 'Liga Argentina' },
+                        { id: '10', name: 'Amistosos de Seleções' }
+                      ];
+                      const selected = predefined.find(l => l.id === val);
+                      if (selected) {
+                        setNovaLigaNome(selected.name);
+                        setNovaLigaId(selected.id);
+                      }
+                    }}
                     style={{
-                      flex: 2,
                       background: '#16161a',
                       border: '1px solid #333',
                       color: '#fff',
                       padding: '8px 12px',
                       borderRadius: '6px',
                       fontSize: '0.82rem',
-                      outline: 'none'
+                      outline: 'none',
+                      cursor: 'pointer',
+                      width: '100%'
+                    }}
+                  >
+                    <option value="">— Selecionar Liga Pronta —</option>
+                    <option value="71">Série A (Brasil) [ID: 71]</option>
+                    <option value="72">Série B (Brasil) [ID: 72]</option>
+                    <option value="75">Série C (Brasil) [ID: 75]</option>
+                    <option value="73">Copa do Brasil [ID: 73]</option>
+                    <option value="13">Libertadores [ID: 13]</option>
+                    <option value="12">Sulamericana [ID: 12]</option>
+                    <option value="39">Premier League (Inglaterra) [ID: 39]</option>
+                    <option value="140">La Liga (Espanha) [ID: 140]</option>
+                    <option value="135">Serie A (Itália) [ID: 135]</option>
+                    <option value="78">Bundesliga (Alemanha) [ID: 78]</option>
+                    <option value="61">Ligue 1 (França) [ID: 61]</option>
+                    <option value="94">Liga Portugal [ID: 94]</option>
+                    <option value="88">Eredivisie (Holanda) [ID: 88]</option>
+                    <option value="2">Champions League [ID: 2]</option>
+                    <option value="3">Europa League [ID: 3]</option>
+                    <option value="848">Conference League [ID: 848]</option>
+                    <option value="1">Copa do Mundo [ID: 1]</option>
+                    <option value="44">Liga Argentina [ID: 44]</option>
+                    <option value="10">Amistosos de Seleções [ID: 10]</option>
+                    <option value="custom">Outra (Digitar ID Manual)</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <input 
+                    type="text" 
+                    placeholder="Nome da Liga (ex: Copa do Mundo)"
+                    value={novaLigaNome}
+                    onChange={(e) => setNovaLigaNome(e.target.value)}
+                    style={{
+                      background: '#16161a',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      width: '100%'
                     }}
                     required
                   />
@@ -1934,14 +2012,14 @@ export default function AdminDashboard() {
                     value={novaLigaId}
                     onChange={(e) => setNovaLigaId(e.target.value)}
                     style={{
-                      flex: 1,
                       background: '#16161a',
                       border: '1px solid #333',
                       color: '#fff',
                       padding: '8px 12px',
                       borderRadius: '6px',
                       fontSize: '0.82rem',
-                      outline: 'none'
+                      outline: 'none',
+                      width: '100%'
                     }}
                     required
                   />
@@ -1983,10 +2061,10 @@ export default function AdminDashboard() {
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
                         <span style={{ fontSize: '0.72rem', background: 'rgba(204,255,0,0.1)', color: 'var(--brand-neon)', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', fontFamily: 'monospace' }}>
-                          ID {liga.id}
+                          {liga.name}
                         </span>
                         <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {liga.name}
+                          ID {liga.id}
                         </span>
                       </div>
                       

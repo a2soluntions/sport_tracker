@@ -12,6 +12,26 @@ export default function Sidebar() {
   const router = useRouter();
   const { user, logout, getTrialDaysLeft } = useAuth();
 
+  const [hasUpdate, setHasUpdate] = React.useState(false);
+
+  React.useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const checkUpdate = () => {
+        const updateState = localStorage.getItem('ev_tracker_update_available');
+        setHasUpdate(updateState === 'true');
+      };
+      
+      checkUpdate();
+      window.addEventListener('storage', checkUpdate);
+      const interval = setInterval(checkUpdate, 5000);
+
+      return () => {
+        window.removeEventListener('storage', checkUpdate);
+        clearInterval(interval);
+      };
+    }
+  }, []);
+
   const handleLogout = async () => {
     await logout();
     if (typeof window !== 'undefined') {
@@ -163,7 +183,7 @@ export default function Sidebar() {
             <span>Carteira (Banca)</span>
           </Link>
           <Link href="/notifications" className={`${styles.navItem} ${pathname === '/notifications' ? styles.navItemActive : ''}`}>
-            <Bell size={20} className={styles.navIcon} /> 
+            <Bell size={20} className={`${styles.navIcon} ${hasUpdate ? 'bell-blink' : ''}`} /> 
             <span>Notificações</span>
           </Link>
           <Link href="/settings" className={`${styles.navItem} ${pathname === '/settings' ? styles.navItemActive : ''}`}>
@@ -326,7 +346,7 @@ export default function Sidebar() {
           <span>Carteira</span>
         </Link>
         <Link href="/notifications" className={`${styles.bottomNavItem} ${pathname === '/notifications' ? styles.bottomNavItemActive : ''}`}>
-          <Bell size={18} className={styles.bottomNavIcon} />
+          <Bell size={18} className={`${styles.bottomNavIcon} ${hasUpdate ? 'bell-blink' : ''}`} />
           <span>Notif.</span>
         </Link>
         <Link href="/settings" className={`${styles.bottomNavItem} ${pathname === '/settings' ? styles.bottomNavItemActive : ''}`}>

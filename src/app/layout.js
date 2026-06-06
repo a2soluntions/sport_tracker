@@ -5,6 +5,9 @@ import { AuthProvider } from "../context/AuthContext";
 export const metadata = {
   title: "a2sporttrackers",
   description: "Dashboard de Inteligência +EV",
+  icons: {
+    apple: "/icon-512.png",
+  },
 };
 
 export default function RootLayout({ children }) {

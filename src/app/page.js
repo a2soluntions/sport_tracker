@@ -158,6 +158,15 @@ export default function ResponsiveDashboard() {
     const userBancaKey = `ev_tracker_banca_initial_value_${user.id}`;
     const userTxsKey = `ev_tracker_banca_txs_${user.id}`;
     const userTxIdsKey = `ev_tracker_user_tx_ids_${user.id}`;
+    const userCachedBancaKey = `ev_tracker_cached_banca_${user.id}`;
+
+    // Tentar carregar saldo calculado do cache local primeiro
+    try {
+      const cachedBanca = localStorage.getItem(userCachedBancaKey);
+      if (cachedBanca) {
+        setBanca(parseFloat(cachedBanca));
+      }
+    } catch (e) {}
 
     const savedInitial = localStorage.getItem(userBancaKey);
     if (savedInitial) {
@@ -216,6 +225,9 @@ export default function ResponsiveDashboard() {
       }
     }
     setBanca(currentBanca);
+    try {
+      localStorage.setItem(userCachedBancaKey, currentBanca.toString());
+    } catch (e) {}
   };
 
   // Load Banca on mount/initial value change
@@ -227,6 +239,18 @@ export default function ResponsiveDashboard() {
   useEffect(() => {
     let active = true;
     let timedOut = false;
+
+    // 1. Tentar carregar do cache local imediatamente para evitar tela de loading
+    const cachedOppKey = 'ev_tracker_cached_opportunities';
+    try {
+      const cached = localStorage.getItem(cachedOppKey);
+      if (cached) {
+        setOpportunities(JSON.parse(cached));
+        setLoading(false); // Instante!
+      }
+    } catch (e) {
+      console.warn("Erro ao ler cache local de oportunidades:", e);
+    }
 
     // Safety timeout to prevent stuck loading screen (e.g. if database query hangs)
     const safetyTimeout = setTimeout(() => {
@@ -255,6 +279,9 @@ export default function ResponsiveDashboard() {
         if (error) throw error;
         if (active && data) {
           setOpportunities(data);
+          try {
+            localStorage.setItem(cachedOppKey, JSON.stringify(data));
+          } catch (e) {}
         }
       } catch (err) {
         console.warn("[Dashboard] Erro ao carregar oportunidades do Supabase:", err);

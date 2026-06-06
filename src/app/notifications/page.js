@@ -34,6 +34,29 @@ export default function NotificationsPage() {
 
   // Carregar oportunidades reais do Supabase e ler o estado de atualização local
   useEffect(() => {
+    let active = true;
+
+    // 1. Tentar carregar do cache local imediatamente para evitar tela de loading
+    const cachedOppKey = 'ev_tracker_cached_opportunities';
+    try {
+      const cached = localStorage.getItem(cachedOppKey);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        const mapped = parsed.map((opp) => ({
+          id: opp.id,
+          type: 'alert',
+          title: `Assimetria Encontrada: ${opp.confronto}`,
+          message: `O robô identificou valor no mercado "${opp.mercado}" com vantagem matemática de +${parseFloat(opp.vantagem_ev_porcentagem).toFixed(1)}% EV. Cotação recomendada na Betano: @${opp.odd_oferecida} (Odd justa calculada: @${opp.odd_justa}).`,
+          time: formatTimeAgo(opp.created_at),
+          rawDate: opp.created_at
+        }));
+        setNotifications(mapped);
+        setLoading(false); // Instante!
+      }
+    } catch (e) {
+      console.warn("Erro ao ler cache local de oportunidades nas notificações:", e);
+    }
+
     if (typeof window !== 'undefined') {
       const updateState = localStorage.getItem('ev_tracker_update_available');
       if (updateState === 'true' || updateState === 'dismissed') {
@@ -55,7 +78,7 @@ export default function NotificationsPage() {
 
         if (error) throw error;
 
-        if (data) {
+        if (active && data) {
           // Converter oportunidades em formato de notificação
           const mapped = data.map((opp) => ({
             id: opp.id,
@@ -66,11 +89,16 @@ export default function NotificationsPage() {
             rawDate: opp.created_at
           }));
           setNotifications(mapped);
+          try {
+            localStorage.setItem(cachedOppKey, JSON.stringify(data));
+          } catch (e) {}
         }
       } catch (err) {
         console.warn("[Notifications] Erro ao carregar alertas reais:", err);
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     };
 
@@ -80,20 +108,23 @@ export default function NotificationsPage() {
     const channel = supabase.channel('notifications-live')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ev_opportunities' }, 
         (payload) => {
-          const opp = payload.new;
-          const newNotif = {
-            id: opp.id,
-            type: 'alert',
-            title: `Assimetria Encontrada: ${opp.confronto}`,
-            message: `O robô identificou valor no mercado "${opp.mercado}" com vantagem matemática de +${parseFloat(opp.vantagem_ev_porcentagem).toFixed(1)}% EV. Cotação recomendada na Betano: @${opp.odd_oferecida} (Odd justa calculada: @${opp.odd_justa}).`,
-            time: 'Agora mesmo',
-            rawDate: opp.created_at
-          };
-          setNotifications(curr => [newNotif, ...curr].slice(0, 30));
+          if (active) {
+            const opp = payload.new;
+            const newNotif = {
+              id: opp.id,
+              type: 'alert',
+              title: `Assimetria Encontrada: ${opp.confronto}`,
+              message: `O robô identificou valor no mercado "${opp.mercado}" com vantagem matemática de +${parseFloat(opp.vantagem_ev_porcentagem).toFixed(1)}% EV. Cotação recomendada na Betano: @${opp.odd_oferecida} (Odd justa calculada: @${opp.odd_justa}).`,
+              time: 'Agora mesmo',
+              rawDate: opp.created_at
+            };
+            setNotifications(curr => [newNotif, ...curr].slice(0, 30));
+          }
         }
       ).subscribe();
 
     return () => {
+      active = false;
       supabase.removeChannel(channel);
     };
   }, []);

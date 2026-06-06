@@ -238,7 +238,7 @@ export function AuthProvider({ children }) {
         console.log("[AuthContext] fetchOrCreateProfile consultando banco para:", supabaseUser.id);
         const { data: existingProfile, error: selectError } = await supabase
           .from('profiles')
-          .select('plan, role, name')
+          .select('plan, role, name, coupon_code')
           .eq('id', supabaseUser.id)
           .maybeSingle();
 

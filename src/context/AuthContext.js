@@ -52,6 +52,21 @@ export function AuthProvider({ children }) {
     let active = true;
     let timedOut = false;
 
+    // Tentar carregar do LocalStorage imediatamente para render rápido (SWR)
+    try {
+      const savedUser = localStorage.getItem('ev_tracker_user_session');
+      if (savedUser) {
+        const parsed = JSON.parse(savedUser);
+        if (parsed) {
+          setUser(parsed);
+          setLoading(false);
+          console.log("[AuthContext] Sessão inicial SWR recuperada do cache local para render rápido.");
+        }
+      }
+    } catch (e) {
+      console.warn("[AuthContext] Erro ao ler cache inicial para SWR:", e);
+    }
+
     // Safety timeout to prevent infinite loading screen (e.g. if getSession hangs)
     const safetyTimeout = setTimeout(() => {
       if (active) {
@@ -70,7 +85,7 @@ export function AuthProvider({ children }) {
     }, 4500);
 
     async function loadSession() {
-      console.log("[AuthContext] loadSession iniciou");
+      console.log("[AuthContext] loadSession (validação em segundo plano) iniciou");
       let sessionUser = null;
       let profile = null;
 
@@ -90,7 +105,7 @@ export function AuthProvider({ children }) {
 
       if (sessionUser) {
         try {
-          console.log("[AuthContext] Usuário logado encontrado. Carregando profile...");
+          console.log("[AuthContext] Usuário logado encontrado no Supabase. Carregando profile...");
           profile = await fetchOrCreateProfile(sessionUser);
           console.log("[AuthContext] Profile carregado com sucesso:", profile?.email);
         } catch (e) {
@@ -118,17 +133,20 @@ export function AuthProvider({ children }) {
         if (!timedOut) {
           if (profile) {
             setUser(profile);
+            localStorage.setItem('ev_tracker_user_session', JSON.stringify(profile));
           } else {
             setUser(null);
+            localStorage.removeItem('ev_tracker_user_session');
           }
-          console.log("[AuthContext] loadSession finalizado com sucesso. setLoading(false)");
+          console.log("[AuthContext] loadSession (validação) finalizado com sucesso. setLoading(false)");
           setLoading(false);
         } else {
           // Se já deu timeout, apenas atualiza o user caso tenha carregado com sucesso tardiamente
           if (profile) {
             setUser(profile);
+            localStorage.setItem('ev_tracker_user_session', JSON.stringify(profile));
           }
-          console.log("[AuthContext] loadSession finalizado após timeout. Usuário atualizado se disponível.");
+          console.log("[AuthContext] loadSession (validação) finalizado após timeout. Usuário atualizado se disponível.");
         }
       }
     }

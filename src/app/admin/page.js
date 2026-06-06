@@ -100,6 +100,11 @@ export default function AdminDashboard() {
   const [novoCupomDesc, setNovoCupomDesc] = useState('');
   const [novoCupomDisc, setNovoCupomDisc] = useState('');
 
+  // Estados para Gerenciamento de Ligas Ativas (Palpites)
+  const [ligasSaaS, setLigasSaaS] = useState([]);
+  const [novaLigaNome, setNovaLigaNome] = useState('');
+  const [novaLigaId, setNovaLigaId] = useState('');
+
   // Carregar dados reais do Supabase
   useEffect(() => {
     async function loadDashboardData() {
@@ -155,6 +160,24 @@ export default function AdminDashboard() {
             visitors: settings.visitors_count !== undefined ? settings.visitors_count : 10200,
             trials: settings.trial_count !== undefined ? settings.trial_count : 2450
           });
+          
+          // Ligas ativas na aba palpites
+          setLigasSaaS(settings.target_leagues || [
+            {"id": "1", "name": "Copa do Mundo"},
+            {"id": "71", "name": "Série A"},
+            {"id": "72", "name": "Série B"},
+            {"id": "75", "name": "Série C"},
+            {"id": "13", "name": "Libertadores"},
+            {"id": "12", "name": "Sulamericana"},
+            {"id": "39", "name": "Premier"},
+            {"id": "140", "name": "La Liga"},
+            {"id": "135", "name": "Serie A"},
+            {"id": "78", "name": "Bundes"},
+            {"id": "3", "name": "Europa League"},
+            {"id": "848", "name": "Conference"},
+            {"id": "44", "name": "Liga Argentina"},
+            {"id": "10", "name": "Amistosos"}
+          ]);
         } else {
           const data = await resSettings.json().catch(() => ({}));
           showNotification('Erro ao carregar configurações SaaS: ' + (data.error || 'Erro interno'), 'error');
@@ -388,6 +411,57 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error(err);
       showNotification('Erro de conexão/servidor ao remover cupom: ' + err.message, 'error');
+    }
+  };
+
+  // --- MANIPULADORES DE LIGAS (SUPABASE) ---
+  const handleAddLiga = async (e) => {
+    e.preventDefault();
+    if (!novaLigaNome.trim() || !novaLigaId.trim()) return;
+
+    if (ligasSaaS.some(l => String(l.id) === String(novaLigaId.trim()))) {
+      showNotification('Esta liga já está cadastrada!', 'error');
+      return;
+    }
+
+    const novasLigas = [...ligasSaaS, { id: novaLigaId.trim(), name: novaLigaNome.trim() }];
+    try {
+      const res = await adminFetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'target_leagues', value: novasLigas })
+      });
+      if (res.ok) {
+        setLigasSaaS(novasLigas);
+        setNovaLigaNome('');
+        setNovaLigaId('');
+        showNotification('Liga adicionada com sucesso!');
+      } else {
+        showNotification('Erro ao salvar nova liga', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão ao adicionar liga: ' + err.message, 'error');
+    }
+  };
+
+  const handleRemoveLiga = async (id) => {
+    const novasLigas = ligasSaaS.filter(l => String(l.id) !== String(id));
+    try {
+      const res = await adminFetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'target_leagues', value: novasLigas })
+      });
+      if (res.ok) {
+        setLigasSaaS(novasLigas);
+        showNotification('Liga removida com sucesso!');
+      } else {
+        showNotification('Erro ao remover liga', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão ao remover liga: ' + err.message, 'error');
     }
   };
 
@@ -1823,6 +1897,110 @@ export default function AdminDashboard() {
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
+
+            {/* 5. Gerenciamento de Ligas Ativas (Palpites) */}
+            <div className="glass-panel" style={{ padding: '20px' }}>
+              <h3 style={{ fontSize: '1.02rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 16px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Trophy size={16} color="var(--brand-neon)" /> Ligas Ativas (Palpites)
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: '#888', lineHeight: 1.4, marginBottom: '16px' }}>
+                Gerencie as ligas de futebol exibidas na aba de palpites e consultas de jogos. As partidas dessas ligas serão integradas dinamicamente.
+              </p>
+
+              <form onSubmit={handleAddLiga} style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginBottom: '20px' }}>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input 
+                    type="text" 
+                    placeholder="Nome da Liga (ex: Copa do Mundo)"
+                    value={novaLigaNome}
+                    onChange={(e) => setNovaLigaNome(e.target.value)}
+                    style={{
+                      flex: 2,
+                      background: '#16161a',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      outline: 'none'
+                    }}
+                    required
+                  />
+                  <input 
+                    type="text" 
+                    placeholder="ID API (ex: 1)"
+                    value={novaLigaId}
+                    onChange={(e) => setNovaLigaId(e.target.value)}
+                    style={{
+                      flex: 1,
+                      background: '#16161a',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      outline: 'none'
+                    }}
+                    required
+                  />
+                </div>
+                <button type="submit" style={{
+                  background: 'var(--brand-neon)',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '8px 16px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '0.82rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}>
+                  <Plus size={14} /> Adicionar Liga
+                </button>
+              </form>
+
+              {/* Lista de Ligas */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '220px', overflowY: 'auto', paddingRight: '4px' }} className="no-scrollbar">
+                {ligasSaaS.length === 0 ? (
+                  <div style={{ fontSize: '0.78rem', color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '12px' }}>
+                    Nenhuma liga cadastrada.
+                  </div>
+                ) : (
+                  ligasSaaS.map((liga) => (
+                    <div key={liga.id} style={{
+                      background: '#16161a',
+                      border: '1px solid #222',
+                      padding: '10px 12px',
+                      borderRadius: '6px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                        <span style={{ fontSize: '0.72rem', background: 'rgba(204,255,0,0.1)', color: 'var(--brand-neon)', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', fontFamily: 'monospace' }}>
+                          ID {liga.id}
+                        </span>
+                        <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {liga.name}
+                        </span>
+                      </div>
+                      
+                      <button 
+                        type="button"
+                        onClick={() => handleRemoveLiga(liga.id)}
+                        style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', padding: '2px', display: 'flex', alignItems: 'center' }}
+                        title="Deletar Liga"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
 

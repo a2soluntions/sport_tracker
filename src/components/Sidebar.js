@@ -20,7 +20,7 @@ export default function Sidebar() {
     router.push('/login');
   };
 
-  const getPlanStyles = (plan, role) => {
+  const getPlanStyles = (plan, role, couponCode) => {
     if (role === 'super_admin') {
       return {
         bg: 'rgba(179, 57, 255, 0.15)',
@@ -35,6 +35,14 @@ export default function Sidebar() {
         color: '#00d2ff',
         border: '1px solid #00d2ff',
         label: 'ADMINISTRADOR ⚙️'
+      };
+    }
+    if (couponCode) {
+      return {
+        bg: 'rgba(0, 210, 255, 0.15)',
+        color: '#00d2ff',
+        border: '1px solid #00d2ff',
+        label: 'PLANO GRATUITO ★'
       };
     }
     switch (plan) {
@@ -69,7 +77,7 @@ export default function Sidebar() {
     }
   };
 
-  const planStyle = getPlanStyles(user?.plan, user?.role);
+  const planStyle = getPlanStyles(user?.plan, user?.role, user?.coupon_code);
   const trialDays = getTrialDaysLeft();
 
   return (
@@ -228,8 +236,8 @@ export default function Sidebar() {
               </div>
             </div>
 
-            {/* Contador de Trial */}
-            {user.plan === 'gratis' && user.role !== 'admin' && user.role !== 'super_admin' && (
+             {/* Contador de Trial */}
+            {user.plan === 'gratis' && !user.coupon_code && user.role !== 'admin' && user.role !== 'super_admin' && (
               <div style={{
                 background: 'rgba(255, 152, 0, 0.05)',
                 border: '1px dashed rgba(255, 152, 0, 0.2)',
@@ -246,7 +254,7 @@ export default function Sidebar() {
 
             {/* Ações */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {user.plan === 'gratis' && user.role !== 'admin' && user.role !== 'super_admin' && (
+              {user.plan === 'gratis' && !user.coupon_code && user.role !== 'admin' && user.role !== 'super_admin' && (
                 <Link href="/pricing" style={{
                   display: 'flex',
                   alignItems: 'center',

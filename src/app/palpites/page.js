@@ -426,6 +426,67 @@ export default function PalpitesPage() {
   const [roundInfo, setRoundInfo] = useState(null);
 
   // Novos estados para Filtro de Ligas e Data
+  const [activeLeagues, setActiveLeagues] = useState([
+    {"id": "1", "name": "Copa do Mundo"},
+    {"id": "71", "name": "Série A"},
+    {"id": "72", "name": "Série B"},
+    {"id": "75", "name": "Série C"},
+    {"id": "13", "name": "Libertadores"},
+    {"id": "12", "name": "Sulamericana"},
+    {"id": "39", "name": "Premier"},
+    {"id": "140", "name": "La Liga"},
+    {"id": "135", "name": "Serie A"},
+    {"id": "78", "name": "Bundes"},
+    {"id": "3", "name": "Europa League"},
+    {"id": "848", "name": "Conference"},
+    {"id": "44", "name": "Liga Argentina"},
+    {"id": "10", "name": "Amistosos"}
+  ]);
+
+  useEffect(() => {
+    const cached = typeof window !== 'undefined' ? localStorage.getItem('saas_target_leagues') : null;
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setActiveLeagues(parsed);
+        }
+      } catch (e) {
+        console.warn('[Palpites] Erro ao fazer parse das ligas cacheadas:', e);
+      }
+    }
+
+    async function loadDynamicLeagues() {
+      if (!supabase) return;
+      try {
+        const { data, error } = await supabase
+          .from('saas_settings')
+          .select('value')
+          .eq('key', 'target_leagues')
+          .maybeSingle();
+
+        if (error) {
+          console.error('[Palpites] Erro ao carregar ligas do banco:', error);
+          return;
+        }
+
+        if (data && data.value && Array.isArray(data.value)) {
+          setActiveLeagues(data.value);
+          localStorage.setItem('saas_target_leagues', JSON.stringify(data.value));
+        }
+      } catch (err) {
+        console.error('[Palpites] Falha de conexão ao carregar ligas:', err);
+      }
+    }
+    loadDynamicLeagues();
+  }, []);
+
+  const getLeagueNameDynamic = (leagueId) => {
+    const found = activeLeagues.find(l => String(l.id) === String(leagueId));
+    if (found) return found.name;
+    return getLeagueName(leagueId);
+  };
+
   const [selectedLeague, setSelectedLeague] = useState('all'); // default to load all games
   const [selectedDate, setSelectedDate] = useState(() => getLocalDateString());
   const [showMathExplanation, setShowMathExplanation] = useState(false);
@@ -1232,7 +1293,7 @@ export default function PalpitesPage() {
       setApiError(null);
       try {
         const leaguesToFetch = selectedLeague === 'all'
-          ? ['71', '72', '75', '13', '12', '39', '140', '135', '78', '1', '3', '848', '44']
+          ? activeLeagues.map(l => l.id)
           : [selectedLeague];
 
         const fetchPromises = leaguesToFetch.map(async (lgId) => {
@@ -1255,7 +1316,8 @@ export default function PalpitesPage() {
           const gamesWithLeague = res.fixtures.map(g => ({ ...g, sourceLeagueId: res.leagueId }));
           allFixtures = [...allFixtures, ...gamesWithLeague];
           
-          if (res.leagueId === selectedLeague || (selectedLeague === 'all' && res.leagueId === '71' && res.fixtures.length > 0)) {
+          const isPrimary = res.leagueId === selectedLeague || (selectedLeague === 'all' && res.leagueId === (activeLeagues[0]?.id || '71') && res.fixtures.length > 0);
+          if (isPrimary) {
             primaryRound = res.round;
           }
         });
@@ -1533,19 +1595,12 @@ export default function PalpitesPage() {
             <div className="league-buttons-container">
               {[
                 { id: 'all', name: 'Todas', iconType: 'emoji', icon: '⚽' },
-                { id: '1', name: 'Copa do Mundo', iconType: 'image', icon: getLeagueLogoUrl('1') },
-                { id: '71', name: 'Série A', iconType: 'image', icon: getLeagueLogoUrl('71') },
-                { id: '72', name: 'Série B', iconType: 'image', icon: getLeagueLogoUrl('72') },
-                { id: '75', name: 'Série C', iconType: 'image', icon: getLeagueLogoUrl('75') },
-                { id: '13', name: 'Libertadores', iconType: 'image', icon: getLeagueLogoUrl('13') },
-                { id: '12', name: 'Sulamericana', iconType: 'image', icon: getLeagueLogoUrl('12') },
-                { id: '39', name: 'Premier', iconType: 'image', icon: getLeagueLogoUrl('39') },
-                { id: '140', name: 'La Liga', iconType: 'image', icon: getLeagueLogoUrl('140') },
-                { id: '135', name: 'Serie A', iconType: 'image', icon: getLeagueLogoUrl('135') },
-                { id: '78', name: 'Bundes', iconType: 'image', icon: getLeagueLogoUrl('78') },
-                { id: '3', name: 'Europa League', iconType: 'image', icon: getLeagueLogoUrl('3') },
-                { id: '848', name: 'Conference', iconType: 'image', icon: getLeagueLogoUrl('848') },
-                { id: '44', name: 'Liga Argentina', iconType: 'image', icon: getLeagueLogoUrl('44') }
+                ...activeLeagues.map(liga => ({
+                  id: liga.id,
+                  name: liga.name,
+                  iconType: 'image',
+                  icon: getLeagueLogoUrl(liga.id)
+                }))
               ].map(lg => {
                 const isActive = selectedLeague === lg.id;
                 return (
@@ -1824,7 +1879,7 @@ export default function PalpitesPage() {
                         }
                         return null;
                       })()}
-                      {getLeagueName(game.sourceLeagueId || selectedLeague)} <span style={{ background: '#333', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', color: '#aaa' }}>Rodada {game.round}</span>
+                      {getLeagueNameDynamic(game.sourceLeagueId || selectedLeague)} <span style={{ background: '#333', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem', color: '#aaa' }}>Rodada {game.round}</span>
                     </div>
                     
                     <div className="game-card-teams-row">
@@ -3034,7 +3089,7 @@ export default function PalpitesPage() {
                     Radar de Pressão In-Play (Tempo Real)
                   </h3>
                   <p style={{ fontSize: '0.85rem', color: '#888', margin: '2px 0 0 0' }}>
-                    {getLeagueName(game.sourceLeagueId)} • Rodada {game.round}
+                    {getLeagueNameDynamic(game.sourceLeagueId)} • Rodada {game.round}
                   </p>
                 </div>
               </div>

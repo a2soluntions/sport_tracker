@@ -125,7 +125,7 @@ export default function SettingsPage() {
       }
     }
 
-    const isAdminUser = user && (user.role === 'admin' || user.role === 'super_admin' || user.email === 'a2soluntions@gmail.com' || user.email === 'araujoexcel@gmail.com');
+    const isAdminUser = user && (user.role === 'admin' || user.role === 'super_admin' || user.email === 'a2soluntions@gmail.com');
     if (user) {
       if (isAdminUser) {
         loadDatabaseSettings();
@@ -145,7 +145,7 @@ export default function SettingsPage() {
     let fetchSuccess = false;
     let errorMsg = 'Erro desconhecido';
 
-    const isAdminUser = user && (user.role === 'admin' || user.role === 'super_admin' || user.email === 'a2soluntions@gmail.com' || user.email === 'araujoexcel@gmail.com');
+    const isAdminUser = user && (user.role === 'admin' || user.role === 'super_admin' || user.email === 'a2soluntions@gmail.com');
 
     if (isAdminUser) {
       // Salvar localmente
@@ -228,7 +228,7 @@ export default function SettingsPage() {
     setConfig(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
-  const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin' || user.email === 'a2soluntions@gmail.com' || user.email === 'araujoexcel@gmail.com');
+  const isAdmin = user && (user.role === 'admin' || user.role === 'super_admin' || user.email === 'a2soluntions@gmail.com');
 
   if (loadingAuth || (loadingConfig && !loadError)) {
     return (

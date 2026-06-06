@@ -155,7 +155,7 @@ export default function AdminDashboard() {
     if (user) {
       loadDashboardData();
     }
-  }, [user]);
+  }, [user?.id]);
 
   // --- CÁLCULO DE MÉTRICAS SaaS REAL ---
   const financialMetrics = useMemo(() => {

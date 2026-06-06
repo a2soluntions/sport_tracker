@@ -149,7 +149,7 @@ export default function ResponsiveDashboard() {
       }
     };
     loadInitialValue();
-  }, [user]);
+  }, [user?.id]);
 
   // Fetch Transactions and Calculate Banca
   const fetchTransactions = async () => {
@@ -233,7 +233,7 @@ export default function ResponsiveDashboard() {
   // Load Banca on mount/initial value change
   useEffect(() => {
     fetchTransactions();
-  }, [initialValue, user]);
+  }, [initialValue, user?.id]);
 
   // Load Opportunities from Supabase
   useEffect(() => {

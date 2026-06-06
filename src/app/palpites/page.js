@@ -453,6 +453,107 @@ export default function PalpitesPage() {
     setBuilderCustomOdd(calcOdd);
   }, [builderSelections]);
 
+  // Novo estado para as estatísticas reais do robô carregadas do banco de dados
+  const [dbStats, setDbStats] = useState({
+    hitRate: '--',
+    roi: '--',
+    greens: 0,
+    reds: 0,
+    mostProfitableMarket: 'Nenhum',
+    marketHitRate: '--',
+    subtextRate: 'Base: 0 palpites',
+    subtextRoi: 'Volume: 0.0 u',
+    subtextResult: 'Carregando dados...'
+  });
+
+  useEffect(() => {
+    async function fetchDatabaseStats() {
+      if (!supabase) return;
+      try {
+        const { data, error } = await supabase
+          .from('ev_opportunities')
+          .select('resultado, mercado, odd_oferecida')
+          .neq('resultado', 'pending');
+
+        if (error) {
+          console.error('[Palpites] Erro ao buscar estatísticas do banco:', error);
+          return;
+        }
+
+        if (data && data.length > 0) {
+          const greens = data.filter(d => d.resultado === 'green').length;
+          const reds = data.filter(d => d.resultado === 'red').length;
+          const total = greens + reds;
+          const hitRate = total > 0 ? (greens / total) * 100 : 0;
+
+          // Calcular ROI teórico (Volume teórico de 1 unidade por aposta)
+          let netTheoreticalProfit = 0;
+          data.forEach(d => {
+            const odd = parseFloat(d.odd_oferecida || 1);
+            if (d.resultado === 'green') {
+              netTheoreticalProfit += (odd - 1);
+            } else if (d.resultado === 'red') {
+              netTheoreticalProfit -= 1;
+            }
+          });
+          const roi = total > 0 ? (netTheoreticalProfit / total) * 100 : 0;
+
+          // Agrupar mercados para encontrar o mais lucrativo
+          const marketsMap = {};
+          data.forEach(d => {
+            if (!d.mercado) return;
+            if (!marketsMap[d.mercado]) {
+              marketsMap[d.mercado] = { total: 0, wins: 0 };
+            }
+            marketsMap[d.mercado].total += 1;
+            if (d.resultado === 'green') {
+              marketsMap[d.mercado].wins += 1;
+            }
+          });
+
+          let bestMarket = 'Nenhum';
+          let bestMarketHitRate = 0;
+
+          Object.keys(marketsMap).forEach(mName => {
+            const mData = marketsMap[mName];
+            const rate = mData.total > 0 ? (mData.wins / mData.total) * 100 : 0;
+            if (rate > bestMarketHitRate && mData.total >= 1) {
+              bestMarketHitRate = rate;
+              bestMarket = mName;
+            }
+          });
+
+          setDbStats({
+            hitRate: `${hitRate.toFixed(1)}%`,
+            roi: `${roi >= 0 ? '+' : ''}${roi.toFixed(1)}%`,
+            greens,
+            reds,
+            mostProfitableMarket: bestMarket !== 'Nenhum' ? bestMarket : 'Indefinido',
+            marketHitRate: bestMarket !== 'Nenhum' ? `${bestMarketHitRate.toFixed(1)}%` : '--',
+            subtextRate: `Base: ${total} palpites enviados`,
+            subtextRoi: `Volume: ${total} u líquidas`,
+            subtextResult: `Últimas rodadas resolvidas`
+          });
+        } else {
+          setDbStats({
+            hitRate: '0.0%',
+            roi: '0.0%',
+            greens: 0,
+            reds: 0,
+            mostProfitableMarket: 'Nenhum',
+            marketHitRate: '0.0%',
+            subtextRate: 'Base: 0 palpites',
+            subtextRoi: 'Volume: 0.0 u',
+            subtextResult: 'Aguardando primeiros jogos finalizados'
+          });
+        }
+      } catch (err) {
+        console.warn('Erro ao carregar estatísticas do banco de dados:', err);
+      }
+    }
+    fetchDatabaseStats();
+  }, []);
+
   const handleToggleBuilderSelection = (item, matchName) => {
     const id = `${matchName}_${item.market}_${item.label}`;
     const bmOdds = getBookmakerOdds(matchName, item.label, item.odd);
@@ -1591,13 +1692,13 @@ export default function PalpitesPage() {
                   subtextResult: `Últimas rodadas ativas`
                 }
               : {
-                  hitRate: '78.4%',
-                  roi: '+18.2%',
-                  greens: 116,
-                  reds: 32,
-                  subtextRate: 'Base: 148 palpites enviados',
-                  subtextRoi: 'Volume: 12.4 u líquidas',
-                  subtextResult: 'Últimas 4 rodadas monitoradas'
+                  hitRate: dbStats.hitRate,
+                  roi: dbStats.roi,
+                  greens: dbStats.greens,
+                  reds: dbStats.reds,
+                  subtextRate: dbStats.subtextRate,
+                  subtextRoi: dbStats.subtextRoi,
+                  subtextResult: dbStats.subtextResult
                 };
 
             return (
@@ -1626,10 +1727,12 @@ export default function PalpitesPage() {
 
                 <div className="palpites-kpi-card" style={{ borderLeft: '4px solid #b339ff' }}>
                   <div className="kpi-title">Mercado mais Lucrativo</div>
-                  <div className="kpi-value" style={{ fontSize: '1.25rem' }}>
-                    Mais de 2.5 Gols
+                  <div className="kpi-value" style={{ fontSize: statsMode === 'minhas' ? '1.25rem' : '1.1rem', wordBreak: 'break-word' }}>
+                    {statsMode === 'minhas' ? 'Mais de 2.5 Gols' : dbStats.mostProfitableMarket}
                   </div>
-                  <div className="kpi-subtext" style={{ color: '#4CAF50', fontWeight: 'bold' }}>Taxa de Acerto: 84.1%</div>
+                  <div className="kpi-subtext" style={{ color: '#4CAF50', fontWeight: 'bold' }}>
+                    Taxa de Acerto: {statsMode === 'minhas' ? '84.1%' : dbStats.marketHitRate}
+                  </div>
                 </div>
               </div>
             );

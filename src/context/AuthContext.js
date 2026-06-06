@@ -163,23 +163,41 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     if (!supabase) return;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       console.log("[AuthContext] onAuthStateChange disparado, evento:", event, "user:", session?.user?.email);
       try {
-        if (event === 'PASSWORD_RECOVERY') {
-          const profile = await fetchOrCreateProfile(session.user);
-          setUser(profile);
-          localStorage.setItem('ev_tracker_user_session', JSON.stringify(profile));
-          window.location.href = '/redefinir-senha';
-          return;
-        }
-        if (session?.user) {
-          const profile = await fetchOrCreateProfile(session.user);
-          setUser(profile);
-          localStorage.setItem('ev_tracker_user_session', JSON.stringify(profile));
-        } else {
+        if (event === 'SIGNED_OUT') {
           setUser(null);
           localStorage.removeItem('ev_tracker_user_session');
+          return;
+        }
+
+        if (event === 'PASSWORD_RECOVERY') {
+          if (session?.user) {
+            setTimeout(() => {
+              fetchOrCreateProfile(session.user).then(profile => {
+                if (profile) {
+                  setUser(profile);
+                  localStorage.setItem('ev_tracker_user_session', JSON.stringify(profile));
+                  window.location.href = '/redefinir-senha';
+                }
+              }).catch(e => console.error("[AuthContext] Erro no PASSWORD_RECOVERY:", e));
+            }, 0);
+          }
+          return;
+        }
+
+        if (event === 'SIGNED_IN' && session?.user) {
+          setTimeout(() => {
+            fetchOrCreateProfile(session.user).then(profile => {
+              if (profile) {
+                setUser(profile);
+                localStorage.setItem('ev_tracker_user_session', JSON.stringify(profile));
+              }
+            }).catch(err => {
+              console.error("[AuthContext] Erro ao buscar profile após SIGNED_IN:", err);
+            });
+          }, 0);
         }
       } catch (err) {
         console.error("[AuthContext] Erro no fluxo de onAuthStateChange:", err);

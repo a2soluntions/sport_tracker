@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { 
   ShieldCheck, ShieldAlert, Users, TrendingUp, DollarSign, ArrowUpRight, 
   Trash2, Plus, Sparkles, Filter, Search, Award, RefreshCw, BarChart2,
-  Settings, Key, Tag, Layers, HelpCircle, Edit
+  Settings, Key, Tag, Layers, HelpCircle, Edit, Trophy
 } from 'lucide-react';
 
 export default function AdminDashboard() {

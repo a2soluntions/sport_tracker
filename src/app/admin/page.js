@@ -835,7 +835,7 @@ export default function AdminDashboard() {
             R$ {financialMetrics.profit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </div>
           <div style={{ fontSize: '0.78rem', color: 'var(--brand-neon)', marginTop: '8px', fontWeight: 'bold' }}>
-            Margem de Lucro: {((financialMetrics.profit / (financialMetrics.mrr || 1)) * 100).toFixed(1)}%
+            Margem de Lucro: {financialMetrics.mrr > 0 ? ((financialMetrics.profit / financialMetrics.mrr) * 100).toFixed(1) : (financialMetrics.profit < 0 ? '-100.0' : '0.0')}%
           </div>
         </div>
       </div>

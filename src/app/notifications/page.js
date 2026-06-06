@@ -35,6 +35,16 @@ export default function NotificationsPage() {
   // Carregar oportunidades reais do Supabase e ler o estado de atualização local
   useEffect(() => {
     let active = true;
+    let timedOut = false;
+
+    // Safety timeout to prevent stuck loading screen
+    const safetyTimeout = setTimeout(() => {
+      if (active) {
+        timedOut = true;
+        console.warn("[Notifications] Timeout de segurança carregando notificações. Forçando exibição.");
+        setLoading(false);
+      }
+    }, 4500);
 
     // 1. Tentar carregar do cache local imediatamente para evitar tela de loading
     const cachedOppKey = 'ev_tracker_cached_opportunities';
@@ -66,6 +76,7 @@ export default function NotificationsPage() {
 
     const fetchNotifications = async () => {
       if (!supabase) {
+        clearTimeout(safetyTimeout);
         setLoading(false);
         return;
       }
@@ -73,7 +84,7 @@ export default function NotificationsPage() {
         const { data, error } = await supabase
           .from('ev_opportunities')
           .select('*')
-          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
           .limit(30);
 
         if (error) throw error;
@@ -97,7 +108,10 @@ export default function NotificationsPage() {
         console.warn("[Notifications] Erro ao carregar alertas reais:", err);
       } finally {
         if (active) {
-          setLoading(false);
+          clearTimeout(safetyTimeout);
+          if (!timedOut) {
+            setLoading(false);
+          }
         }
       }
     };
@@ -125,6 +139,7 @@ export default function NotificationsPage() {
 
     return () => {
       active = false;
+      clearTimeout(safetyTimeout);
       supabase.removeChannel(channel);
     };
   }, []);

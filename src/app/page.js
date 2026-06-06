@@ -273,7 +273,7 @@ export default function ResponsiveDashboard() {
         const { data, error } = await supabase
           .from('ev_opportunities')
           .select('*')
-          .order('created_at', { ascending: false })
+          .order('id', { ascending: false })
           .limit(30);
         
         if (error) throw error;

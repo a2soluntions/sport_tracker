@@ -144,23 +144,97 @@ export default function NotificationsPage() {
     };
   }, []);
 
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const [updateCheckMessage, setUpdateCheckMessage] = useState('');
+
+  const handleCheckUpdate = async () => {
+    setCheckingUpdate(true);
+    setUpdateCheckMessage('');
+    try {
+      const res = await fetch('/api/version');
+      const data = await res.json();
+      if (data && data.version) {
+        const currentVersion = localStorage.getItem('ev_tracker_current_version');
+        if (currentVersion && currentVersion !== data.version) {
+          setHasUpdate(true);
+          localStorage.setItem('ev_tracker_update_available', 'true');
+          localStorage.setItem('ev_tracker_latest_version', data.version);
+        } else {
+          setHasUpdate(false);
+          localStorage.removeItem('ev_tracker_update_available');
+          setUpdateCheckMessage('Seu aplicativo está na versão mais recente! ✅');
+        }
+      }
+    } catch (e) {
+      console.warn("Erro ao buscar versão para atualização:", e);
+      setUpdateCheckMessage('Falha ao conectar. Tente novamente.');
+    } finally {
+      setCheckingUpdate(false);
+    }
+  };
+
   const handleUpdateApp = () => {
     if (typeof window !== 'undefined') {
+      const latest = localStorage.getItem('ev_tracker_latest_version');
+      if (latest) {
+        localStorage.setItem('ev_tracker_current_version', latest);
+      }
       localStorage.removeItem('ev_tracker_update_available');
+      localStorage.removeItem('ev_tracker_latest_version');
       window.location.reload();
     }
   };
 
   return (
     <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
-      <header style={{ marginBottom: '30px', borderBottom: '1px solid #222', paddingBottom: '20px' }}>
-        <h1 style={{ fontSize: '1.8rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '12px', color: '#fff', textTransform: 'uppercase', margin: 0 }}>
-          <Bell color="var(--brand-neon)" size={28} />
-          Central de Alertas +EV
-        </h1>
-        <p style={{ color: '#888', marginTop: '8px', fontSize: '0.9rem', margin: '8px 0 0 0' }}>
-          Histórico de assimetrias de odds identificadas em tempo real pelo modelo matemático.
-        </p>
+      <header style={{ marginBottom: '30px', borderBottom: '1px solid #222', paddingBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+        <div>
+          <h1 style={{ fontSize: '1.8rem', fontWeight: 800, display: 'flex', alignItems: 'center', gap: '12px', color: '#fff', textTransform: 'uppercase', margin: 0 }}>
+            <Bell color="var(--brand-neon)" size={28} />
+            Central de Alertas +EV
+          </h1>
+          <p style={{ color: '#888', marginTop: '8px', fontSize: '0.9rem', margin: '8px 0 0 0' }}>
+            Histórico de assimetrias de odds identificadas em tempo real pelo modelo matemático.
+          </p>
+        </div>
+        
+        {/* Botão de Verificação Manual de Atualização */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '6px' }}>
+          <button
+            onClick={handleCheckUpdate}
+            disabled={checkingUpdate}
+            style={{
+              background: 'transparent',
+              border: '1px solid var(--brand-neon)',
+              color: 'var(--brand-neon)',
+              padding: '8px 16px',
+              borderRadius: '8px',
+              fontSize: '0.82rem',
+              fontWeight: 'bold',
+              cursor: checkingUpdate ? 'not-allowed' : 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              transition: 'background 0.2s'
+            }}
+            onMouseEnter={(e) => { if (!checkingUpdate) e.currentTarget.style.background = 'rgba(204, 255, 0, 0.05)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; }}
+          >
+            {checkingUpdate ? (
+              <>
+                <Loader2 className="spin" size={14} />
+                <span>Verificando...</span>
+              </>
+            ) : (
+              <span>Verificar Atualização 🔄</span>
+            )}
+          </button>
+          {updateCheckMessage && (
+            <span style={{ fontSize: '0.75rem', color: updateCheckMessage.includes('Erro') || updateCheckMessage.includes('Falha') ? '#ff4d4d' : 'var(--brand-neon)', fontWeight: 'bold' }}>
+              {updateCheckMessage}
+            </span>
+          )}
+        </div>
       </header>
 
       {/* Banner de Atualização do PWA se disponível */}

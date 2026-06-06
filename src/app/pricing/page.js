@@ -6,6 +6,18 @@ import { useRouter } from 'next/navigation';
 import { Zap, CheckCircle2, ShieldCheck, CreditCard, QrCode, Clipboard, ClipboardCheck, Loader2, ArrowLeft } from 'lucide-react';
 import AlertModal from '../../components/AlertModal';
 
+const translateError = (message) => {
+  if (!message) return '';
+  const lower = message.toLowerCase();
+  if (lower.includes('unauthorized') || lower.includes('policy returned')) {
+    return 'Credenciais do Mercado Pago inválidas ou não autorizadas. Verifique as configurações do Token de Acesso no seu arquivo .env ou painel da Vercel.';
+  }
+  if (lower.includes('access token') || lower.includes('token_invalid')) {
+    return 'Token de acesso inválido ou expirado. Por favor, verifique as configurações.';
+  }
+  return message;
+};
+
 export default function PricingPage() {
   const router = useRouter();
   const { user, upgradePlan, getTrialDaysLeft } = useAuth();
@@ -138,7 +150,7 @@ export default function PricingPage() {
         } catch (err) {
           console.error(err);
           if (active) {
-            setErrorPix(err.message || 'Erro de conexão.');
+            setErrorPix(translateError(err.message) || 'Erro de conexão.');
           }
         } finally {
           if (active) {
@@ -214,7 +226,7 @@ export default function PricingPage() {
       setAlertState({
         show: true,
         title: 'Falha no Pagamento',
-        message: err.message || 'Erro ao redirecionar para o Mercado Pago.',
+        message: translateError(err.message) || 'Erro ao redirecionar para o Mercado Pago.',
         type: 'error'
       });
     } finally {

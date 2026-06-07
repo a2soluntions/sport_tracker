@@ -710,7 +710,8 @@ export default function PalpitesPage() {
     const stats = game.stats;
     const corn = getCornersStats(game.home, game.away, game.homeXG, game.awayXG);
     const cards = getCardsStats(game.home, game.away);
-    const getOdd = (p) => p > 0 ? parseFloat((1 / p).toFixed(2)) : 1.01;
+    // Capped odds between @1.01 and @200.00 for bookmaker realism
+    const getOdd = (p) => p > 0 ? Math.max(1.01, Math.min(200.0, parseFloat((1 / p).toFixed(2)))) : 1.01;
     
     const pCorn = (k) => (Math.exp(-corn.projected) * Math.pow(corn.projected, k)) / factorial(k);
     const probCornOver = (k) => {
@@ -731,7 +732,7 @@ export default function PalpitesPage() {
     };
 
     const redCardProb = 1 - Math.exp(-cards.totalRed);
-
+    
     return [
       {
         category: 'Resultado Final (1X2)',
@@ -739,6 +740,14 @@ export default function PalpitesPage() {
           { label: 'Casa Vence', prob: stats.probHome, odd: getOdd(stats.probHome), market: '1X2' },
           { label: 'Empate', prob: stats.probDraw, odd: getOdd(stats.probDraw), market: '1X2' },
           { label: 'Fora Vence', prob: stats.probAway, odd: getOdd(stats.probAway), market: '1X2' }
+        ]
+      },
+      {
+        category: 'Dupla Chance',
+        items: [
+          { label: 'Casa ou Empate (1X)', prob: stats.probHome + stats.probDraw, odd: getOdd(stats.probHome + stats.probDraw), market: 'Dupla Chance' },
+          { label: 'Fora ou Empate (X2)', prob: stats.probAway + stats.probDraw, odd: getOdd(stats.probAway + stats.probDraw), market: 'Dupla Chance' },
+          { label: 'Casa ou Fora (12)', prob: stats.probHome + stats.probAway, odd: getOdd(stats.probHome + stats.probAway), market: 'Dupla Chance' }
         ]
       },
       {
@@ -763,7 +772,8 @@ export default function PalpitesPage() {
           { label: 'Mais de 1.5 Gols', prob: stats.probOver15, odd: getOdd(stats.probOver15), market: 'Gols' },
           { label: 'Mais de 2.5 Gols', prob: stats.probOver25, odd: getOdd(stats.probOver25), market: 'Gols' },
           { label: 'Mais de 3.5 Gols', prob: stats.probOver35, odd: getOdd(stats.probOver35), market: 'Gols' },
-          { label: 'Ambos Marcam (Sim)', prob: stats.probBtts, odd: getOdd(stats.probBtts), market: 'Gols' }
+          { label: 'Ambos Marcam (Sim)', prob: stats.probBtts, odd: getOdd(stats.probBtts), market: 'Gols' },
+          { label: 'Ambos Marcam (Não)', prob: Math.max(0, 1 - stats.probBtts), odd: getOdd(Math.max(0, 1 - stats.probBtts)), market: 'Gols' }
         ]
       },
       {
@@ -3383,13 +3393,17 @@ export default function PalpitesPage() {
               </div>
 
               {/* Grid de Mercados e Seleções */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 {markets.map((cat, catIdx) => (
                   <div key={catIdx} style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                     <div style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
                       {cat.category}
                     </div>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', 
+                      gap: '10px' 
+                    }}>
                       {cat.items.map((item, itemIdx) => {
                         const id = `${game.home} x ${game.away}_${item.market}_${item.label}`;
                         const isSelected = builderSelections.some(s => s.id === id);
@@ -3398,22 +3412,60 @@ export default function PalpitesPage() {
                             key={itemIdx}
                             onClick={() => handleToggleBuilderSelection(item, `${game.home} x ${game.away}`)}
                             style={{
-                              background: isSelected ? 'var(--brand-neon)' : '#16161a',
-                              border: isSelected ? '1px solid var(--brand-neon)' : '1px solid #27272a',
-                              color: isSelected ? '#000' : '#ccc',
-                              padding: '8px 12px',
-                              borderRadius: '6px',
-                              fontSize: '0.75rem',
-                              fontWeight: 'bold',
+                              background: isSelected ? 'var(--brand-neon)' : '#161622',
+                              border: isSelected ? '1px solid var(--brand-neon)' : '1px solid #27273a',
+                              color: isSelected ? '#000' : '#fff',
+                              padding: '10px 14px',
+                              borderRadius: '8px',
+                              fontSize: '0.8rem',
+                              fontWeight: '600',
                               cursor: 'pointer',
                               transition: 'all 0.2s',
                               display: 'flex',
                               alignItems: 'center',
-                              gap: '6px'
+                              justifyContent: 'space-between',
+                              width: '100%',
+                              gap: '8px',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
                             }}
                           >
-                            <span>{item.label}</span>
-                            <span style={{ color: isSelected ? '#000' : '#ff9800' }}>@{item.odd.toFixed(2)}</span>
+                            <span style={{ textAlign: 'left', flex: 1 }}>{item.label}</span>
+                            
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                              {/* Badge de Porcentagem (estilo da segunda imagem) */}
+                              <span style={{
+                                background: isSelected 
+                                  ? 'rgba(0,0,0,0.15)' 
+                                  : item.prob >= 0.70 
+                                    ? 'rgba(76, 175, 80, 0.15)' 
+                                    : item.prob >= 0.50 
+                                      ? 'rgba(255, 152, 0, 0.15)' 
+                                      : 'rgba(255, 68, 68, 0.15)',
+                                color: isSelected 
+                                  ? '#000' 
+                                  : item.prob >= 0.70 
+                                    ? '#4CAF50' 
+                                    : item.prob >= 0.50 
+                                      ? '#ff9800' 
+                                      : '#ff4d4d',
+                                padding: '2px 8px',
+                                borderRadius: '12px',
+                                fontSize: '0.7rem',
+                                fontWeight: 'bold'
+                              }}>
+                                {Math.round(item.prob * 100)}%
+                              </span>
+
+                              {/* Odd */}
+                              <span style={{ 
+                                color: isSelected ? '#000' : 'var(--brand-neon)',
+                                fontWeight: 'bold',
+                                minWidth: '45px',
+                                textAlign: 'right'
+                              }}>
+                                @{item.odd.toFixed(2)}
+                              </span>
+                            </div>
                           </button>
                         );
                       })}

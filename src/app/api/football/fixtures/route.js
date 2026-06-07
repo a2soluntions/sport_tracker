@@ -112,13 +112,13 @@ export async function GET(request) {
         fromCache = true;
       } else {
         try {
-          const url = `${API_HOST}/fixtures?date=${targetDate}`;
+          const url = `${API_HOST}/fixtures?date=${targetDate}&timezone=America/Sao_Paulo`;
           const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
           const data = await res.json();
           if (data.errors && Object.keys(data.errors).length > 0) {
             console.error(`[API-Sports] Erro retornado pela API para a data ${targetDate}:`, data.errors);
           }
-          matches = data.response || [];
+          matches = (data.response || []).filter(m => !['CANC', 'PST', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short));
           if (matches.length > 0) {
             cache.fixtures[fixturesCacheKey] = {
               data: matches,
@@ -223,10 +223,10 @@ export async function GET(request) {
         fromCache = true;
       } else {
         try {
-          const url = `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}`;
+          const url = `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}&timezone=America/Sao_Paulo`;
           const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
           const data = await res.json();
-          matchesOfSeason = data.response || [];
+          matchesOfSeason = (data.response || []).filter(m => !['CANC', 'PST', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short));
           if (matchesOfSeason.length > 0) {
             cache.fixtures[fixturesCacheKey] = {
               data: matchesOfSeason,
@@ -321,13 +321,13 @@ export async function GET(request) {
         fromCache = true;
       } else {
         try {
-          const url = `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}`;
+          const url = `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}&timezone=America/Sao_Paulo`;
           const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
           const data = await res.json();
           if (data.errors && Object.keys(data.errors).length > 0) {
             console.error(`[API-Sports] Erro retornado pela API para a liga ${leagueId}:`, data.errors);
           }
-          matches = data.response || [];
+          matches = (data.response || []).filter(m => !['CANC', 'PST', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short));
           if (matches.length > 0) {
             cache.fixtures[fixturesCacheKey] = {
               data: matches,

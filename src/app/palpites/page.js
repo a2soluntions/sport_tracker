@@ -848,13 +848,18 @@ export default function PalpitesPage() {
     let netProfit = 0;
     let greens = 0;
     let reds = 0;
+    let refunded = 0;
     let pending = 0;
 
     currentRoundBets.forEach(t => {
       totalInvested += t.amount;
       if (t.type === 'ganho') {
-        netProfit += t.odd ? t.amount * (t.odd - 1) : t.amount;
-        greens += 1;
+        if (t.odd === 1.0 && t.description && t.description.includes('[DEVOLVIDA]')) {
+          refunded += 1;
+        } else {
+          netProfit += t.odd ? t.amount * (t.odd - 1) : t.amount;
+          greens += 1;
+        }
       } else if (t.type === 'perda') {
         netProfit -= t.amount;
         reds += 1;
@@ -877,6 +882,7 @@ export default function PalpitesPage() {
         roi,
         greens,
         reds,
+        refunded,
         pending
       }
     };
@@ -936,13 +942,18 @@ export default function PalpitesPage() {
         let netProfit = 0;
         let greens = 0;
         let reds = 0;
+        let refunded = 0;
         let pending = 0;
 
         currentRoundBets.forEach(t => {
           totalInvested += t.amount;
           if (t.type === 'ganho') {
-            netProfit += t.odd ? t.amount * (t.odd - 1) : t.amount;
-            greens += 1;
+            if (t.odd === 1.0 && t.description && t.description.includes('[DEVOLVIDA]')) {
+              refunded += 1;
+            } else {
+              netProfit += t.odd ? t.amount * (t.odd - 1) : t.amount;
+              greens += 1;
+            }
           } else if (t.type === 'perda') {
             netProfit -= t.amount;
             reds += 1;
@@ -965,6 +976,7 @@ export default function PalpitesPage() {
             roi,
             greens,
             reds,
+            refunded,
             pending
           }
         };
@@ -1196,9 +1208,15 @@ export default function PalpitesPage() {
     // Filtrar apenas transações associadas a palpites da página (iniciam com [Palpite] ou [Aposta Criada])
     const followedBets = transactions.filter(t => t.description && (t.description.startsWith('[Palpite]') || t.description.startsWith('[Aposta Criada]')));
     
-    const totalBets = followedBets.filter(t => t.type === 'ganho' || t.type === 'perda').length;
-    const wins = followedBets.filter(t => t.type === 'ganho').length;
-    const losses = followedBets.filter(t => t.type === 'perda').length;
+    // Excluir apostas devolvidas (odd = 1.0 e descrição contendo [DEVOLVIDA]) da taxa de acerto para não distorcer a estatística de vitórias
+    const resolvedBets = followedBets.filter(t => 
+      (t.type === 'ganho' || t.type === 'perda') && 
+      !(t.odd === 1.0 && t.description && t.description.includes('[DEVOLVIDA]'))
+    );
+    
+    const totalBets = resolvedBets.length;
+    const wins = resolvedBets.filter(t => t.type === 'ganho').length;
+    const losses = resolvedBets.filter(t => t.type === 'perda').length;
     const hitRate = totalBets > 0 ? (wins / totalBets) * 100 : 0;
     
     let totalProfit = 0;
@@ -1219,10 +1237,14 @@ export default function PalpitesPage() {
     const netProfit = totalProfit - totalLoss;
     const roi = totalAmountBet > 0 ? (netProfit / totalAmountBet) * 100 : 0;
     
+    // Contar devolvidas separadamente para exibir como informação extra
+    const refunds = followedBets.filter(t => t.type === 'ganho' && t.odd === 1.0 && t.description && t.description.includes('[DEVOLVIDA]')).length;
+    
     return {
       totalBets,
       wins,
       losses,
+      refunds,
       hitRate,
       roi,
       netProfit,
@@ -1757,7 +1779,8 @@ export default function PalpitesPage() {
                   roi: myStats.totalBets > 0 ? `${myStats.roi >= 0 ? '+' : ''}${myStats.roi.toFixed(1)}%` : '--',
                   greens: myStats.wins,
                   reds: myStats.losses,
-                  subtextRate: `Base: ${myStats.totalBets} palpites seguidos`,
+                  refunds: myStats.refunds || 0,
+                  subtextRate: `Base: ${myStats.totalBets} resolvidos${(myStats.refunds || 0) > 0 ? ` (+${myStats.refunds} devolvidos)` : ''}`,
                   subtextRoi: `Volume: R$ ${myStats.totalAmountBet.toFixed(2)}`,
                   subtextResult: `Últimas rodadas ativas`
                 }

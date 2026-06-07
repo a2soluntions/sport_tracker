@@ -798,9 +798,13 @@ export default function PalpitesPage() {
     if (!roundInfo || games.length === 0 || transactions.length === 0) return [];
     
     return transactions.filter(t => {
-      if (!t.description || !t.description.startsWith('[Palpite] ')) return false;
+      if (!t.description) return false;
+      const isPalpite = t.description.startsWith('[Palpite] ');
+      const isApostaCriada = t.description.startsWith('[Aposta Criada] ');
+      if (!isPalpite && !isApostaCriada) return false;
       
-      const matchName = t.description.replace('[Palpite] ', '').split(' (')[0];
+      const prefix = isPalpite ? '[Palpite] ' : '[Aposta Criada] ';
+      const matchName = t.description.replace(prefix, '').split(' (')[0];
       return games.some(g => `${g.home} x ${g.away}` === matchName);
     });
   }, [transactions, games, roundInfo]);
@@ -814,7 +818,9 @@ export default function PalpitesPage() {
     setSendingSummary(true);
 
     const formattedBets = currentRoundBets.map(t => {
-      const matchName = t.description.replace('[Palpite] ', '').split(' (')[0];
+      const isPalpite = t.description.startsWith('[Palpite] ');
+      const prefix = isPalpite ? '[Palpite] ' : '[Aposta Criada] ';
+      const matchName = t.description.replace(prefix, '').split(' (')[0];
       const selection = t.description.split(' (')[1]?.replace(')', '');
       const game = games.find(g => `${g.home} x ${g.away}` === matchName);
 
@@ -900,7 +906,9 @@ export default function PalpitesPage() {
         localStorage.setItem(todayKey, 'true');
         
         const formattedBets = currentRoundBets.map(t => {
-          const matchName = t.description.replace('[Palpite] ', '').split(' (')[0];
+          const isPalpite = t.description.startsWith('[Palpite] ');
+          const prefix = isPalpite ? '[Palpite] ' : '[Aposta Criada] ';
+          const matchName = t.description.replace(prefix, '').split(' (')[0];
           const selection = t.description.split(' (')[1]?.replace(')', '');
           const game = games.find(g => `${g.home} x ${g.away}` === matchName);
 
@@ -1175,8 +1183,8 @@ export default function PalpitesPage() {
   }, [user, selectedDate, selectedLeague]);
 
   const myStats = useMemo(() => {
-    // Filtrar apenas transações associadas a palpites da página (iniciam com [Palpite])
-    const followedBets = transactions.filter(t => t.description && t.description.startsWith('[Palpite]'));
+    // Filtrar apenas transações associadas a palpites da página (iniciam com [Palpite] ou [Aposta Criada])
+    const followedBets = transactions.filter(t => t.description && (t.description.startsWith('[Palpite]') || t.description.startsWith('[Aposta Criada]')));
     
     const totalBets = followedBets.filter(t => t.type === 'ganho' || t.type === 'perda').length;
     const wins = followedBets.filter(t => t.type === 'ganho').length;

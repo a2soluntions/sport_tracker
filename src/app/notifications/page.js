@@ -100,6 +100,10 @@ export default function NotificationsPage() {
             rawDate: opp.created_at
           }));
           setNotifications(mapped);
+          if (data.length > 0) {
+            localStorage.setItem('ev_tracker_last_viewed_notification', String(data[0].id));
+            window.dispatchEvent(new Event('notifications_read'));
+          }
           try {
             localStorage.setItem(cachedOppKey, JSON.stringify(data));
           } catch (e) {}
@@ -132,7 +136,12 @@ export default function NotificationsPage() {
               time: 'Agora mesmo',
               rawDate: opp.created_at
             };
-            setNotifications(curr => [newNotif, ...curr].slice(0, 30));
+            setNotifications(curr => {
+              const updated = [newNotif, ...curr].slice(0, 30);
+              localStorage.setItem('ev_tracker_last_viewed_notification', String(opp.id));
+              window.dispatchEvent(new Event('notifications_read'));
+              return updated;
+            });
           }
         }
       ).subscribe();

@@ -4,6 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabaseClient';
 import { Activity, TrendingUp, Settings, Bell, Calculator, Zap, Trophy, PiggyBank, LogOut, ArrowUpCircle, Info, HelpCircle, ShieldCheck } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
@@ -13,6 +14,7 @@ export default function Sidebar() {
   const { user, logout, getTrialDaysLeft } = useAuth();
 
   const [hasUpdate, setHasUpdate] = React.useState(false);
+  const [hasNewAlert, setHasNewAlert] = React.useState(false);
 
   React.useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -31,6 +33,67 @@ export default function Sidebar() {
       };
     }
   }, []);
+
+  React.useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const checkNewAlerts = async () => {
+      if (!supabase) return;
+      try {
+        const lastViewedId = localStorage.getItem('ev_tracker_last_viewed_notification');
+        const { data, error } = await supabase
+          .from('ev_opportunities')
+          .select('id')
+          .order('id', { ascending: false })
+          .limit(1);
+
+        if (error) throw error;
+
+        if (data && data.length > 0) {
+          const latestId = data[0].id;
+          if (!lastViewedId) {
+            // Se nunca visualizou, salva o id atual
+            localStorage.setItem('ev_tracker_last_viewed_notification', String(latestId));
+          } else if (String(latestId) !== lastViewedId && window.location.pathname !== '/notifications') {
+            setHasNewAlert(true);
+          }
+        }
+      } catch (err) {
+        console.warn('[Sidebar] Erro ao checar novos alertas:', err);
+      }
+    };
+
+    // Checagem inicial
+    checkNewAlerts();
+
+    // Ouvir evento de leitura
+    const handleRead = () => {
+      setHasNewAlert(false);
+    };
+    window.addEventListener('notifications_read', handleRead);
+
+    // Ouvir novas inserções no Supabase em tempo real
+    let channel;
+    if (supabase) {
+      channel = supabase.channel('sidebar-live-alerts')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'ev_opportunities' }, 
+          (payload) => {
+            if (window.location.pathname !== '/notifications') {
+              setHasNewAlert(true);
+            } else {
+              localStorage.setItem('ev_tracker_last_viewed_notification', String(payload.new.id));
+            }
+          }
+        ).subscribe();
+    }
+
+    return () => {
+      window.removeEventListener('notifications_read', handleRead);
+      if (supabase && channel) {
+        supabase.removeChannel(channel);
+      }
+    };
+  }, [pathname]);
 
   const handleLogout = async () => {
     await logout();
@@ -183,7 +246,7 @@ export default function Sidebar() {
             <span>Carteira (Banca)</span>
           </Link>
           <Link href="/notifications" className={`${styles.navItem} ${pathname === '/notifications' ? styles.navItemActive : ''}`}>
-            <Bell size={20} className={`${styles.navIcon} ${hasUpdate ? 'bell-blink' : ''}`} /> 
+            <Bell size={20} className={`${styles.navIcon} ${hasUpdate || hasNewAlert ? 'bell-blink' : ''}`} /> 
             <span>Notificações</span>
           </Link>
           <Link href="/settings" className={`${styles.navItem} ${pathname === '/settings' ? styles.navItemActive : ''}`}>
@@ -346,7 +409,7 @@ export default function Sidebar() {
           <span>Carteira</span>
         </Link>
         <Link href="/notifications" className={`${styles.bottomNavItem} ${pathname === '/notifications' ? styles.bottomNavItemActive : ''}`}>
-          <Bell size={18} className={`${styles.bottomNavIcon} ${hasUpdate ? 'bell-blink' : ''}`} />
+          <Bell size={18} className={`${styles.bottomNavIcon} ${hasUpdate || hasNewAlert ? 'bell-blink' : ''}`} />
           <span>Notif.</span>
         </Link>
         <Link href="/settings" className={`${styles.bottomNavItem} ${pathname === '/settings' ? styles.bottomNavItemActive : ''}`}>

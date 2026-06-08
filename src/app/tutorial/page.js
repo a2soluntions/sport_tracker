@@ -1,31 +1,19 @@
 'use client';
 
 import React from 'react';
-import Sidebar from '../../components/Sidebar';
 import { BookOpen, Zap, DollarSign, ShieldAlert, Award, ChevronRight, Calculator, CheckCircle2, TrendingUp, AlertTriangle } from 'lucide-react';
 
 export default function TutorialPage() {
   return (
     <div style={{
-      display: 'flex',
-      minHeight: '100vh',
-      background: '#09090b',
-      color: '#fff',
+      padding: '20px',
+      maxWidth: '1000px',
+      margin: '0 auto',
+      width: '100%',
       fontFamily: 'Outfit, system-ui, sans-serif'
     }}>
-      {/* Sidebar Navigation */}
-      <Sidebar />
-
-      {/* Main Content Area */}
-      <main style={{
-        flex: 1,
-        padding: '40px 24px',
-        maxWidth: '1200px',
-        margin: '0 auto',
-        paddingBottom: '100px'
-      }}>
-        {/* Header Section */}
-        <div style={{ marginBottom: '40px', borderBottom: '1px solid #1f1f2e', paddingBottom: '24px' }}>
+      {/* Header Section */}
+      <div style={{ marginBottom: '40px', borderBottom: '1px solid #1f1f2e', paddingBottom: '24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--brand-neon)', marginBottom: '12px' }}>
             <BookOpen size={28} />
             <span style={{ fontSize: '0.9rem', fontWeight: 'bold', letterSpacing: '2px', textTransform: 'uppercase' }}>Central de Aprendizado</span>
@@ -324,7 +312,6 @@ export default function TutorialPage() {
           </div>
 
         </div>
-      </main>
     </div>
   );
 }

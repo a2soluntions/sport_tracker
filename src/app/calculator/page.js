@@ -335,6 +335,7 @@ export default function CalculatorPage() {
   const [betStake, setBetStake] = useState("100");
   const [globalBookmaker, setGlobalBookmaker] = useState("Best");
   const [marcadoresTab, setMarcadoresTab] = useState('home');
+  const [selectedPlayerDropdownValue, setSelectedPlayerDropdownValue] = useState("");
   const [toastMessage, setToastMessage] = useState("");
   const [showToast, setShowToast] = useState(false);
   const [customOdd, setCustomOdd] = useState("");
@@ -612,7 +613,6 @@ export default function CalculatorPage() {
   const [loadingAwaySquad, setLoadingAwaySquad] = useState(false);
 
   useEffect(() => {
-    setHomePlayersList([]);
     if (homeTeam) {
       setLoadingHomeSquad(true);
       const url = homeTeamId 
@@ -621,18 +621,35 @@ export default function CalculatorPage() {
       fetch(url)
         .then(res => res.json())
         .then(data => {
-          if (data.players) {
+          if (data.players && data.players.length > 0) {
             setHomeSquad(data.players);
+            const defaultPlayers = data.players.slice(0, 4).map(p => ({
+              name: p.name,
+              weight: p.position === 'Attacker' ? 0.35 : p.position === 'Midfielder' ? 0.22 : p.position === 'Defender' ? 0.08 : 0.15,
+              role: p.position
+            }));
+            setHomePlayersList(defaultPlayers);
+          } else {
+            const staticPlayers = TEAM_PLAYERS[homeTeam] || getPlayersForTeam(homeTeam, true);
+            const squad = staticPlayers.map((p, i) => ({ id: `static-h-${i}`, name: p.name, position: p.role === 'Atacante' ? 'Attacker' : p.role === 'Meio-Campo' ? 'Midfielder' : 'Defender' }));
+            setHomeSquad(squad);
+            setHomePlayersList(staticPlayers.map(p => ({ name: p.name, weight: p.weight, role: p.role === 'Atacante' ? 'Attacker' : p.role === 'Meio-Campo' ? 'Midfielder' : 'Defender' })));
           }
           setLoadingHomeSquad(false);
-        }).catch(() => setLoadingHomeSquad(false));
+        }).catch(() => {
+          const staticPlayers = TEAM_PLAYERS[homeTeam] || getPlayersForTeam(homeTeam, true);
+          const squad = staticPlayers.map((p, i) => ({ id: `static-h-${i}`, name: p.name, position: p.role === 'Atacante' ? 'Attacker' : p.role === 'Meio-Campo' ? 'Midfielder' : 'Defender' }));
+          setHomeSquad(squad);
+          setHomePlayersList(staticPlayers.map(p => ({ name: p.name, weight: p.weight, role: p.role === 'Atacante' ? 'Attacker' : p.role === 'Meio-Campo' ? 'Midfielder' : 'Defender' })));
+          setLoadingHomeSquad(false);
+        });
     } else {
       setHomeSquad([]);
+      setHomePlayersList([]);
     }
   }, [homeTeam]);
 
   useEffect(() => {
-    setAwayPlayersList([]);
     if (awayTeam) {
       setLoadingAwaySquad(true);
       const url = awayTeamId 
@@ -641,13 +658,31 @@ export default function CalculatorPage() {
       fetch(url)
         .then(res => res.json())
         .then(data => {
-          if (data.players) {
+          if (data.players && data.players.length > 0) {
             setAwaySquad(data.players);
+            const defaultPlayers = data.players.slice(0, 4).map(p => ({
+              name: p.name,
+              weight: p.position === 'Attacker' ? 0.35 : p.position === 'Midfielder' ? 0.22 : p.position === 'Defender' ? 0.08 : 0.15,
+              role: p.position
+            }));
+            setAwayPlayersList(defaultPlayers);
+          } else {
+            const staticPlayers = TEAM_PLAYERS[awayTeam] || getPlayersForTeam(awayTeam, false);
+            const squad = staticPlayers.map((p, i) => ({ id: `static-a-${i}`, name: p.name, position: p.role === 'Atacante' ? 'Attacker' : p.role === 'Meio-Campo' ? 'Midfielder' : 'Defender' }));
+            setAwaySquad(squad);
+            setAwayPlayersList(staticPlayers.map(p => ({ name: p.name, weight: p.weight, role: p.role === 'Atacante' ? 'Attacker' : p.role === 'Meio-Campo' ? 'Midfielder' : 'Defender' })));
           }
           setLoadingAwaySquad(false);
-        }).catch(() => setLoadingAwaySquad(false));
+        }).catch(() => {
+          const staticPlayers = TEAM_PLAYERS[awayTeam] || getPlayersForTeam(awayTeam, false);
+          const squad = staticPlayers.map((p, i) => ({ id: `static-a-${i}`, name: p.name, position: p.role === 'Atacante' ? 'Attacker' : p.role === 'Meio-Campo' ? 'Midfielder' : 'Defender' }));
+          setAwaySquad(squad);
+          setAwayPlayersList(staticPlayers.map(p => ({ name: p.name, weight: p.weight, role: p.role === 'Atacante' ? 'Attacker' : p.role === 'Meio-Campo' ? 'Midfielder' : 'Defender' })));
+          setLoadingAwaySquad(false);
+        });
     } else {
       setAwaySquad([]);
+      setAwayPlayersList([]);
     }
   }, [awayTeam]);
 
@@ -922,6 +957,45 @@ export default function CalculatorPage() {
     markets.sort((a, b) => b.prob - a.prob);
     return markets[0].label;
   }, [stats]);
+
+  const hottestCorner = useMemo(() => {
+    const list = [
+      { label: 'Escanteios Acima 5.5', prob: cornersStats.probs.over5_5 },
+      { label: 'Escanteios Acima 7.5', prob: cornersStats.probs.over7_5 },
+      { label: 'Escanteios Acima 8.5', prob: cornersStats.probs.over8_5 },
+      { label: 'Escanteios Acima 9.5', prob: cornersStats.probs.over9_5 },
+      { label: 'Escanteios Acima 10.5', prob: cornersStats.probs.over10_5 }
+    ];
+    const filtered = list.filter(item => {
+      const odd = 1 / (item.prob || 0.01);
+      return odd >= 1.35 && item.prob >= 0.35;
+    });
+    if (filtered.length === 0) return 'Escanteios Acima 8.5';
+    filtered.sort((a, b) => {
+      const scoreA = a.prob * Math.log(1 / a.prob);
+      const scoreB = b.prob * Math.log(1 / b.prob);
+      return scoreB - scoreA;
+    });
+    return filtered[0].label;
+  }, [cornersStats]);
+
+  const hottestHandicap = useMemo(() => {
+    const list = [];
+    ["-1.5", "-1.0", "-0.5", "0.0", "+0.5", "+1.0", "+1.5"].forEach(line => {
+      const probHome = handicapsStats.home[line] || 0;
+      const probAway = handicapsStats.away[line] || 0;
+      list.push({ label: `${homeTeam || 'Casa'} AH ${line}`, prob: probHome });
+      list.push({ label: `${awayTeam || 'Visitante'} AH ${line}`, prob: probAway });
+    });
+    const filtered = list.filter(item => item.prob >= 0.35 && item.prob <= 0.75);
+    if (filtered.length === 0) return `${homeTeam || 'Casa'} AH 0.0`;
+    filtered.sort((a, b) => {
+      const scoreA = a.prob * Math.log(1 / a.prob);
+      const scoreB = b.prob * Math.log(1 / b.prob);
+      return scoreB - scoreA;
+    });
+    return filtered[0].label;
+  }, [handicapsStats, homeTeam, awayTeam]);
 
   const hottestPlayerGoal = useMemo(() => {
     let highest = null;
@@ -1411,28 +1485,30 @@ export default function CalculatorPage() {
                       </button>
                     </div>
                     <select
-                      value=""
+                      value={selectedPlayerDropdownValue}
                       onChange={(e) => {
-                        const selectedName = e.target.value;
+                        const selectedId = e.target.value;
+                        if (!selectedId) return;
                         if (marcadoresTab === 'home') {
-                          const playerInfo = homeSquad.find(sq => sq.name === selectedName);
-                          if (playerInfo && !homePlayersList.some(p => p.name === selectedName)) {
+                          const playerInfo = homeSquad.find(sq => String(sq.id) === String(selectedId));
+                          if (playerInfo && !homePlayersList.some(p => p.name.trim() === playerInfo.name.trim())) {
                             let w = playerInfo.position === 'Attacker' ? 0.35 : playerInfo.position === 'Midfielder' ? 0.22 : playerInfo.position === 'Defender' ? 0.08 : 0.15;
-                            setHomePlayersList([...homePlayersList, { name: selectedName, weight: w, role: playerInfo.position }]);
+                            setHomePlayersList([...homePlayersList, { name: playerInfo.name, weight: w, role: playerInfo.position }]);
                           }
                         } else {
-                          const playerInfo = awaySquad.find(sq => sq.name === selectedName);
-                          if (playerInfo && !awayPlayersList.some(p => p.name === selectedName)) {
+                          const playerInfo = awaySquad.find(sq => String(sq.id) === String(selectedId));
+                          if (playerInfo && !awayPlayersList.some(p => p.name.trim() === playerInfo.name.trim())) {
                             let w = playerInfo.position === 'Attacker' ? 0.35 : playerInfo.position === 'Midfielder' ? 0.22 : playerInfo.position === 'Defender' ? 0.08 : 0.15;
-                            setAwayPlayersList([...awayPlayersList, { name: selectedName, weight: w, role: playerInfo.position }]);
+                            setAwayPlayersList([...awayPlayersList, { name: playerInfo.name, weight: w, role: playerInfo.position }]);
                           }
                         }
+                        setSelectedPlayerDropdownValue("");
                       }}
                       style={{ background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '6px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', width: '100%', outline: 'none', appearance: 'auto', cursor: 'pointer' }}
                     >
-                      <option value="" disabled>+ Selecionar Jogador</option>
+                      <option value="">+ Selecionar Jogador</option>
                       {(marcadoresTab === 'home' ? homeSquad : awaySquad).map(sq => (
-                        <option key={sq.id} value={sq.name}>{sq.name} ({sq.position === 'Attacker' ? 'ATA' : sq.position === 'Midfielder' ? 'MEI' : sq.position === 'Defender' ? 'DEF' : 'GOL'})</option>
+                        <option key={sq.id} value={sq.id}>{sq.name} ({sq.position === 'Attacker' ? 'ATA' : sq.position === 'Midfielder' ? 'MEI' : sq.position === 'Defender' ? 'DEF' : 'GOL'})</option>
                       ))}
                     </select>
                     <div className="no-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '4px', overflowY: 'auto', maxHeight: '200px', paddingRight: '2px' }}>
@@ -1511,6 +1587,7 @@ export default function CalculatorPage() {
                     const finalOdd = bookInfo.best ? bookInfo.best.odd.toFixed(2) : oddVal;
 
                     const isSelected = selectedSelections.some(s => s.market === 'Escanteios' && s.label === item.label);
+                    const isHottest = hottestCorner === item.label;
                     return (
                       <div 
                         key={idx} 
@@ -1519,12 +1596,15 @@ export default function CalculatorPage() {
                           background: isSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent', 
                           border: isSelected 
                             ? '1.5px solid var(--brand-neon)' 
-                            : '1px solid #333', 
+                            : isHottest 
+                              ? '1.5px solid #00ffaa' 
+                              : '1px solid #333', 
                           padding: '6px 2px', 
                           borderRadius: '6px', 
                           textAlign: 'center',
                           cursor: 'pointer',
-                          transition: 'all 0.2s'
+                          transition: 'all 0.2s',
+                          boxShadow: isHottest ? '0 0 6px rgba(0, 255, 170, 0.3)' : 'none'
                         }}
                       >
                         <div style={{ color: '#aaa', fontSize: '0.66rem', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={item.label}>
@@ -1623,19 +1703,27 @@ export default function CalculatorPage() {
                           const isHomeSelected = selectedSelections.some(s => s.market === 'Handicap' && s.label === `${homeTeam || 'Casa'} AH ${line}`);
                           const isAwaySelected = selectedSelections.some(s => s.market === 'Handicap' && s.label === `${awayTeam || 'Visitante'} AH ${line}`);
 
+                          const isHomeHottest = hottestHandicap === `${homeTeam || 'Casa'} AH ${line}`;
+                          const isAwayHottest = hottestHandicap === `${awayTeam || 'Visitante'} AH ${line}`;
+
                           return (
                             <div key={line} style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1.2fr', gap: '6px', alignItems: 'center' }}>
                               <div 
                                 onClick={() => handleToggleSelection('Handicap', `${homeTeam || 'Casa'} AH ${line}`, probHome, oddHomeRaw, `${homeTeam || 'Casa'}_${awayTeam || 'Visitante'}_AH_Home_${line}`)}
                                 style={{
                                   background: isHomeSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
-                                  border: isHomeSelected ? '1.5px solid var(--brand-neon)' : '1px solid #333',
+                                  border: isHomeSelected 
+                                    ? '1.5px solid var(--brand-neon)' 
+                                    : isHomeHottest 
+                                      ? '1.5px solid #00ffaa' 
+                                      : '1px solid #333',
                                   borderRadius: '6px',
                                   padding: '4px',
                                   textAlign: 'center',
                                   cursor: 'pointer',
                                   transition: 'all 0.2s',
-                                  fontSize: '0.72rem'
+                                  fontSize: '0.72rem',
+                                  boxShadow: isHomeHottest ? '0 0 6px rgba(0, 255, 170, 0.3)' : 'none'
                                 }}
                               >
                                 <strong style={{ color: '#fff' }}>{getPct(probHome)}%</strong>
@@ -1648,13 +1736,18 @@ export default function CalculatorPage() {
                                 onClick={() => handleToggleSelection('Handicap', `${awayTeam || 'Visitante'} AH ${line}`, probAway, oddAwayRaw, `${homeTeam || 'Casa'}_${awayTeam || 'Visitante'}_AH_Away_${line}`)}
                                 style={{
                                   background: isAwaySelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
-                                  border: isAwaySelected ? '1.5px solid var(--brand-neon)' : '1px solid #333',
+                                  border: isAwaySelected 
+                                    ? '1.5px solid var(--brand-neon)' 
+                                    : isAwayHottest 
+                                      ? '1.5px solid #00ffaa' 
+                                      : '1px solid #333',
                                   borderRadius: '6px',
                                   padding: '4px',
                                   textAlign: 'center',
                                   cursor: 'pointer',
                                   transition: 'all 0.2s',
-                                  fontSize: '0.72rem'
+                                  fontSize: '0.72rem',
+                                  boxShadow: isAwayHottest ? '0 0 6px rgba(0, 255, 170, 0.3)' : 'none'
                                 }}
                               >
                                 <strong style={{ color: '#fff' }}>{getPct(probAway)}%</strong>

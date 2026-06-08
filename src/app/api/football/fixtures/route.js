@@ -155,6 +155,68 @@ async function getApiSportsStandings(leagueId, season) {
   }
 }
 
+// Reusable helper to fetch scraped fixtures for Brasileirão A and B
+async function fetchScraperFixtures(leagueId, targetDate, returnAll = false) {
+  try {
+    const currentRoundData = await getCurrentRound(leagueId === '71' ? 'a' : 'b');
+    if (!currentRoundData || !currentRoundData.rounds || currentRoundData.rounds.length === 0) {
+      return { fixtures: [], round: '?' };
+    }
+
+    const activeRound = currentRoundData.rounds[0];
+    const fixtures = activeRound.matches || [];
+    const teamStats = await getBrasileiraoStats();
+
+    const formattedFixtures = fixtures.map((m) => {
+      const homeStats = teamStats[m.homeTeam.name] || { goalsFor: 1.2, goalsAgainst: 1.0, position: 10 };
+      const awayStats = teamStats[m.awayTeam.name] || { goalsFor: 1.0, goalsAgainst: 1.2, position: 11 };
+
+      const homeXG = Math.round(((homeStats.goalsFor + awayStats.goalsAgainst) / 2) * 10) / 10;
+      const awayXG = Math.round(((awayStats.goalsFor + homeStats.goalsAgainst) / 2) * 10) / 10;
+
+      const isLive = m.statusCode === 'LIVE' || m.status === 'live';
+      const isFinished = m.statusCode === 'ENCERRADO' || m.status === 'finished' || m.status === 'ended';
+      let statusLabel = isLive ? 'Em Andamento ⚽' : isFinished ? 'Finalizado' : 'Não Iniciado';
+
+      return {
+        id: m.id,
+        homeTeamId: null,
+        awayTeamId: null,
+        date: (() => {
+          const dateObj = new Date(`${m.date}T${m.time}:00-03:00`);
+          const localDateStr = dateObj.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'short' }).replace('.', '');
+          return `${localDateStr} • ${m.time}`;
+        })(),
+        rawDate: m.date,
+        dayCategory: 'TODOS',
+        round: activeRound.number || '?',
+        home: m.homeTeam.name,
+        away: m.awayTeam.name,
+        homeLogo: m.homeTeam.badge,
+        awayLogo: m.awayTeam.badge,
+        homeXG,
+        awayXG,
+        goalsHome: m.score.home,
+        goalsAway: m.score.away,
+        status: statusLabel,
+        isLive,
+        isFinished,
+        minute: isLive ? 45 : 0,
+        venue: m.venue || '',
+        homePosition: homeStats.position,
+        awayPosition: awayStats.position,
+        sourceLeagueId: String(leagueId)
+      };
+    });
+
+    const filtered = returnAll ? formattedFixtures : formattedFixtures.filter(f => f.rawDate === targetDate);
+    return { fixtures: filtered, round: activeRound.number };
+  } catch (err) {
+    console.error(`[Scraper Helper] Erro ao buscar/formatar rodada para liga ${leagueId}:`, err);
+    return { fixtures: [], round: '?' };
+  }
+}
+
 export async function GET(request) {
   try {
     const { searchParams } = new URL(request.url);
@@ -215,16 +277,32 @@ export async function GET(request) {
         }
       }
 
-      const formattedFixtures = matches.map((m) => {
+      // Check if we need scraper fallbacks for Série A and B
+      const hasLeague71 = matches.some(m => String(m.league?.id) === '71');
+      const hasLeague72 = matches.some(m => String(m.league?.id) === '72');
+
+      const needScraper71 = !isPaidPlan || !hasLeague71;
+      const needScraper72 = !isPaidPlan || !hasLeague72;
+
+      // Filter out matches of 71 or 72 if we will fetch them from scraper instead (e.g. wrong season or empty)
+      let filteredApiMatches = matches;
+      if (needScraper71 || needScraper72) {
+        filteredApiMatches = matches.filter(m => {
+          const lid = String(m.league?.id);
+          if (lid === '71' && needScraper71) return false;
+          if (lid === '72' && needScraper72) return false;
+          return true;
+        });
+      }
+
+      const formattedFixtures = filteredApiMatches.map((m) => {
         const isFinished = ['FT', 'AET', 'PEN'].includes(m.fixture.status.short);
         const isLive = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT'].includes(m.fixture.status.short);
         let statusLabel = isLive ? `Em Andamento ⚽ ${m.fixture.status.elapsed}'` : isFinished ? 'Finalizado' : 'Não Iniciado';
 
-        // Usar fallbacks padrão para xG já que não podemos buscar classificação de centenas de ligas
         const homeXG = 1.3;
         const awayXG = 1.3;
 
-        // Timezone-aware date formatting (Brazil timezone)
         const dateObj = new Date(m.fixture.date);
         const localDateStr = dateObj.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'short' }).replace('.', '');
         const localTimeStr = dateObj.toLocaleTimeString('pt-BR', { timeZone: 'America/Sao_Paulo', hour: '2-digit', minute: '2-digit' });
@@ -270,6 +348,16 @@ export async function GET(request) {
           sourceLeagueId: String(m.league.id)
         };
       });
+
+      // Merge scraper matches
+      if (needScraper71) {
+        const scraperRes = await fetchScraperFixtures('71', targetDate, returnAll);
+        formattedFixtures.push(...scraperRes.fixtures);
+      }
+      if (needScraper72) {
+        const scraperRes = await fetchScraperFixtures('72', targetDate, returnAll);
+        formattedFixtures.push(...scraperRes.fixtures);
+      }
 
       return NextResponse.json({ 
         fixtures: formattedFixtures, 
@@ -338,61 +426,10 @@ export async function GET(request) {
     }
 
     if (useScraper) {
-      const currentRoundData = await getCurrentRound(leagueId === '71' ? 'a' : 'b');
-      if (!currentRoundData || !currentRoundData.rounds || currentRoundData.rounds.length === 0) {
-        return NextResponse.json({ fixtures: [], round: '?', season: 2026, fromCache: false });
-      }
-
-      const activeRound = currentRoundData.rounds[0];
-      const fixtures = activeRound.matches || [];
-      const teamStats = await getBrasileiraoStats();
-
-      const formattedFixtures = fixtures.map((m) => {
-        const homeStats = teamStats[m.homeTeam.name] || { goalsFor: 1.2, goalsAgainst: 1.0, position: 10 };
-        const awayStats = teamStats[m.awayTeam.name] || { goalsFor: 1.0, goalsAgainst: 1.2, position: 11 };
-
-        const homeXG = Math.round(((homeStats.goalsFor + awayStats.goalsAgainst) / 2) * 10) / 10;
-        const awayXG = Math.round(((awayStats.goalsFor + homeStats.goalsAgainst) / 2) * 10) / 10;
-
-        const isLive = m.statusCode === 'LIVE' || m.status === 'live';
-        const isFinished = m.statusCode === 'ENCERRADO' || m.status === 'finished' || m.status === 'ended';
-        let statusLabel = isLive ? 'Em Andamento ⚽' : isFinished ? 'Finalizado' : 'Não Iniciado';
-
-        return {
-          id: m.id,
-          homeTeamId: null,
-          awayTeamId: null,
-          date: (() => {
-            const dateObj = new Date(`${m.date}T${m.time}:00-03:00`);
-            const localDateStr = dateObj.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'short' }).replace('.', '');
-            return `${localDateStr} • ${m.time}`;
-          })(),
-          rawDate: m.date,
-          dayCategory: 'TODOS',
-          round: activeRound.number || '?',
-          home: m.homeTeam.name,
-          away: m.awayTeam.name,
-          homeLogo: m.homeTeam.badge,
-          awayLogo: m.awayTeam.badge,
-          homeXG,
-          awayXG,
-          goalsHome: m.score.home,
-          goalsAway: m.score.away,
-          status: statusLabel,
-          isLive,
-          isFinished,
-          minute: isLive ? 45 : 0,
-          venue: m.venue || '',
-          homePosition: homeStats.position,
-          awayPosition: awayStats.position
-        };
-      });
-
-      const filteredByDate = returnAll ? formattedFixtures : formattedFixtures.filter(f => f.rawDate === targetDate);
-
+      const result = await fetchScraperFixtures(leagueId, targetDate, returnAll);
       return NextResponse.json({ 
-        fixtures: filteredByDate, 
-        round: activeRound.number,
+        fixtures: result.fixtures, 
+        round: result.round,
         season: 2026,
         fromCache: false 
       });

@@ -36,23 +36,111 @@ import ConfirmModal from '../../components/ConfirmModal';
 
 const getTeamLogoUrl = (teamName) => {
   if (!teamName) return '';
-  const clean = teamName.trim().toUpperCase();
+  
+  // Decompose accents (NFD normalization) and strip diacritics
+  const clean = teamName
+    .trim()
+    .toUpperCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // Remove accents
+    .replace(/[-]/g, ' ') // Replace hyphens with spaces
+    .replace(/\s+/g, ' '); // Collapse spaces
+  
   const mapping = {
-    'FLAMENGO': 127, 'PALMEIRAS': 121, 'CORINTHIANS': 131,
-    'SÃO PAULO': 126, 'SAO PAULO': 126, 'SANTOS': 128,
-    'GRÊMIO': 130, 'GREMIO': 130, 'INTERNACIONAL': 119,
-    'ATLÉTICO-MG': 134, 'ATLETICO MG': 134, 'ATLÉTICO MG': 134,
-    'FLUMINENSE': 124, 'BOTAFOGO': 120, 'VASCO': 133, 'VASCO DA GAMA': 133,
-    'CRUZEIRO': 125, 'BAHIA': 118, 'ATHLETICO-PR': 135, 'ATHLETICO PR': 135,
-    'FORTALEZA': 154, 'CEARÁ': 129, 'CEARA': 129, 'CORITIBA': 132,
-    'GOIÁS': 151, 'GOIAS': 151, 'BRAGANTINO': 794, 'RED BULL BRAGANTINO': 794,
-    'CUIABÁ': 1100, 'CUIABA': 1100, 'CRICIÚMA': 1192, 'CRICIUMA': 1192,
-    'BOTAFOGO-SP': 1190, 'AMÉRICA-MG': 123, 'AMERICA MG': 123,
-    'VILA NOVA': 1193, 'OPERÁRIO-PR': 1194, 'OPERARIO PR': 1194,
-    'CHAPECOENSE': 122, 'REMO': 1195, 'BRUSQUE': 1189, 'BARRA': 9770
+    // Série A
+    'FLAMENGO': 127,
+    'PALMEIRAS': 121,
+    'CORINTHIANS': 131,
+    'SAO PAULO': 126,
+    'SÃO PAULO': 126,
+    'SANTOS': 128,
+    'GREMIO': 130,
+    'INTERNACIONAL': 119,
+    'ATLETICO MG': 134,
+    'ATLETICO MINEIRO': 134,
+    'FLUMINENSE': 124,
+    'BOTAFOGO': 120,
+    'VASCO': 133,
+    'VASCO DA GAMA': 133,
+    'CRUZEIRO': 125,
+    'BAHIA': 118,
+    'ATHLETICO PR': 135,
+    'FORTALEZA': 154,
+    'CEARA': 129,
+    'CORITIBA': 132,
+    'GOIAS': 151,
+    'BRAGANTINO': 794,
+    'RED BULL BRAGANTINO': 794,
+    'CUIABA': 1100,
+    'CRICIUMA': 1192,
+    'BOTAFOGO SP': 1190,
+    'BOTAFOGO-SP': 1190,
+    'AMERICA MG': 123,
+    'AMERICA-MG': 123,
+    'AMERICA MINEIRO': 123,
+    'VILA NOVA': 1193,
+    'OPERARIO PR': 1194,
+    'OPERARIO': 1194,
+    'CHAPECOENSE': 122,
+    'REMO': 1195,
+    'BRUSQUE': 1189,
+    'BARRA': 9770,
+    'JUVENTUDE': 1062,
+    'ATLETICO GO': 144,
+    'ATLETICO GOIANIENSE': 144,
+    'VITORIA': 2420,
+    'VITORIA BA': 2420,
+    // Série B & C
+    'SPORT': 136,
+    'SPORT RECIFE': 136,
+    'SPORT CLUB DO RECIFE': 136,
+    'PONTE PRETA': 137,
+    'CRB': 1187,
+    'PAYSANDU': 1188,
+    'AMAZONAS': 10565,
+    'AMAZONAS FC': 10565,
+    'ITUANO': 1185,
+    'MIRASSOL': 1184,
+    'NOVORIZONTINO': 1186,
+    'GREMIO NOVORIZONTINO': 1186,
+    'AVAI': 1246,
+    'GUARANI': 138,
+    'LONDRINA': 1244,
+    'NAUTICO': 1196,
+    'SAO BERNARDO': 2419,
+    'ATHLETIC CLUB': 9640
   };
+  
   const teamId = mapping[clean];
   if (teamId) return `https://media.api-sports.io/football/teams/${teamId}.png`;
+
+  // Country Flags Check
+  const baseCountry = clean
+    .replace(/\s*(U\d+|SUB\s*\d+|SUB-\d+)\s*/g, '')
+    .trim();
+
+  const countryFlags = {
+    'ARGENTINA': 'ar', 'ARMENIA': 'am', 'AZERBAIJAN': 'az', 'BAHRAIN': 'bh',
+    'BELARUS': 'by', 'BELGIUM': 'be', 'BOLIVIA': 'bo', 'BRAZIL': 'br',
+    'BRASIL': 'br', 'BURKINA FASO': 'bf', 'CHINA': 'cn', 'COLOMBIA': 'co',
+    'CROATIA': 'hr', 'ECUADOR': 'ec', 'ENGLAND': 'gb-eng', 'ESTONIA': 'ee',
+    'FINLAND': 'fi', 'FRANCE': 'fr', 'GEORGIA': 'ge', 'GERMANY': 'de',
+    'HUNGARY': 'hu', 'INDIA': 'in', 'ITALY': 'it', 'JAPAN': 'jp',
+    'JORDAN': 'jo', 'KAZAKHSTAN': 'kz', 'KYRGYZSTAN': 'kg', 'LATVIA': 'lv',
+    'LIBERIA': 'lr', 'MAURITANIA': 'mr', 'MOLDOVA': 'md', 'MYANMAR': 'mm',
+    'NETHERLANDS': 'nl', 'NIGER': 'ne', 'NORTHERN IRELAND': 'gb-nir',
+    'NORWAY': 'no', 'PALESTINE': 'ps', 'PANAMA': 'pa', 'PARAGUAY': 'py',
+    'PERU': 'pe', 'PHILIPPINES': 'ph', 'PORTUGAL': 'pt', 'SAN MARINO': 'sm',
+    'SAUDI ARABIA': 'sa', 'SENEGAL': 'sn', 'SIERRA LEONE': 'sl', 'SPAIN': 'es',
+    'SYRIA': 'sy', 'TAJIKISTAN': 'tj', 'THAILAND': 'th', 'UKRAINE': 'ua',
+    'URUGUAY': 'uy', 'UZBEKISTAN': 'uz', 'VENEZUELA': 've', 'VIETNAM': 'vn'
+  };
+
+  const flagCode = countryFlags[baseCountry];
+  if (flagCode) {
+    return `https://flagcdn.com/w80/${flagCode}.png`;
+  }
+  
   return `https://ui-avatars.com/api/?name=${encodeURIComponent(teamName)}&background=141419&color=CCFF00&rounded=true&bold=true&size=24`;
 };
 

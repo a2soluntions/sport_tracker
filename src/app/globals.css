@@ -334,11 +334,13 @@ input[type=number] {
 /* Custom Calculator Responsive Grids */
 .calculator-container {
   padding: 0 20px;
-  max-width: 100%;
+  max-width: 1400px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  height: calc(100vh - 40px);
+  min-height: calc(100vh - 80px);
+  height: auto;
+  padding-bottom: 40px;
 }
 
 @media (max-width: 950px) {

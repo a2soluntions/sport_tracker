@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
-import { Activity, TrendingUp, Settings, Bell, Calculator, Zap, Trophy, PiggyBank, LogOut, ArrowUpCircle, Info, HelpCircle, ShieldCheck } from 'lucide-react';
+import { Activity, TrendingUp, Settings, Bell, Calculator, Zap, Trophy, PiggyBank, LogOut, ArrowUpCircle, Info, HelpCircle, ShieldCheck, BookOpen } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
 export default function Sidebar() {
@@ -262,6 +262,10 @@ export default function Sidebar() {
           <Link href="/quem-somos" className={`${styles.navItem} ${pathname === '/quem-somos' ? styles.navItemActive : ''}`}>
             <Info size={20} className={styles.navIcon} /> 
             <span>Quem Somos</span>
+          </Link>
+          <Link href="/tutorial" className={`${styles.navItem} ${pathname === '/tutorial' ? styles.navItemActive : ''}`}>
+            <BookOpen size={20} className={styles.navIcon} /> 
+            <span>Tutorial</span>
           </Link>
           <Link href="/faq" className={`${styles.navItem} ${pathname === '/faq' ? styles.navItemActive : ''}`}>
             <HelpCircle size={20} className={styles.navIcon} /> 

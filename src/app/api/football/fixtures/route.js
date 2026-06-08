@@ -8,6 +8,65 @@ const API_HOST = 'https://v3.football.api-sports.io';
 const cache = { fixtures: {}, stats: {} };
 const CACHE_DURATION_FIXTURES = 5 * 60 * 1000; 
 
+// Helper to fetch current round and fixtures from API-Sports
+async function fetchCurrentRoundFixtures(leagueId, activeSeason, nowTimestamp) {
+  let currentRound = null;
+  const roundCacheKey = `round_${leagueId}_${activeSeason}`;
+
+  if (cache.fixtures[roundCacheKey] && (nowTimestamp - cache.fixtures[roundCacheKey].timestamp) < 12 * 60 * 60 * 1000) {
+    currentRound = cache.fixtures[roundCacheKey].data;
+  } else {
+    try {
+      const roundUrl = `${API_HOST}/fixtures/rounds?league=${leagueId}&season=${activeSeason}&current=true`;
+      const roundRes = await fetch(roundUrl, { headers: { 'x-apisports-key': API_KEY } });
+      const roundData = await roundRes.json();
+      currentRound = roundData.response?.[0];
+      if (!currentRound) {
+        const roundsUrl = `${API_HOST}/fixtures/rounds?league=${leagueId}&season=${activeSeason}`;
+        const roundsRes = await fetch(roundsUrl, { headers: { 'x-apisports-key': API_KEY } });
+        const roundsData = await roundsRes.json();
+        const rounds = roundsData.response || [];
+        if (rounds.length > 0) {
+          currentRound = rounds[rounds.length - 1];
+        }
+      }
+      if (currentRound) {
+        cache.fixtures[roundCacheKey] = { data: currentRound, timestamp: nowTimestamp };
+      }
+    } catch (err) {
+      console.warn(`[API-Sports] Erro ao buscar rodada atual para liga ${leagueId}:`, err);
+    }
+  }
+
+  const roundFixturesCacheKey = `${leagueId}_${activeSeason}_round_${currentRound || 'all'}`;
+  let matches = [];
+  let fromCache = false;
+
+  if (cache.fixtures[roundFixturesCacheKey] && (nowTimestamp - cache.fixtures[roundFixturesCacheKey].timestamp) < CACHE_DURATION_FIXTURES) {
+    matches = cache.fixtures[roundFixturesCacheKey].data;
+    fromCache = true;
+  } else {
+    try {
+      let url = `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}&timezone=America/Sao_Paulo`;
+      if (currentRound) {
+        url += `&round=${encodeURIComponent(currentRound)}`;
+      }
+      const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
+      const data = await res.json();
+      matches = (data.response || []).filter(m => !['CANC', 'PST', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short));
+      if (matches.length > 0) {
+        cache.fixtures[roundFixturesCacheKey] = { data: matches, timestamp: nowTimestamp };
+      }
+    } catch (err) {
+      console.warn(`[API-Sports] Erro ao buscar partidas da rodada ${currentRound} para liga ${leagueId}:`, err);
+      matches = cache.fixtures[roundFixturesCacheKey]?.data || [];
+      fromCache = !!cache.fixtures[roundFixturesCacheKey];
+    }
+  }
+
+  return { matches, currentRound, fromCache };
+}
+
 // ESTATÍSTICAS PARA BRASILEIRÃO VIA PACOTE LOCAL
 async function getBrasileiraoStats() {
   const now = Date.now();
@@ -218,25 +277,31 @@ export async function GET(request) {
 
     if ((leagueId === '71' || leagueId === '72') && isPaidPlan) {
       let matchesOfSeason = [];
-      if (cache.fixtures[fixturesCacheKey] && (nowTimestamp - cache.fixtures[fixturesCacheKey].timestamp) < CACHE_DURATION_FIXTURES) {
-        matchesOfSeason = cache.fixtures[fixturesCacheKey].data;
-        fromCache = true;
+      if (returnAll) {
+        const result = await fetchCurrentRoundFixtures(leagueId, activeSeason, nowTimestamp);
+        matchesOfSeason = result.matches;
+        fromCache = result.fromCache;
       } else {
-        try {
-          const url = `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}&timezone=America/Sao_Paulo`;
-          const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
-          const data = await res.json();
-          matchesOfSeason = (data.response || []).filter(m => !['CANC', 'PST', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short));
-          if (matchesOfSeason.length > 0) {
-            cache.fixtures[fixturesCacheKey] = {
-              data: matchesOfSeason,
-              timestamp: nowTimestamp
-            };
+        if (cache.fixtures[fixturesCacheKey] && (nowTimestamp - cache.fixtures[fixturesCacheKey].timestamp) < CACHE_DURATION_FIXTURES) {
+          matchesOfSeason = cache.fixtures[fixturesCacheKey].data;
+          fromCache = true;
+        } else {
+          try {
+            const url = `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}&timezone=America/Sao_Paulo`;
+            const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
+            const data = await res.json();
+            matchesOfSeason = (data.response || []).filter(m => !['CANC', 'PST', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short));
+            if (matchesOfSeason.length > 0) {
+              cache.fixtures[fixturesCacheKey] = {
+                data: matchesOfSeason,
+                timestamp: nowTimestamp
+              };
+            }
+          } catch (err) {
+            console.warn(`[API-Sports] Erro ao buscar Brasileirão da API:`, err);
+            matchesOfSeason = cache.fixtures[fixturesCacheKey]?.data || [];
+            fromCache = !!cache.fixtures[fixturesCacheKey];
           }
-        } catch (err) {
-          console.warn(`[API-Sports] Erro ao buscar Brasileirão da API:`, err);
-          matchesOfSeason = cache.fixtures[fixturesCacheKey]?.data || [];
-          fromCache = !!cache.fixtures[fixturesCacheKey];
         }
       }
 
@@ -316,28 +381,34 @@ export async function GET(request) {
     if (apiSportsFixtures.length > 0) {
       matches = apiSportsFixtures;
     } else {
-      if (cache.fixtures[fixturesCacheKey] && (nowTimestamp - cache.fixtures[fixturesCacheKey].timestamp) < CACHE_DURATION_FIXTURES) {
-        matches = cache.fixtures[fixturesCacheKey].data;
-        fromCache = true;
+      if (returnAll) {
+        const result = await fetchCurrentRoundFixtures(leagueId, activeSeason, nowTimestamp);
+        matches = result.matches;
+        fromCache = result.fromCache;
       } else {
-        try {
-          const url = `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}&timezone=America/Sao_Paulo`;
-          const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
-          const data = await res.json();
-          if (data.errors && Object.keys(data.errors).length > 0) {
-            console.error(`[API-Sports] Erro retornado pela API para a liga ${leagueId}:`, data.errors);
+        if (cache.fixtures[fixturesCacheKey] && (nowTimestamp - cache.fixtures[fixturesCacheKey].timestamp) < CACHE_DURATION_FIXTURES) {
+          matches = cache.fixtures[fixturesCacheKey].data;
+          fromCache = true;
+        } else {
+          try {
+            const url = `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}&timezone=America/Sao_Paulo`;
+            const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
+            const data = await res.json();
+            if (data.errors && Object.keys(data.errors).length > 0) {
+              console.error(`[API-Sports] Erro retornado pela API para a liga ${leagueId}:`, data.errors);
+            }
+            matches = (data.response || []).filter(m => !['CANC', 'PST', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short));
+            if (matches.length > 0) {
+              cache.fixtures[fixturesCacheKey] = {
+                data: matches,
+                timestamp: nowTimestamp
+              };
+            }
+          } catch (err) {
+            console.warn(`[API-Sports] Erro ao buscar fixtures da liga ${leagueId} temporada ${activeSeason}:`, err);
+            matches = cache.fixtures[fixturesCacheKey]?.data || [];
+            fromCache = !!cache.fixtures[fixturesCacheKey];
           }
-          matches = (data.response || []).filter(m => !['CANC', 'PST', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short));
-          if (matches.length > 0) {
-            cache.fixtures[fixturesCacheKey] = {
-              data: matches,
-              timestamp: nowTimestamp
-            };
-          }
-        } catch (err) {
-          console.warn(`[API-Sports] Erro ao buscar fixtures da liga ${leagueId} temporada ${activeSeason}:`, err);
-          matches = cache.fixtures[fixturesCacheKey]?.data || [];
-          fromCache = !!cache.fixtures[fixturesCacheKey];
         }
       }
     }
@@ -410,10 +481,9 @@ export async function GET(request) {
     let apiSportsRound = '?';
 
     if (returnAll) {
-      if (!(leagueId === '71' || leagueId === '72' || leagueId === '75' || leagueId === '3' || leagueId === '848' || leagueId === '44')) {
-        // Ordena por data decrescente e pega as 40 partidas mais recentes
-        filteredFixtures.sort((a, b) => new Date(b.rawDate) - new Date(a.rawDate));
-        filteredFixtures = filteredFixtures.slice(0, 40);
+      // Já buscamos apenas as partidas da rodada atual via API-Sports ou scraper
+      if (filteredFixtures.length > 0) {
+        apiSportsRound = filteredFixtures[0].round;
       }
     } else {
       // Filter matches by the local date (America/Sao_Paulo)

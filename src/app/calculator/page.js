@@ -253,6 +253,61 @@ export default function CalculatorPage() {
   const [matchDate, setMatchDate] = useState("");
   const [selectedGameId, setSelectedGameId] = useState("");
   const [selectedLeague, setSelectedLeague] = useState("71");
+  const [activeLeagues, setActiveLeagues] = useState([
+    {"id": "71", "name": "Série A"},
+    {"id": "72", "name": "Série B"},
+    {"id": "13", "name": "Libertadores"},
+    {"id": "39", "name": "Premier League"},
+    {"id": "140", "name": "La Liga"},
+    {"id": "135", "name": "Serie A"},
+    {"id": "78", "name": "Bundesliga"}
+  ]);
+
+  useEffect(() => {
+    const cached = typeof window !== 'undefined' ? localStorage.getItem('saas_target_leagues') : null;
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setActiveLeagues(parsed);
+          const hasDefault = parsed.some(l => String(l.id) === "71");
+          if (!hasDefault) {
+            setSelectedLeague(String(parsed[0].id));
+          }
+        }
+      } catch (e) {
+        console.warn('[Calculator] Erro ao fazer parse das ligas cacheadas:', e);
+      }
+    }
+
+    async function loadDynamicLeagues() {
+      if (!supabase) return;
+      try {
+        const { data, error } = await supabase
+          .from('saas_settings')
+          .select('value')
+          .eq('key', 'target_leagues')
+          .maybeSingle();
+
+        if (error) {
+          console.error('[Calculator] Erro ao carregar ligas do banco:', error);
+          return;
+        }
+
+        if (data && data.value && Array.isArray(data.value)) {
+          setActiveLeagues(data.value);
+          localStorage.setItem('saas_target_leagues', JSON.stringify(data.value));
+          const hasDefault = data.value.some(l => String(l.id) === "71");
+          if (!hasDefault && selectedLeague === "71") {
+            setSelectedLeague(String(data.value[0].id));
+          }
+        }
+      } catch (err) {
+        console.error('[Calculator] Falha de conexão ao carregar ligas:', err);
+      }
+    }
+    loadDynamicLeagues();
+  }, []);
   
   const [homeXG, setHomeXG] = useState("");
   const [awayXG, setAwayXG] = useState("");
@@ -645,6 +700,78 @@ export default function CalculatorPage() {
     };
   }, [homeTeam, awayTeam, homeXG, awayXG]);
 
+  const handicapsStats = useMemo(() => {
+    const scoreMatrix = stats.scoreMatrix;
+    if (!scoreMatrix || scoreMatrix.length === 0) {
+      return {
+        home: { "-1.5": 0, "-1.0": 0, "-0.5": 0, "0.0": 0, "+0.5": 0, "+1.0": 0, "+1.5": 0 },
+        away: { "-1.5": 0, "-1.0": 0, "-0.5": 0, "0.0": 0, "+0.5": 0, "+1.0": 0, "+1.5": 0 }
+      };
+    }
+
+    const getProbForDiff = (conditionFn) => {
+      let sum = 0;
+      for (let h = 0; h <= 6; h++) {
+        for (let a = 0; a <= 6; a++) {
+          const prob = scoreMatrix[h]?.[a] || 0;
+          if (conditionFn(h - a)) {
+            sum += prob;
+          }
+        }
+      }
+      return sum;
+    };
+
+    // Home Handicaps
+    const homeAHMinus15 = getProbForDiff(d => d >= 2);
+    const pHomeWin2 = getProbForDiff(d => d >= 2);
+    const pHomeLoseOrDraw = getProbForDiff(d => d <= 0);
+    const homeAHMinus10 = (pHomeWin2 + pHomeLoseOrDraw) > 0 ? pHomeWin2 / (pHomeWin2 + pHomeLoseOrDraw) : 0;
+    const homeAHMinus05 = stats.probHome;
+    const pHomeWin = stats.probHome;
+    const pAwayWin = stats.probAway;
+    const homeAHZero = (pHomeWin + pAwayWin) > 0 ? pHomeWin / (pHomeWin + pAwayWin) : 0;
+    const homeAHPlus05 = stats.probHome + stats.probDraw;
+    const pHomeWinOrDraw = getProbForDiff(d => d >= 0);
+    const pHomeLose2 = getProbForDiff(d => d <= -2);
+    const homeAHPlus10 = (pHomeWinOrDraw + pHomeLose2) > 0 ? pHomeWinOrDraw / (pHomeWinOrDraw + pHomeLose2) : 0;
+    const homeAHPlus15 = getProbForDiff(d => d >= -1);
+
+    // Away Handicaps
+    const awayAHMinus15 = getProbForDiff(d => d <= -2);
+    const pAwayWin2 = getProbForDiff(d => d <= -2);
+    const pAwayLoseOrDraw = getProbForDiff(d => d >= 0);
+    const awayAHMinus10 = (pAwayWin2 + pAwayLoseOrDraw) > 0 ? pAwayWin2 / (pAwayWin2 + pAwayLoseOrDraw) : 0;
+    const awayAHMinus05 = stats.probAway;
+    const awayAHZero = (pHomeWin + pAwayWin) > 0 ? pAwayWin / (pHomeWin + pAwayWin) : 0;
+    const awayAHPlus05 = stats.probAway + stats.probDraw;
+    const pAwayWinOrDraw = getProbForDiff(d => d <= 0);
+    const pAwayLose2 = getProbForDiff(d => d >= 2);
+    const awayAHPlus10 = (pAwayWinOrDraw + pAwayLose2) > 0 ? pAwayWinOrDraw / (pAwayWinOrDraw + pAwayLose2) : 0;
+    const awayAHPlus15 = getProbForDiff(d => d <= 1);
+
+    return {
+      home: {
+        "-1.5": homeAHMinus15,
+        "-1.0": homeAHMinus10,
+        "-0.5": homeAHMinus05,
+        "0.0": homeAHZero,
+        "+0.5": homeAHPlus05,
+        "+1.0": homeAHPlus10,
+        "+1.5": homeAHPlus15,
+      },
+      away: {
+        "-1.5": awayAHMinus15,
+        "-1.0": awayAHMinus10,
+        "-0.5": awayAHMinus05,
+        "0.0": awayAHZero,
+        "+0.5": awayAHPlus05,
+        "+1.0": awayAHPlus10,
+        "+1.5": awayAHPlus15,
+      }
+    };
+  }, [stats]);
+
   const getOdd = (prob) => (prob > 0 ? (1 / prob).toFixed(2) : "0.00");
   const getPct = (prob) => (prob * 100).toFixed(1);
 
@@ -885,13 +1012,9 @@ export default function CalculatorPage() {
                   onChange={(e) => { setSelectedLeague(e.target.value); setSelectedGameId(""); setHomeTeam(""); setAwayTeam(""); }}
                   style={{ width: '100%', background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '7px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer', appearance: 'auto' }}
                 >
-                  <option value="71">🇧🇷 Brasileirão Série A</option>
-                  <option value="72">🇧🇷 Brasileirão Série B</option>
-                  <option value="13">🌎 Copa Libertadores</option>
-                  <option value="39">🇬🇧 Premier League</option>
-                  <option value="140">🇪🇸 La Liga</option>
-                  <option value="135">🇮🇹 Serie A (Itália)</option>
-                  <option value="78">🇩🇪 Bundesliga</option>
+                  {activeLeagues.map(l => (
+                    <option key={l.id} value={l.id}>{l.name}</option>
+                  ))}
                 </select>
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: 0 }}>
@@ -1131,6 +1254,76 @@ export default function CalculatorPage() {
                   </div>
                 );
               })}
+            </div>
+
+            {/* Handicaps Asiáticos */}
+            <div style={{ borderTop: '1px solid #333', paddingTop: '12px', marginTop: '4px' }}>
+              <h3 style={{ fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '6px', margin: '0 0 8px 0', fontWeight: 'bold', color: 'var(--brand-neon)' }}>
+                <TrendingUp size={14} color="var(--brand-neon)" /> Handicap Asiático
+              </h3>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1.2fr', gap: '6px', textAlign: 'center', fontSize: '0.65rem', color: '#888', fontWeight: 'bold' }}>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{homeTeam || 'Casa'}</span>
+                  <span>Linha</span>
+                  <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{awayTeam || 'Visitante'}</span>
+                </div>
+                {["-1.5", "-1.0", "-0.5", "0.0", "+0.5", "+1.0", "+1.5"].map((line) => {
+                  const probHome = handicapsStats.home[line] || 0;
+                  const probAway = handicapsStats.away[line] || 0;
+
+                  const oddHomeRaw = getOdd(probHome);
+                  const oddAwayRaw = getOdd(probAway);
+
+                  const bookInfoHome = getBookmakerOdds(oddHomeRaw, `${homeTeam || 'Casa'}_${awayTeam || 'Visitante'}_AH_Home_${line}`);
+                  const bookInfoAway = getBookmakerOdds(oddAwayRaw, `${homeTeam || 'Casa'}_${awayTeam || 'Visitante'}_AH_Away_${line}`);
+
+                  const finalOddHome = bookInfoHome.best ? bookInfoHome.best.odd.toFixed(2) : oddHomeRaw;
+                  const finalOddAway = bookInfoAway.best ? bookInfoAway.best.odd.toFixed(2) : oddAwayRaw;
+
+                  const isHomeSelected = selectedSelections.some(s => s.market === 'Handicap' && s.label === `${homeTeam || 'Casa'} AH ${line}`);
+                  const isAwaySelected = selectedSelections.some(s => s.market === 'Handicap' && s.label === `${awayTeam || 'Visitante'} AH ${line}`);
+
+                  return (
+                    <div key={line} style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr 1.2fr', gap: '6px', alignItems: 'center' }}>
+                      <div 
+                        onClick={() => handleToggleSelection('Handicap', `${homeTeam || 'Casa'} AH ${line}`, probHome, oddHomeRaw, `${homeTeam || 'Casa'}_${awayTeam || 'Visitante'}_AH_Home_${line}`)}
+                        style={{
+                          background: isHomeSelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
+                          border: isHomeSelected ? '1.5px solid var(--brand-neon)' : '1px solid #333',
+                          borderRadius: '6px',
+                          padding: '4px',
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          fontSize: '0.72rem'
+                        }}
+                      >
+                        <strong style={{ color: '#fff' }}>{getPct(probHome)}%</strong>
+                        <div style={{ color: '#ff9800', fontSize: '0.62rem', fontWeight: 'bold' }}>@{finalOddHome}</div>
+                      </div>
+                      <div style={{ textAlign: 'center', fontSize: '0.7rem', color: '#aaa', fontWeight: 'bold', background: '#141419', padding: '4px 2px', borderRadius: '4px', border: '1px solid #222' }}>
+                        {line}
+                      </div>
+                      <div 
+                        onClick={() => handleToggleSelection('Handicap', `${awayTeam || 'Visitante'} AH ${line}`, probAway, oddAwayRaw, `${homeTeam || 'Casa'}_${awayTeam || 'Visitante'}_AH_Away_${line}`)}
+                        style={{
+                          background: isAwaySelected ? 'rgba(204, 255, 0, 0.15)' : 'transparent',
+                          border: isAwaySelected ? '1.5px solid var(--brand-neon)' : '1px solid #333',
+                          borderRadius: '6px',
+                          padding: '4px',
+                          textAlign: 'center',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          fontSize: '0.72rem'
+                        }}
+                      >
+                        <strong style={{ color: '#fff' }}>{getPct(probAway)}%</strong>
+                        <div style={{ color: '#ff9800', fontSize: '0.62rem', fontWeight: 'bold' }}>@{finalOddAway}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
 
             {/* Previsão de Cartões - integrada ao card 1X2 */}

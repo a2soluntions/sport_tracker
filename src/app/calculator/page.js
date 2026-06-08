@@ -236,26 +236,71 @@ const TEAM_PLAYERS = {
   ]
 };
 
+const COMMON_FIRST_NAMES = [
+  "Gabriel", "Lucas", "Matheus", "Felipe", "Bruno", "Rodrigo", "Thiago", "Diego", "Gustavo", "Vinícius",
+  "Marcos", "André", "Rafael", "Daniel", "Léo", "Guilherme", "João", "Pedro", "Arthur", "Kaio",
+  "Victor", "Eduardo", "Ruan", "Dudu", "Luiz", "Marcelo", "Renato", "Vitor", "Douglas", "Igor"
+];
+
+const COMMON_LAST_NAMES = [
+  "Silva", "Santos", "Souza", "Oliveira", "Pereira", "Lima", "Carvalho", "Ferreira", "Rodrigues", "Almeida",
+  "Costa", "Gomes", "Martins", "Araújo", "Ribeiro", "Barbosa", "Nascimento", "Cardoso", "Teixeira", "Melo"
+];
+
 const getPlayersForTeam = (teamName, isHome) => {
-  return [
-    { name: 'Jogador 1 (Atacante)', weight: 0.38, role: 'Atacante' },
-    { name: 'Jogador 2 (Atacante)', weight: 0.30, role: 'Atacante' },
-    { name: 'Jogador 3 (Meia/Defensor)', weight: 0.20, role: 'Meio-Campo' }
+  let hash = 0;
+  const seed = String(teamName || "") + (isHome ? "home" : "away");
+  for (let i = 0; i < seed.length; i++) {
+    hash = seed.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  hash = Math.abs(hash);
+
+  const getRand = (offset) => {
+    const val = Math.sin(hash + offset) * 10000;
+    return val - Math.floor(val);
+  };
+
+  const roles = [
+    { role: 'Atacante', weight: 0.38 },
+    { role: 'Atacante', weight: 0.32 },
+    { role: 'Meio-Campo', weight: 0.24 },
+    { role: 'Meio-Campo', weight: 0.20 },
+    { role: 'Defensor', weight: 0.12 },
+    { role: 'Defensor', weight: 0.08 }
   ];
+
+  return roles.map((r, idx) => {
+    const firstIdx = Math.floor(getRand(idx * 2) * COMMON_FIRST_NAMES.length);
+    const lastIdx = Math.floor(getRand(idx * 2 + 1) * COMMON_LAST_NAMES.length);
+    const name = `${COMMON_FIRST_NAMES[firstIdx]} ${COMMON_LAST_NAMES[lastIdx]}`;
+    return {
+      name,
+      weight: r.weight,
+      role: r.role
+    };
+  });
 };
 
 const getLeagueIdFromName = (campeonatoName) => {
   if (!campeonatoName) return "71";
   const name = campeonatoName.toLowerCase();
+  
   if (name.includes("série a") || name.includes("brasileirão série a") || name.includes("serie a") || name.includes("s\u00e9rie a")) {
     if (name.includes("itália") || name.includes("italia") || name.includes("italy") || name.includes("it\u00e1lia")) return "135";
     return "71";
   }
   if (name.includes("série b") || name.includes("brasileirão série b") || name.includes("serie b") || name.includes("s\u00e9rie b")) return "72";
+  if (name.includes("série c") || name.includes("brasileirão série c") || name.includes("serie c") || name.includes("s\u00e9rie c")) return "75";
   if (name.includes("libertadores")) return "13";
+  if (name.includes("sudamericana")) return "12";
   if (name.includes("premier")) return "39";
   if (name.includes("la liga") || name.includes("espanha")) return "140";
   if (name.includes("bundesliga") || name.includes("alemanha")) return "78";
+  if (name.includes("europa league")) return "3";
+  if (name.includes("conference league")) return "848";
+  if (name.includes("argentina")) return "44";
+  if (name.includes("copa do mundo")) return "1";
+  if (name.includes("copa do brasil")) return "73";
   
   const match = name.match(/liga\s+(\d+)/);
   if (match) return match[1];

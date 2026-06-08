@@ -22,6 +22,30 @@ async function fetchCurrentRoundFixtures(leagueId, activeSeason, nowTimestamp) {
       const roundData = await roundRes.json();
       currentRound = roundData.response?.[0];
       if (!currentRound) {
+        try {
+          const nextUrl = `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}&next=1`;
+          const nextRes = await fetch(nextUrl, { headers: { 'x-apisports-key': API_KEY } });
+          const nextData = await nextRes.json();
+          if (nextData.response && nextData.response.length > 0) {
+            currentRound = nextData.response[0].league.round;
+          }
+        } catch (err) {
+          console.warn(`[API-Sports] Erro ao buscar próxima partida para liga ${leagueId}:`, err);
+        }
+      }
+      if (!currentRound) {
+        try {
+          const lastUrl = `${API_HOST}/fixtures?league=${leagueId}&season=${activeSeason}&last=1`;
+          const lastRes = await fetch(lastUrl, { headers: { 'x-apisports-key': API_KEY } });
+          const lastData = await lastRes.json();
+          if (lastData.response && lastData.response.length > 0) {
+            currentRound = lastData.response[0].league.round;
+          }
+        } catch (err) {
+          console.warn(`[API-Sports] Erro ao buscar última partida para liga ${leagueId}:`, err);
+        }
+      }
+      if (!currentRound) {
         const roundsUrl = `${API_HOST}/fixtures/rounds?league=${leagueId}&season=${activeSeason}`;
         const roundsRes = await fetch(roundsUrl, { headers: { 'x-apisports-key': API_KEY } });
         const roundsData = await roundsRes.json();

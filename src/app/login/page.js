@@ -20,6 +20,8 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
+  const [isOver18, setIsOver18] = useState(false);
+  const [acceptTerms, setAcceptTerms] = useState(false);
 
   // Redirecionar se já estiver autenticado
   useEffect(() => {
@@ -44,6 +46,19 @@ export default function LoginPage() {
       setError('Por favor, insira o seu nome.');
       setLoading(false);
       return;
+    }
+
+    if (isRegister) {
+      if (!isOver18) {
+        setError('Você precisa confirmar que é maior de 18 anos.');
+        setLoading(false);
+        return;
+      }
+      if (!acceptTerms) {
+        setError('Você precisa aceitar os Termos de Uso e Políticas de Privacidade (LGPD).');
+        setLoading(false);
+        return;
+      }
     }
 
     try {
@@ -529,6 +544,36 @@ export default function LoginPage() {
               </button>
             </div>
           </div>
+
+          {isRegister && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px', padding: '12px', background: '#141416', border: '1px solid #222', borderRadius: '8px' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <input 
+                  type="checkbox" 
+                  id="over18"
+                  checked={isOver18}
+                  onChange={(e) => setIsOver18(e.target.checked)}
+                  style={{ marginTop: '4px', cursor: 'pointer', accentColor: 'var(--brand-neon)' }}
+                />
+                <label htmlFor="over18" style={{ fontSize: '0.8rem', color: '#ccc', cursor: 'pointer', lineHeight: '1.4' }}>
+                  Declaro que sou <strong>maior de 18 anos</strong> e estou ciente de que apostas esportivas envolvem risco financeiro.
+                </label>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                <input 
+                  type="checkbox" 
+                  id="acceptTerms"
+                  checked={acceptTerms}
+                  onChange={(e) => setAcceptTerms(e.target.checked)}
+                  style={{ marginTop: '4px', cursor: 'pointer', accentColor: 'var(--brand-neon)' }}
+                />
+                <label htmlFor="acceptTerms" style={{ fontSize: '0.8rem', color: '#ccc', cursor: 'pointer', lineHeight: '1.4' }}>
+                  Aceito as <strong>Políticas de Privacidade (LGPD)</strong> e Termos de Uso, ciente de que a ferramenta é um sistema de análise estatística <strong>sem garantia de ganhos ou lucros</strong>.
+                </label>
+              </div>
+            </div>
+          )}
 
           <button
             type="submit"

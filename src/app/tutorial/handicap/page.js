@@ -109,6 +109,535 @@ const ModuleHeader = ({ icon: Icon, number, title }) => (
   </div>
 );
 
+// ─── Handicap Simulator Component ──────────────────────────────────────────
+
+const HandicapSimulator = () => {
+  const [homeScore, setHomeScore] = React.useState(1);
+  const [awayScore, setAwayScore] = React.useState(0);
+  const [betOnHome, setBetOnHome] = React.useState(true);
+  const [handicapLine, setHandicapLine] = React.useState(-0.75);
+  const [stake, setStake] = React.useState(100);
+  const [odd, setOdd] = React.useState(1.90);
+
+  const [homeName, setHomeName] = React.useState('Flamengo');
+  const [awayName, setAwayName] = React.useState('Vasco');
+
+  const lines = [
+    -2.0, -1.75, -1.5, -1.25, -1.0, -0.75, -0.5, -0.25,
+    0.0,
+    0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0
+  ];
+
+  const presets = [
+    { h: 0, a: 0 }, { h: 1, a: 0 }, { h: 2, a: 0 },
+    { h: 2, a: 1 }, { h: 1, a: 1 }, { h: 0, a: 1 },
+    { h: 0, a: 2 }, { h: 1, a: 2 }, { h: 3, a: 0 }
+  ];
+
+  const result = React.useMemo(() => {
+    const scoreDiff = homeScore - awayScore;
+    const backingDiff = betOnHome ? scoreDiff : -scoreDiff;
+    
+    // Check if quarter line (e.g. ends in .25 or .75)
+    const isQuarter = Math.abs(Math.round(handicapLine * 100)) % 50 !== 0;
+    
+    let line1, line2;
+    if (isQuarter) {
+      line1 = handicapLine - 0.25;
+      line2 = handicapLine + 0.25;
+    } else {
+      line1 = handicapLine;
+      line2 = handicapLine;
+    }
+
+    const evaluateLine = (line) => {
+      const simDiff = backingDiff + line;
+      if (simDiff > 0) return 'WIN';
+      if (simDiff === 0) return 'VOID';
+      return 'LOSS';
+    };
+
+    const res1 = evaluateLine(line1);
+    const res2 = evaluateLine(line2);
+
+    let outcome = '';
+    let returnMultiplier = 0;
+
+    const parsedOdd = parseFloat(odd) || 1.0;
+    const parsedStake = parseFloat(stake) || 0;
+
+    if (res1 === 'WIN' && res2 === 'WIN') {
+      outcome = 'WIN';
+      returnMultiplier = parsedOdd;
+    } else if (res1 === 'LOSS' && res2 === 'LOSS') {
+      outcome = 'LOSS';
+      returnMultiplier = 0;
+    } else if (res1 === 'VOID' && res2 === 'VOID') {
+      outcome = 'VOID';
+      returnMultiplier = 1.0;
+    } else if ((res1 === 'WIN' && res2 === 'VOID') || (res1 === 'VOID' && res2 === 'WIN')) {
+      outcome = 'HALF_WIN';
+      returnMultiplier = 0.5 + 0.5 * parsedOdd;
+    } else if ((res1 === 'LOSS' && res2 === 'VOID') || (res1 === 'VOID' && res2 === 'LOSS')) {
+      outcome = 'HALF_LOSS';
+      returnMultiplier = 0.5;
+    }
+
+    const totalReturn = parsedStake * returnMultiplier;
+    const netProfit = totalReturn - parsedStake;
+
+    return {
+      isQuarter,
+      line1,
+      line2,
+      res1,
+      res2,
+      outcome,
+      totalReturn,
+      netProfit,
+    };
+  }, [homeScore, awayScore, betOnHome, handicapLine, stake, odd]);
+
+  const formatLine = (val) => {
+    if (val === 0) return '0.0';
+    return val > 0 ? `+${val}` : `${val}`;
+  };
+
+  const getOutcomeStyle = (outcome) => {
+    switch (outcome) {
+      case 'WIN':
+        return { badgeBg: 'rgba(78,205,196,0.15)', badgeText: '#4ecdc4', label: '🟩 GANHA (Lucro Total)' };
+      case 'HALF_WIN':
+        return { badgeBg: 'rgba(78,205,196,0.1)', badgeText: '#a4ecd4', label: '🟩🟨 MEIO GANHO' };
+      case 'VOID':
+        return { badgeBg: 'rgba(255,217,61,0.15)', badgeText: '#ffd93d', label: '🟨 REEMBOLSADA (Void)' };
+      case 'HALF_LOSS':
+        return { badgeBg: 'rgba(255,107,107,0.1)', badgeText: '#ff9b9b', label: '🟨🟥 MEIA PERDA' };
+      case 'LOSS':
+        return { badgeBg: 'rgba(255,107,107,0.15)', badgeText: '#ff6b6b', label: '🟥 PERDIDA' };
+      default:
+        return { badgeBg: '#222', badgeText: '#aaa', label: 'N/A' };
+    }
+  };
+
+  const getSubResultEmoji = (res) => {
+    if (res === 'WIN') return '🟩 Ganha';
+    if (res === 'VOID') return '🟨 Devolvida';
+    return '🟥 Perdida';
+  };
+
+  const outcomeDetails = getOutcomeStyle(result.outcome);
+
+  return (
+    <div style={{
+      background: '#111118',
+      border: '1px solid rgba(204, 255, 0, 0.1)',
+      borderRadius: '16px',
+      padding: '24px',
+      color: '#fff',
+      display: 'grid',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+      gap: '24px',
+      marginTop: '12px'
+    }}>
+      {/* Coluna 1: Ajustes */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        
+        {/* Nomes dos Times */}
+        <div>
+          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#888', marginBottom: '8px' }}>
+            Nomes das Equipes
+          </label>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <input 
+              type="text" 
+              value={homeName} 
+              onChange={(e) => setHomeName(e.target.value)}
+              style={{
+                flex: 1,
+                background: '#0d0d12',
+                border: '1px solid #222',
+                borderRadius: '8px',
+                padding: '10px',
+                color: '#fff',
+                fontSize: '0.88rem',
+                outline: 'none',
+                fontFamily: 'inherit'
+              }}
+              placeholder="Mandante"
+            />
+            <input 
+              type="text" 
+              value={awayName} 
+              onChange={(e) => setAwayName(e.target.value)}
+              style={{
+                flex: 1,
+                background: '#0d0d12',
+                border: '1px solid #222',
+                borderRadius: '8px',
+                padding: '10px',
+                color: '#fff',
+                fontSize: '0.88rem',
+                outline: 'none',
+                fontFamily: 'inherit'
+              }}
+              placeholder="Visitante"
+            />
+          </div>
+        </div>
+
+        {/* Escolha do time apoiado */}
+        <div>
+          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#888', marginBottom: '8px' }}>
+            Apostar em quem?
+          </label>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              onClick={() => setBetOnHome(true)}
+              style={{
+                flex: 1,
+                background: betOnHome ? 'rgba(204, 255, 0, 0.08)' : '#0d0d12',
+                border: betOnHome ? '1px solid var(--brand-neon)' : '1px solid #222',
+                borderRadius: '10px',
+                padding: '12px',
+                color: betOnHome ? 'var(--brand-neon)' : '#aaa',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontSize: '0.85rem'
+              }}
+            >
+              🏠 {homeName || 'Mandante'}
+            </button>
+            <button 
+              onClick={() => setBetOnHome(false)}
+              style={{
+                flex: 1,
+                background: !betOnHome ? 'rgba(204, 255, 0, 0.08)' : '#0d0d12',
+                border: !betOnHome ? '1px solid var(--brand-neon)' : '1px solid #222',
+                borderRadius: '10px',
+                padding: '12px',
+                color: !betOnHome ? 'var(--brand-neon)' : '#aaa',
+                fontWeight: 700,
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                fontSize: '0.85rem'
+              }}
+            >
+              🚌 {awayName || 'Visitante'}
+            </button>
+          </div>
+        </div>
+
+        {/* Ajuste de Placar */}
+        <div>
+          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#888', marginBottom: '8px' }}>
+            Placar Final do Jogo
+          </label>
+          <div style={{ 
+            display: 'flex', 
+            alignItems: 'center', 
+            justifyContent: 'center', 
+            gap: '16px',
+            background: '#0d0d12',
+            padding: '16px',
+            borderRadius: '12px',
+            border: '1px solid #1a1a24'
+          }}>
+            {/* Home Score */}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: '6px' }}>{homeName || 'Mandante'}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button 
+                  onClick={() => setHomeScore(Math.max(0, homeScore - 1))}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background: '#222',
+                    border: 'none',
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    fontSize: '1.2rem',
+                    lineHeight: '1'
+                  }}
+                >
+                  -
+                </button>
+                <span style={{ fontSize: '1.8rem', fontWeight: 800, width: '40px', display: 'inline-block', textAlign: 'center' }}>
+                  {homeScore}
+                </span>
+                <button 
+                  onClick={() => setHomeScore(homeScore + 1)}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background: '#222',
+                    border: 'none',
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    fontSize: '1.2rem',
+                    lineHeight: '1'
+                  }}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#444', marginTop: '16px' }}>X</div>
+
+            {/* Away Score */}
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '0.75rem', color: '#888', marginBottom: '6px' }}>{awayName || 'Visitante'}</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button 
+                  onClick={() => setAwayScore(Math.max(0, awayScore - 1))}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background: '#222',
+                    border: 'none',
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    fontSize: '1.2rem',
+                    lineHeight: '1'
+                  }}
+                >
+                  -
+                </button>
+                <span style={{ fontSize: '1.8rem', fontWeight: 800, width: '40px', display: 'inline-block', textAlign: 'center' }}>
+                  {awayScore}
+                </span>
+                <button 
+                  onClick={() => setAwayScore(awayScore + 1)}
+                  style={{
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background: '#222',
+                    border: 'none',
+                    color: '#fff',
+                    fontWeight: 'bold',
+                    cursor: 'pointer',
+                    fontSize: '1.2rem',
+                    lineHeight: '1'
+                  }}
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Presets */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px', justifyContent: 'center' }}>
+            {presets.map((preset, idx) => (
+              <button
+                key={idx}
+                onClick={() => { setHomeScore(preset.h); setAwayScore(preset.a); }}
+                style={{
+                  background: homeScore === preset.h && awayScore === preset.a ? 'rgba(204, 255, 0, 0.15)' : '#161622',
+                  border: homeScore === preset.h && awayScore === preset.a ? '1px solid var(--brand-neon)' : '1px solid #222',
+                  borderRadius: '6px',
+                  padding: '4px 8px',
+                  fontSize: '0.75rem',
+                  color: homeScore === preset.h && awayScore === preset.a ? 'var(--brand-neon)' : '#aaa',
+                  cursor: 'pointer'
+                }}
+              >
+                {preset.h} × {preset.a}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Linha de Handicap */}
+        <div>
+          <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#888', marginBottom: '8px' }}>
+            Linha de Handicap Asiático
+          </label>
+          <select 
+            value={handicapLine} 
+            onChange={(e) => setHandicapLine(parseFloat(e.target.value))}
+            style={{
+              background: '#0d0d12',
+              border: '1px solid #222',
+              color: '#fff',
+              padding: '12px',
+              borderRadius: '8px',
+              width: '100%',
+              outline: 'none',
+              fontSize: '0.95rem',
+              fontFamily: 'inherit',
+              cursor: 'pointer'
+            }}
+          >
+            {lines.map((ln) => (
+              <option key={ln} value={ln}>
+                HA {formatLine(ln)} {ln < 0 ? ' (Desvantagem)' : ln > 0 ? ' (Vantagem)' : ' (Empate anula)'}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Stake e Odd */}
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#888', marginBottom: '6px' }}>
+              Valor (Stake R$)
+            </label>
+            <input 
+              type="number" 
+              value={stake} 
+              onChange={(e) => setStake(e.target.value)}
+              style={{
+                width: '100%',
+                background: '#0d0d12',
+                border: '1px solid #222',
+                borderRadius: '8px',
+                padding: '10px',
+                color: '#fff',
+                fontSize: '0.88rem',
+                outline: 'none',
+                fontFamily: 'inherit'
+              }}
+            />
+          </div>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#888', marginBottom: '6px' }}>
+              Odd da Casa
+            </label>
+            <input 
+              type="number" 
+              step="0.05"
+              value={odd} 
+              onChange={(e) => setOdd(e.target.value)}
+              style={{
+                width: '100%',
+                background: '#0d0d12',
+                border: '1px solid #222',
+                borderRadius: '8px',
+                padding: '10px',
+                color: '#fff',
+                fontSize: '0.88rem',
+                outline: 'none',
+                fontFamily: 'inherit'
+              }}
+            />
+          </div>
+        </div>
+
+      </div>
+
+      {/* Coluna 2: Resultados */}
+      <div style={{ 
+        display: 'flex', 
+        flexDirection: 'column', 
+        justifyContent: 'space-between',
+        background: '#0d0d12',
+        border: '1px solid #1c1c28',
+        borderRadius: '12px',
+        padding: '20px'
+      }}>
+        
+        {/* Top Result Card */}
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px' }}>
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#666' }}>
+              Resultado Simulado
+            </span>
+            <span style={{
+              background: outcomeDetails.badgeBg,
+              color: outcomeDetails.badgeText,
+              padding: '6px 12px',
+              borderRadius: '6px',
+              fontSize: '0.82rem',
+              fontWeight: 800,
+              textTransform: 'uppercase',
+              letterSpacing: '0.5px'
+            }}>
+              {outcomeDetails.label}
+            </span>
+          </div>
+
+          <div style={{ textAlign: 'center', padding: '16px 0', borderBottom: '1px solid #1a1a24' }}>
+            <div style={{ fontSize: '0.85rem', color: '#888', marginBottom: '4px' }}>Lucro / Prejuízo Líquido</div>
+            <div style={{ 
+              fontSize: '2.2rem', 
+              fontWeight: 900, 
+              color: result.netProfit > 0 ? '#4ecdc4' : result.netProfit < 0 ? '#ff6b6b' : '#aaa' 
+            }}>
+              {result.netProfit > 0 ? '+' : ''}R$ {result.netProfit.toFixed(2)}
+            </div>
+            <div style={{ fontSize: '0.78rem', color: '#666', marginTop: '4px' }}>
+              Retorno Total: R$ {result.totalReturn.toFixed(2)}
+            </div>
+          </div>
+        </div>
+
+        {/* Placar Simulado */}
+        <div style={{ margin: '16px 0', fontSize: '0.88rem', lineHeight: 1.6 }}>
+          <div style={{ color: '#888', fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', marginBottom: '6px' }}>
+            Como a Matemática Vê o Jogo:
+          </div>
+          <div style={{ background: '#111118', padding: '12px', borderRadius: '8px', border: '1px solid #1a1a24' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '6px' }}>
+              <span style={{ color: '#666' }}>Placar Real:</span>
+              <span style={{ fontWeight: 'bold' }}>{homeName} {homeScore} × {awayScore} {awayName}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: '#666' }}>Placar HA Aplicado:</span>
+              <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>
+                {betOnHome ? (
+                  `${homeName} (${formatLine(handicapLine)}) ${(homeScore + handicapLine).toFixed(2)} × ${awayScore} ${awayName}`
+                ) : (
+                  `${homeName} ${homeScore} × ${(awayScore + handicapLine).toFixed(2)} (${formatLine(handicapLine)}) ${awayName}`
+                )}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Detalhamento de Stake Dividida para Linhas de Quarto */}
+        <div style={{ background: 'rgba(255,255,255,0.02)', padding: '12px 14px', borderRadius: '8px', border: '1px solid #1a1a24' }}>
+          <div style={{ fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', color: '#888', marginBottom: '8px' }}>
+            Divisão da Aposta ({result.isQuarter ? 'Linha de Quarto' : 'Linha Cheia/Meia'})
+          </div>
+          {result.isQuarter ? (
+            <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#bbb' }}>
+                <span>50% (R$ {(stake/2).toFixed(2)}) no HA {formatLine(result.line1)}:</span>
+                <strong style={{ color: result.res1 === 'WIN' ? '#4ecdc4' : result.res1 === 'VOID' ? '#ffd93d' : '#ff6b6b' }}>
+                  {getSubResultEmoji(result.res1)}
+                </strong>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', color: '#bbb' }}>
+                <span>50% (R$ {(stake/2).toFixed(2)}) no HA {formatLine(result.line2)}:</span>
+                <strong style={{ color: result.res2 === 'WIN' ? '#4ecdc4' : result.res2 === 'VOID' ? '#ffd93d' : '#ff6b6b' }}>
+                  {getSubResultEmoji(result.res2)}
+                </strong>
+              </div>
+            </div>
+          ) : (
+            <div style={{ fontSize: '0.8rem', color: '#bbb' }}>
+              Esta linha não divide a stake. 100% da aposta (R$ {parseFloat(stake).toFixed(2)}) está alocada na linha única HA {formatLine(handicapLine)}, resultando em: <strong style={{ color: result.res1 === 'WIN' ? '#4ecdc4' : result.res1 === 'VOID' ? '#ffd93d' : '#ff6b6b' }}>
+                {getSubResultEmoji(result.res1)}
+              </strong>.
+            </div>
+          )}
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
 // ─── Main Page Component ────────────────────────────────────────────────────
 
 export default function HandicapMasterclassPage() {
@@ -642,6 +1171,19 @@ export default function HandicapMasterclassPage() {
               +EV = (Prob. Real × Odd Casa) - 1 &gt; 0 → ✅ Apostar
             </FormulaBox>
           </div>
+        </section>
+
+        {/* ═══════════════════════════════════════════════════════════════════
+            MÓDULO 6: Simulador Interativo de Handicap
+        ═══════════════════════════════════════════════════════════════════ */}
+        <section>
+          <ModuleHeader icon={Target} number="6" title="Simulador Interativo de Handicap" />
+          
+          <p style={{ color: '#aaa', lineHeight: 1.7, marginBottom: '24px' }}>
+            Pratique antes de investir! Use o simulador abaixo para configurar placares finais reais, definir a equipe apoiada, ajustar as linhas de handicap e simular o impacto financeiro exato (retornos, lucros e perdas) na sua banca.
+          </p>
+
+          <HandicapSimulator />
         </section>
 
         {/* ── Quick Visual Summary ── */}

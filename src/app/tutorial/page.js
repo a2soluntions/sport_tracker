@@ -1,7 +1,8 @@
 'use client';
 
 import React from 'react';
-import { BookOpen, Zap, DollarSign, ShieldAlert, Award, ChevronRight, Calculator, CheckCircle2, TrendingUp, AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import { BookOpen, Zap, DollarSign, ShieldAlert, Award, ChevronRight, Calculator, CheckCircle2, TrendingUp, AlertTriangle, Shield, Sword, ArrowRight } from 'lucide-react';
 
 export default function TutorialPage() {
   return (
@@ -218,7 +219,7 @@ export default function TutorialPage() {
             </div>
           </section>
 
-          {/* 5. Proteções e Handicaps */}
+          {/* 5. Proteções e Handicaps — CTA for Masterclass */}
           <section>
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
               <div style={{ background: '#1c1c24', color: 'var(--brand-neon)', padding: '10px', borderRadius: '12px', display: 'flex', alignItems: 'center' }}>
@@ -228,30 +229,71 @@ export default function TutorialPage() {
             </div>
 
             <p style={{ color: '#aaa', lineHeight: 1.6, marginBottom: '20px' }}>
-              Apostadores experientes evitam focar apenas na vitória simples de um time. Eles buscam margens de segurança através dos <strong>Handicaps Asiáticos</strong>:
+              Apostadores experientes evitam focar apenas na vitória simples de um time. Eles buscam margens de segurança através dos <strong>Handicaps Asiáticos</strong> — 
+              a ferramenta matemática mais poderosa para ajustar risco e encontrar <strong style={{ color: 'var(--brand-neon)' }}>valor esperado positivo (+EV)</strong>.
             </p>
 
-            <div style={{ background: '#141416', border: '1px solid #222', padding: '24px', borderRadius: '12px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <CheckCircle2 size={20} style={{ color: 'var(--brand-neon)', flexShrink: 0, marginTop: '2px' }} />
-                <div>
-                  <strong style={{ color: '#fff' }}>Handicap Asiático +0.25 (ou 0, +0.5):</strong>
-                  <p style={{ color: '#aaa', fontSize: '0.9rem', marginTop: '4px', margin: 0 }}>
-                    Excelente proteção para azarões subestimados. Se o seu time ganhar, você recebe o lucro total. Se o jogo empatar, sua aposta é dividida: metade é devolvida e metade é ganha (Lucro Parcial). Você só perde o investimento se o seu time perder o jogo.
-                  </p>
+            {/* Quick preview cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+              <div style={{ background: '#111118', border: '1px solid rgba(78,205,196,0.15)', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <Shield size={18} style={{ color: '#4ecdc4' }} />
+                  <strong style={{ color: '#4ecdc4', fontSize: '0.85rem', textTransform: 'uppercase' }}>Linhas Positivas</strong>
                 </div>
+                <p style={{ color: '#888', fontSize: '0.82rem', lineHeight: 1.5, margin: 0 }}>
+                  HA +0.5, +1.0, +1.5 — Proteção e segurança para a sua banca em jogos com azarões subestimados.
+                </p>
               </div>
-
-              <div style={{ display: 'flex', gap: '12px' }}>
-                <CheckCircle2 size={20} style={{ color: 'var(--brand-neon)', flexShrink: 0, marginTop: '2px' }} />
-                <div>
-                  <strong style={{ color: '#fff' }}>Handicap Asiático 0.0 (DNB - Draw No Bet):</strong>
-                  <p style={{ color: '#aaa', fontSize: '0.9rem', marginTop: '4px', margin: 0 }}>
-                    Caso ocorra o empate, o valor total apostado é devolvido para a sua carteira, eliminando o risco do empate.
-                  </p>
+              <div style={{ background: '#111118', border: '1px solid rgba(255,107,107,0.15)', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <Sword size={18} style={{ color: '#ff6b6b' }} />
+                  <strong style={{ color: '#ff6b6b', fontSize: '0.85rem', textTransform: 'uppercase' }}>Linhas Negativas</strong>
                 </div>
+                <p style={{ color: '#888', fontSize: '0.82rem', lineHeight: 1.5, margin: 0 }}>
+                  HA -0.5, -1.0 — Martelos de valor para favoritos que vencem com autoridade e odds esmagadas.
+                </p>
+              </div>
+              <div style={{ background: '#111118', border: '1px solid rgba(255,217,61,0.15)', borderRadius: '10px', padding: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+                  <AlertTriangle size={18} style={{ color: '#ffd93d' }} />
+                  <strong style={{ color: '#ffd93d', fontSize: '0.85rem', textTransform: 'uppercase' }}>Linhas de Quarto</strong>
+                </div>
+                <p style={{ color: '#888', fontSize: '0.82rem', lineHeight: 1.5, margin: 0 }}>
+                  ±0.25, ±0.75 — O sistema divide a aposta em duas partes iguais para pulverizar o risco.
+                </p>
               </div>
             </div>
+
+            {/* CTA to Masterclass */}
+            <Link href="/tutorial/handicap" style={{ textDecoration: 'none' }}>
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(204,255,0,0.04), rgba(78,205,196,0.04))',
+                border: '1px solid rgba(204,255,0,0.25)',
+                borderRadius: '16px',
+                padding: '24px 28px',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                gap: '16px',
+                cursor: 'pointer',
+                transition: 'all 0.3s ease',
+              }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                    <span style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--brand-neon)', textTransform: 'uppercase', letterSpacing: '2px' }}>
+                      Masterclass Avançada
+                    </span>
+                  </div>
+                  <h3 style={{ fontWeight: 800, fontSize: '1.2rem', color: '#fff', margin: 0, marginBottom: '6px' }}>
+                    Dominando o Handicap Asiático — Guia Completo
+                  </h3>
+                  <p style={{ color: '#888', fontSize: '0.85rem', margin: 0, lineHeight: 1.5 }}>
+                    5 módulos completos com conceito matemático, linhas defensivas e agressivas, linhas de quarto e integração com gestão de unidades.
+                  </p>
+                </div>
+                <ArrowRight size={28} style={{ color: 'var(--brand-neon)', flexShrink: 0 }} />
+              </div>
+            </Link>
           </section>
 
           {/* 6. Como nosso sistema ajuda você? */}

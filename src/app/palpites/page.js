@@ -2531,7 +2531,7 @@ export default function PalpitesPage() {
               onClick={(e) => e.stopPropagation()}
               style={{
                 width: '90%',
-                maxWidth: '650px',
+                maxWidth: activeStatsTab === 'handicap' ? '820px' : '650px',
                 maxHeight: '90vh',
                 overflowY: 'auto',
                 background: 'linear-gradient(135deg, #111115, #14141d)',
@@ -2771,7 +2771,7 @@ export default function PalpitesPage() {
                         ⚖️ Tabela de Projeções e Guia de Resultados de Handicap Asiático
                       </div>
                       
-                      <div style={{ overflowX: 'auto', maxHeight: '380px', overflowY: 'auto', paddingRight: '4px' }}>
+                      <div style={{ overflowX: 'auto', maxHeight: activeStatsTab === 'handicap' ? 'none' : '380px', overflowY: 'auto', paddingRight: '4px' }}>
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left', minWidth: '680px', tableLayout: 'fixed' }}>
                           <thead>
                             <tr style={{ borderBottom: '1px solid #333', color: '#888' }}>

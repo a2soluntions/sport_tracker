@@ -2699,49 +2699,49 @@ export default function PalpitesPage() {
               )}
 
               {activeStatsTab === 'handicap' && (() => {
-                const getHandicapExplanation = (line, team, opponent) => {
+                const getHandicapExplanation = (line) => {
                   const lineVal = parseFloat(line);
                   if (lineVal === 0.0) {
                     return {
-                      win: `Vitória do ${team}`,
+                      win: `Vitória`,
                       void: `Empate`,
-                      loss: `Derrota do ${team}`
+                      loss: `Derrota`
                     };
                   } else if (lineVal === -0.5) {
                     return {
-                      win: `Vitória do ${team}`,
-                      void: `Não há (Aposta Simples)`,
-                      loss: `Empate ou Derrota do ${team}`
+                      win: `Vitória`,
+                      void: `Não há`,
+                      loss: `Empate ou Derrota`
                     };
                   } else if (lineVal === 0.5) {
                     return {
-                      win: `Vitória ou Empate do ${team}`,
-                      void: `Não há (Dupla Chance)`,
-                      loss: `Derrota do ${team}`
+                      win: `Vitória ou Empate`,
+                      void: `Não há`,
+                      loss: `Derrota`
                     };
                   } else if (lineVal === -1.0) {
                     return {
-                      win: `Vitória do ${team} por 2+ gols`,
-                      void: `Vitória do ${team} por exatamente 1 gol (Reembolso)`,
-                      loss: `Empate ou Derrota do ${team}`
+                      win: `Vitória por 2+ gols`,
+                      void: `Vitória por 1 gol`,
+                      loss: `Empate ou Derrota`
                     };
                   } else if (lineVal === 1.0) {
                     return {
-                      win: `Vitória ou Empate do ${team}`,
-                      void: `Derrota do ${team} por exatamente 1 gol (Reembolso)`,
-                      loss: `Derrota do ${team} por 2+ gols`
+                      win: `Vitória ou Empate`,
+                      void: `Derrota por 1 gol`,
+                      loss: `Derrota por 2+ gols`
                     };
                   } else if (lineVal === -1.5) {
                     return {
-                      win: `Vitória do ${team} por 2+ gols`,
+                      win: `Vitória por 2+ gols`,
                       void: `Não há`,
                       loss: `Vitória por 1 gol, Empate ou Derrota`
                     };
                   } else if (lineVal === 1.5) {
                     return {
-                      win: `Vitória, Empate ou Derrota do ${team} por até 1 gol`,
+                      win: `Vitória, Empate ou Derrota por 1 gol`,
                       void: `Não há`,
-                      loss: `Derrota do ${team} por 2+ gols`
+                      loss: `Derrota por 2+ gols`
                     };
                   }
                   return { win: '-', void: '-', loss: '-' };
@@ -2771,16 +2771,16 @@ export default function PalpitesPage() {
                         ⚖️ Tabela de Projeções e Guia de Resultados de Handicap Asiático
                       </div>
                       
-                      <div style={{ overflowX: 'auto', maxHeight: '380px', overflowY: 'auto' }} className="no-scrollbar">
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left', minWidth: '650px', tableLayout: 'fixed' }}>
+                      <div style={{ overflowX: 'auto', maxHeight: '380px', overflowY: 'auto', paddingRight: '4px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left', minWidth: '680px', tableLayout: 'fixed' }}>
                           <thead>
                             <tr style={{ borderBottom: '1px solid #333', color: '#888' }}>
                               <th style={{ padding: '8px 10px', width: '22%' }}>Opção</th>
-                              <th style={{ padding: '8px 10px', width: '13%' }}>Probabilidade</th>
-                              <th style={{ padding: '8px 10px', width: '13%' }}>Odd Justa</th>
+                              <th style={{ padding: '8px 10px', width: '12%' }}>Probabilidade</th>
+                              <th style={{ padding: '8px 10px', width: '12%' }}>Odd Justa</th>
                               <th style={{ padding: '8px 10px', width: '18%', color: '#4CAF50' }}>Vence (Win)</th>
-                              <th style={{ padding: '8px 10px', width: '17%', color: '#ff9800' }}>Reembolso (Void)</th>
-                              <th style={{ padding: '8px 10px', width: '17%', color: '#ff4d4d' }}>Perde (Loss)</th>
+                              <th style={{ padding: '8px 10px', width: '18%', color: '#ff9800' }}>Reembolso (Void)</th>
+                              <th style={{ padding: '8px 10px', width: '18%', color: '#ff4d4d' }}>Perde (Loss)</th>
                             </tr>
                           </thead>
                           <tbody>
@@ -2789,7 +2789,7 @@ export default function PalpitesPage() {
                               const cappedOdd = Math.min(99.0, calculatedOdd);
                               const fairOdd = cappedOdd.toFixed(2);
                               const pct = (item.prob * 100).toFixed(1);
-                              const rules = getHandicapExplanation(item.line, item.team, item.opp);
+                              const rules = getHandicapExplanation(item.line);
                               
                               return (
                                 <tr key={idx} style={{ borderBottom: '1px solid #222', background: idx % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'transparent' }}>

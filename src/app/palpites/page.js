@@ -2593,6 +2593,7 @@ export default function PalpitesPage() {
               }}>
                 {[
                   { id: 'geral', label: 'Probabilidades', icon: '📈' },
+                  { id: 'handicap', label: 'Handicap Asiático', icon: '⚖️' },
                   { id: 'escanteios', label: 'Cantos & Cartões', icon: '📐' },
                   { id: 'confrontos', label: 'Forma & H2H', icon: '⚔️' }
                 ].map(t => (
@@ -2694,155 +2695,118 @@ export default function PalpitesPage() {
                       </div>
                     </div>
                   </div>
-
-                  {/* Projeções de Handicap Asiático */}
-                  <div style={{ background: '#1c1c24', borderRadius: '12px', border: '1px solid #333', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span>⚖️ Projeções de Handicap Asiático (Escolha uma Opção)</span>
-                      <span style={{ fontSize: '0.7rem', color: '#888' }}>Clique em [Seguir] para registrar na Banca (R$ 50)</span>
-                    </div>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', maxHeight: '220px', overflowY: 'auto', paddingRight: '4px' }} className="no-scrollbar">
-                      {[
-                        { label: `${game.home} AH 0.0`, prob: game.stats.probCasaAH00, name: `Casa AH 0.0` },
-                        { label: `${game.away} AH 0.0`, prob: game.stats.probForaAH00, name: `Fora AH 0.0` },
-                        { label: `${game.home} AH +0.5 (Dupla Chance)`, prob: game.stats.probHome + game.stats.probDraw, name: `Casa AH +0.5` },
-                        { label: `${game.away} AH +0.5 (Dupla Chance)`, prob: game.stats.probAway + game.stats.probDraw, name: `Fora AH +0.5` },
-                        { label: `${game.home} AH -1.0`, prob: game.stats.probCasaAH10, name: `Casa AH -1.0` },
-                        { label: `${game.away} AH -1.0`, prob: game.stats.probForaAH10, name: `Fora AH -1.0` },
-                        { label: `${game.home} AH -1.5`, prob: game.stats.probCasaAH15, name: `Casa AH -1.5` },
-                        { label: `${game.away} AH -1.5`, prob: game.stats.probForaAH15, name: `Fora AH -1.5` },
-                        { label: `${game.home} AH +1.0`, prob: game.stats.probCasaAH10Pos, name: `Casa AH +1.0` },
-                        { label: `${game.away} AH +1.0`, prob: game.stats.probForaAH10Pos, name: `Fora AH +1.0` },
-                        { label: `${game.home} AH +1.5 (Segurança Máxima)`, prob: game.stats.probAH15Pos_home, name: `Casa AH +1.5` },
-                        { label: `${game.away} AH +1.5 (Segurança Máxima)`, prob: game.stats.probAH15Pos_away, name: `Fora AH +1.5` }
-                      ].map((item, idx) => {
-                        const fairOdd = item.prob > 0 ? (1 / item.prob).toFixed(2) : '1.01';
-                        const pct = (item.prob * 100).toFixed(1);
-                        
-                        // Verificar se esta seleção já foi seguida
-                        const desc = `[Palpite] ${game.home} x ${game.away} (${item.name})`;
-                        const followed = transactions.some(t => t.description === desc);
-
-                        return (
-                          <div 
-                            key={idx} 
-                            style={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              justifyContent: 'space-between', 
-                              background: '#111', 
-                              padding: '8px 12px', 
-                              borderRadius: '8px', 
-                              border: '1px solid #222' 
-                            }}
-                          >
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-                              <span style={{ fontSize: '0.82rem', fontWeight: 'bold', color: '#fff' }}>{item.label}</span>
-                              <span style={{ fontSize: '0.72rem', color: '#aaa' }}>
-                                Probabilidade: <strong style={{ color: '#4CAF50' }}>{pct}%</strong> | Odd Justa: <strong style={{ color: 'var(--brand-neon)' }}>@{fairOdd}</strong>
-                              </span>
-                            </div>
-                            
-                            <button
-                              onClick={async () => {
-                                if (followed) return;
-                                const selection = item.name;
-                                const defaultStake = 50;
-                                const odd = parseFloat(fairOdd);
-                                const followDesc = `[Palpite] ${game.home} x ${game.away} (${selection})`;
-                                
-                                let type = 'pendente';
-                                let finalOddVal = odd;
-                                let finalDesc = followDesc;
-                                
-                                if (game.isFinished) {
-                                  const isHit = evaluateSelection(selection, game.goalsHome, game.goalsAway);
-                                  type = isHit === false ? 'perda' : 'ganho';
-                                  if (isHit === null) {
-                                    finalOddVal = 1.0;
-                                    finalDesc = followDesc + ' [DEVOLVIDA]';
-                                  }
-                                }
-
-                                const newTx = {
-                                  date: getLocalDateString(),
-                                  type,
-                                  amount: defaultStake,
-                                  description: finalDesc,
-                                  odd: finalOddVal
-                                };
-
-                                let success = false;
-                                let savedTx = null;
-
-                                const userTxsKey = `ev_tracker_banca_txs_${user?.id || 'guest'}`;
-                                const userTxIdsKey = `ev_tracker_user_tx_ids_${user?.id || 'guest'}`;
-
-                                if (supabase && user) {
-                                  try {
-                                    const txToUpload = { ...newTx, user_id: user.id };
-                                    const { data, error } = await supabase
-                                      .from('banca_transactions')
-                                      .insert([txToUpload])
-                                      .select();
-
-                                    if (error) throw error;
-                                    if (data && data.length > 0) {
-                                      savedTx = data[0];
-                                      success = true;
-                                      const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
-                                      userTxIds.push(savedTx.id);
-                                      localStorage.setItem(userTxIdsKey, JSON.stringify(userTxIds));
-                                    }
-                                  } catch (err) {
-                                    console.warn("Erro ao salvar no Supabase (usando fallback local):", err);
-                                  }
-                                }
-
-                                if (!success) {
-                                  savedTx = { id: Date.now(), ...newTx };
-                                  const savedTxs = localStorage.getItem(userTxsKey);
-                                  let txList = [];
-                                  if (savedTxs) {
-                                    try {
-                                      txList = JSON.parse(savedTxs);
-                                    } catch (e) {}
-                                  }
-                                  txList = [savedTx, ...txList];
-                                  localStorage.setItem(userTxsKey, JSON.stringify(txList));
-                                  success = true;
-                                }
-
-                                if (success && savedTx) {
-                                  const updated = [savedTx, ...transactions];
-                                  setTransactions(updated);
-                                  localStorage.setItem(userTxsKey, JSON.stringify(updated));
-                                  showToast(`Seguindo ${selection} (R$ 50 @${fairOdd}) registrado na Banca!`, 'success');
-                                }
-                              }}
-                              disabled={followed}
-                              style={{
-                                background: followed ? 'rgba(76, 175, 80, 0.15)' : 'var(--brand-neon)',
-                                color: followed ? '#4CAF50' : '#000',
-                                border: 'none',
-                                padding: '6px 12px',
-                                borderRadius: '6px',
-                                fontSize: '0.75rem',
-                                fontWeight: 'bold',
-                                cursor: followed ? 'not-allowed' : 'pointer',
-                                transition: 'all 0.2s'
-                              }}
-                            >
-                              {followed ? 'Seguido ✓' : 'Seguir'}
-                            </button>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
                 </div>
               )}
+
+              {activeStatsTab === 'handicap' && (() => {
+                const getHandicapExplanation = (line, team, opponent) => {
+                  const lineVal = parseFloat(line);
+                  if (lineVal === 0.0) {
+                    return {
+                      win: `Vitória do ${team}`,
+                      void: `Empate`,
+                      loss: `Derrota do ${team}`
+                    };
+                  } else if (lineVal === -0.5) {
+                    return {
+                      win: `Vitória do ${team}`,
+                      void: `Não há (Aposta Simples)`,
+                      loss: `Empate ou Derrota do ${team}`
+                    };
+                  } else if (lineVal === 0.5) {
+                    return {
+                      win: `Vitória ou Empate do ${team}`,
+                      void: `Não há (Dupla Chance)`,
+                      loss: `Derrota do ${team}`
+                    };
+                  } else if (lineVal === -1.0) {
+                    return {
+                      win: `Vitória do ${team} por 2+ gols`,
+                      void: `Vitória do ${team} por exatamente 1 gol (Reembolso)`,
+                      loss: `Empate ou Derrota do ${team}`
+                    };
+                  } else if (lineVal === 1.0) {
+                    return {
+                      win: `Vitória ou Empate do ${team}`,
+                      void: `Derrota do ${team} por exatamente 1 gol (Reembolso)`,
+                      loss: `Derrota do ${team} por 2+ gols`
+                    };
+                  } else if (lineVal === -1.5) {
+                    return {
+                      win: `Vitória do ${team} por 2+ gols`,
+                      void: `Não há`,
+                      loss: `Vitória por 1 gol, Empate ou Derrota`
+                    };
+                  } else if (lineVal === 1.5) {
+                    return {
+                      win: `Vitória, Empate ou Derrota do ${team} por até 1 gol`,
+                      void: `Não há`,
+                      loss: `Derrota do ${team} por 2+ gols`
+                    };
+                  }
+                  return { win: '-', void: '-', loss: '-' };
+                };
+
+                const linesData = [
+                  { label: `${game.home} AH 0.0`, prob: game.stats.probCasaAH00, name: `Casa AH 0.0`, line: 0.0, team: game.home, opp: game.away },
+                  { label: `${game.away} AH 0.0`, prob: game.stats.probForaAH00, name: `Fora AH 0.0`, line: 0.0, team: game.away, opp: game.home },
+                  { label: `${game.home} AH -0.5`, prob: game.stats.probHome, name: `Casa AH -0.5`, line: -0.5, team: game.home, opp: game.away },
+                  { label: `${game.away} AH -0.5`, prob: game.stats.probAway, name: `Fora AH -0.5`, line: -0.5, team: game.away, opp: game.home },
+                  { label: `${game.home} AH +0.5`, prob: game.stats.probHome + game.stats.probDraw, name: `Casa AH +0.5`, line: 0.5, team: game.home, opp: game.away },
+                  { label: `${game.away} AH +0.5`, prob: game.stats.probAway + game.stats.probDraw, name: `Fora AH +0.5`, line: 0.5, team: game.away, opp: game.home },
+                  { label: `${game.home} AH -1.0`, prob: game.stats.probCasaAH10, name: `Casa AH -1.0`, line: -1.0, team: game.home, opp: game.away },
+                  { label: `${game.away} AH -1.0`, prob: game.stats.probForaAH10, name: `Fora AH -1.0`, line: -1.0, team: game.away, opp: game.home },
+                  { label: `${game.home} AH +1.0`, prob: game.stats.probCasaAH10Pos, name: `Casa AH +1.0`, line: 1.0, team: game.home, opp: game.away },
+                  { label: `${game.away} AH +1.0`, prob: game.stats.probForaAH10Pos, name: `Fora AH +1.0`, line: 1.0, team: game.away, opp: game.home },
+                  { label: `${game.home} AH -1.5`, prob: game.stats.probCasaAH15, name: `Casa AH -1.5`, line: -1.5, team: game.home, opp: game.away },
+                  { label: `${game.away} AH -1.5`, prob: game.stats.probForaAH15, name: `Fora AH -1.5`, line: -1.5, team: game.away, opp: game.home },
+                  { label: `${game.home} AH +1.5`, prob: game.stats.probAH15Pos_home, name: `Casa AH +1.5`, line: 1.5, team: game.home, opp: game.away },
+                  { label: `${game.away} AH +1.5`, prob: game.stats.probAH15Pos_away, name: `Fora AH +1.5`, line: 1.5, team: game.away, opp: game.home }
+                ];
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', animation: 'fadeIn 0.25s ease-out' }}>
+                    <div style={{ background: '#1c1c24', borderRadius: '12px', border: '1px solid #333', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
+                        ⚖️ Tabela de Projeções e Guia de Resultados de Handicap Asiático
+                      </div>
+                      
+                      <div style={{ overflowX: 'auto', maxHeight: '380px', overflowY: 'auto' }} className="no-scrollbar">
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left', minWidth: '600px' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '1px solid #333', color: '#888' }}>
+                              <th style={{ padding: '8px 10px' }}>Opção</th>
+                              <th style={{ padding: '8px 10px' }}>Probabilidade</th>
+                              <th style={{ padding: '8px 10px' }}>Odd Justa</th>
+                              <th style={{ padding: '8px 10px', color: '#4CAF50' }}>Vence (Win)</th>
+                              <th style={{ padding: '8px 10px', color: '#ff9800' }}>Reembolso (Void)</th>
+                              <th style={{ padding: '8px 10px', color: '#ff4d4d' }}>Perde (Loss)</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {linesData.map((item, idx) => {
+                              const fairOdd = item.prob > 0 ? (1 / item.prob).toFixed(2) : '1.01';
+                              const pct = (item.prob * 100).toFixed(1);
+                              const rules = getHandicapExplanation(item.line, item.team, item.opp);
+                              
+                              return (
+                                <tr key={idx} style={{ borderBottom: '1px solid #222', background: idx % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'transparent' }}>
+                                  <td style={{ padding: '10px', fontWeight: 'bold', color: '#fff' }}>{item.label}</td>
+                                  <td style={{ padding: '10px', color: '#4CAF50', fontWeight: 'bold' }}>{pct}%</td>
+                                  <td style={{ padding: '10px', color: 'var(--brand-neon)', fontWeight: 'bold' }}>@{fairOdd}</td>
+                                  <td style={{ padding: '10px', color: '#aaa' }}>{rules.win}</td>
+                                  <td style={{ padding: '10px', color: '#ff9800', opacity: rules.void.includes('Não') ? 0.3 : 1 }}>{rules.void}</td>
+                                  <td style={{ padding: '10px', color: '#aaa' }}>{rules.loss}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
 
               {activeStatsTab === 'escanteios' && (
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', animation: 'fadeIn 0.25s ease-out' }}>

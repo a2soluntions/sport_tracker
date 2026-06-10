@@ -2772,31 +2772,33 @@ export default function PalpitesPage() {
                       </div>
                       
                       <div style={{ overflowX: 'auto', maxHeight: '380px', overflowY: 'auto' }} className="no-scrollbar">
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left', minWidth: '600px' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left', minWidth: '650px', tableLayout: 'fixed' }}>
                           <thead>
                             <tr style={{ borderBottom: '1px solid #333', color: '#888' }}>
-                              <th style={{ padding: '8px 10px' }}>Opção</th>
-                              <th style={{ padding: '8px 10px' }}>Probabilidade</th>
-                              <th style={{ padding: '8px 10px' }}>Odd Justa</th>
-                              <th style={{ padding: '8px 10px', color: '#4CAF50' }}>Vence (Win)</th>
-                              <th style={{ padding: '8px 10px', color: '#ff9800' }}>Reembolso (Void)</th>
-                              <th style={{ padding: '8px 10px', color: '#ff4d4d' }}>Perde (Loss)</th>
+                              <th style={{ padding: '8px 10px', width: '22%' }}>Opção</th>
+                              <th style={{ padding: '8px 10px', width: '13%' }}>Probabilidade</th>
+                              <th style={{ padding: '8px 10px', width: '13%' }}>Odd Justa</th>
+                              <th style={{ padding: '8px 10px', width: '18%', color: '#4CAF50' }}>Vence (Win)</th>
+                              <th style={{ padding: '8px 10px', width: '17%', color: '#ff9800' }}>Reembolso (Void)</th>
+                              <th style={{ padding: '8px 10px', width: '17%', color: '#ff4d4d' }}>Perde (Loss)</th>
                             </tr>
                           </thead>
                           <tbody>
                             {linesData.map((item, idx) => {
-                              const fairOdd = item.prob > 0 ? (1 / item.prob).toFixed(2) : '1.01';
+                              const calculatedOdd = item.prob > 0 ? (1 / item.prob) : 99.0;
+                              const cappedOdd = Math.min(99.0, calculatedOdd);
+                              const fairOdd = cappedOdd.toFixed(2);
                               const pct = (item.prob * 100).toFixed(1);
                               const rules = getHandicapExplanation(item.line, item.team, item.opp);
                               
                               return (
                                 <tr key={idx} style={{ borderBottom: '1px solid #222', background: idx % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'transparent' }}>
-                                  <td style={{ padding: '10px', fontWeight: 'bold', color: '#fff' }}>{item.label}</td>
+                                  <td style={{ padding: '10px', fontWeight: 'bold', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</td>
                                   <td style={{ padding: '10px', color: '#4CAF50', fontWeight: 'bold' }}>{pct}%</td>
                                   <td style={{ padding: '10px', color: 'var(--brand-neon)', fontWeight: 'bold' }}>@{fairOdd}</td>
-                                  <td style={{ padding: '10px', color: '#aaa' }}>{rules.win}</td>
-                                  <td style={{ padding: '10px', color: '#ff9800', opacity: rules.void.includes('Não') ? 0.3 : 1 }}>{rules.void}</td>
-                                  <td style={{ padding: '10px', color: '#aaa' }}>{rules.loss}</td>
+                                  <td style={{ padding: '10px', color: '#aaa', fontSize: '0.74rem', lineHeight: '1.3' }}>{rules.win}</td>
+                                  <td style={{ padding: '10px', color: '#ff9800', opacity: rules.void.includes('Não') ? 0.35 : 1, fontSize: '0.74rem', lineHeight: '1.3' }}>{rules.void}</td>
+                                  <td style={{ padding: '10px', color: '#ff4d4d', fontSize: '0.74rem', lineHeight: '1.3' }}>{rules.loss}</td>
                                 </tr>
                               );
                             })}

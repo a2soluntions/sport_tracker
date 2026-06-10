@@ -229,3 +229,57 @@ export function formatOdd(prob) {
   if (prob === 0) return "0.00";
   return (1 / prob).toFixed(2);
 }
+
+export function calculateDynamicHandicapProb(scoreMatrix, isHome, line) {
+  if (!scoreMatrix || scoreMatrix.length === 0) return 0;
+  
+  // Helper to sum probabilities matching a condition on (HomeGoals - AwayGoals)
+  const getProbForDiff = (conditionFn) => {
+    let sum = 0;
+    for (let h = 0; h < scoreMatrix.length; h++) {
+      for (let a = 0; a < scoreMatrix[h].length; a++) {
+        const prob = scoreMatrix[h]?.[a] || 0;
+        if (conditionFn(h - a)) {
+          sum += prob;
+        }
+      }
+    }
+    return sum;
+  };
+
+  const lineVal = parseFloat(line);
+
+  // Check if quarter line (ends in .25 or .75)
+  const isQuarter = Math.abs(Math.round(lineVal * 100)) % 50 !== 0;
+
+  if (isQuarter) {
+    const line1 = lineVal - 0.25;
+    const line2 = lineVal + 0.25;
+    const p1 = calculateDynamicHandicapProb(scoreMatrix, isHome, line1);
+    const p2 = calculateDynamicHandicapProb(scoreMatrix, isHome, line2);
+    return (p1 + p2) / 2;
+  }
+
+  // If it's a half-line (ends in .5), no refund
+  const isHalf = Math.abs(lineVal) % 1 === 0.5;
+
+  if (isHalf) {
+    return getProbForDiff(d => {
+      const simDiff = isHome ? (d + lineVal) : (-d + lineVal);
+      return simDiff > 0;
+    });
+  } else {
+    // Integer line (ends in .0). Refund case when simulated diff == 0.
+    const pWin = getProbForDiff(d => {
+      const simDiff = isHome ? (d + lineVal) : (-d + lineVal);
+      return simDiff > 0;
+    });
+    const pLoss = getProbForDiff(d => {
+      const simDiff = isHome ? (d + lineVal) : (-d + lineVal);
+      return simDiff < 0;
+    });
+    const total = pWin + pLoss;
+    return total > 0 ? pWin / total : 0.5;
+  }
+}
+

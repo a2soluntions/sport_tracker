@@ -9,7 +9,7 @@ const factorial = (n) => {
   for (let i = 2; i <= n; i++) result *= i;
   return result;
 };
-import { calculatePoissonMatchStats, formatPct, formatOdd } from '../../utils/poisson';
+import { calculatePoissonMatchStats, formatPct, formatOdd, calculateDynamicHandicapProb } from '../../utils/poisson';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 
@@ -425,6 +425,22 @@ export default function PalpitesPage() {
   const [apiError, setApiError] = useState(null);
   const [roundInfo, setRoundInfo] = useState(null);
 
+  // Estados do Simulador de Handicap para o Criador de Aposta
+  const [builderHandicapTeam, setBuilderHandicapTeam] = useState('home'); // 'home' ou 'away'
+  const [builderHandicapLine, setBuilderHandicapLine] = useState(-0.5);
+  const [builderHandicapOdd, setBuilderHandicapOdd] = useState('1.90');
+
+  useEffect(() => {
+    if (openBuilderGameId) {
+      const selectedGame = games.find(g => g.id === openBuilderGameId);
+      if (selectedGame && selectedGame.stats?.scoreMatrix) {
+        const p = calculateDynamicHandicapProb(selectedGame.stats.scoreMatrix, builderHandicapTeam === 'home', builderHandicapLine);
+        const fOdd = p > 0 ? (1 / p).toFixed(2) : '1.01';
+        setBuilderHandicapOdd(fOdd);
+      }
+    }
+  }, [builderHandicapTeam, builderHandicapLine, openBuilderGameId, games]);
+
   // Novos estados para Filtro de Ligas e Data
   const [activeLeagues, setActiveLeagues] = useState([
     {"id": "1", "name": "Copa do Mundo"},
@@ -748,21 +764,6 @@ export default function PalpitesPage() {
           { label: 'Casa ou Empate (1X)', prob: stats.probHome + stats.probDraw, odd: getOdd(stats.probHome + stats.probDraw), market: 'Dupla Chance' },
           { label: 'Fora ou Empate (X2)', prob: stats.probAway + stats.probDraw, odd: getOdd(stats.probAway + stats.probDraw), market: 'Dupla Chance' },
           { label: 'Casa ou Fora (12)', prob: stats.probHome + stats.probAway, odd: getOdd(stats.probHome + stats.probAway), market: 'Dupla Chance' }
-        ]
-      },
-      {
-        category: 'Handicap Asiático (AH)',
-        items: [
-          { label: 'Casa AH 0.0', prob: stats.probCasaAH00, odd: getOdd(stats.probCasaAH00), market: 'Handicap' },
-          { label: 'Fora AH 0.0', prob: stats.probForaAH00, odd: getOdd(stats.probForaAH00), market: 'Handicap' },
-          { label: 'Casa AH -1.0', prob: stats.probCasaAH10, odd: getOdd(stats.probCasaAH10), market: 'Handicap' },
-          { label: 'Fora AH -1.0', prob: stats.probForaAH10, odd: getOdd(stats.probForaAH10), market: 'Handicap' },
-          { label: 'Casa AH -1.5', prob: stats.probCasaAH15, odd: getOdd(stats.probCasaAH15), market: 'Handicap' },
-          { label: 'Fora AH -1.5', prob: stats.probForaAH15, odd: getOdd(stats.probForaAH15), market: 'Handicap' },
-          { label: 'Casa AH +1.0', prob: stats.probCasaAH10Pos, odd: getOdd(stats.probCasaAH10Pos), market: 'Handicap' },
-          { label: 'Fora AH +1.0', prob: stats.probForaAH10Pos, odd: getOdd(stats.probForaAH10Pos), market: 'Handicap' },
-          { label: 'Casa AH +1.5', prob: stats.probAH15Pos_home, odd: getOdd(stats.probAH15Pos_home), market: 'Handicap' },
-          { label: 'Fora AH +1.5', prob: stats.probAH15Pos_away, odd: getOdd(stats.probAH15Pos_away), market: 'Handicap' }
         ]
       },
       {
@@ -3413,6 +3414,196 @@ export default function PalpitesPage() {
               <div style={{ background: 'rgba(0, 210, 255, 0.05)', border: '1px solid rgba(0, 210, 255, 0.2)', padding: '10px 14px', borderRadius: '8px', fontSize: '0.78rem', color: '#00d2ff', display: 'flex', gap: '8px', alignItems: 'flex-start' }}>
                 <span style={{ fontSize: '1rem' }}>💡</span>
                 <span>As cotações individuais são geradas a partir de modelos matemáticos da <strong>A2 Solutions</strong>. Você pode montar a sua aposta selecionando múltiplos mercados e definir a odd exata da sua casa de apostas manualmente no cupom!</span>
+              </div>
+
+              {/* Calculadora de Handicap Asiático (AH) Interativa */}
+              <div style={{
+                background: '#111118',
+                border: '1px solid rgba(204, 255, 0, 0.15)',
+                borderRadius: '12px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '14px',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.2)'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #222', paddingBottom: '8px' }}>
+                  <span style={{ fontSize: '1.2rem' }}>⚖️</span>
+                  <h4 style={{ fontSize: '0.9rem', fontWeight: 800, textTransform: 'uppercase', color: '#fff', margin: 0 }}>
+                    Simulador e Construtor de Handicap (AH)
+                  </h4>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '10px' }}>
+                  {/* Seleção do Time */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#888', marginBottom: '6px' }}>
+                      Time Selecionado
+                    </label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        onClick={() => setBuilderHandicapTeam('home')}
+                        style={{
+                          flex: 1,
+                          background: builderHandicapTeam === 'home' ? 'rgba(204, 255, 0, 0.08)' : '#0d0d12',
+                          border: builderHandicapTeam === 'home' ? '1px solid var(--brand-neon)' : '1px solid #222',
+                          borderRadius: '6px',
+                          padding: '8px',
+                          color: builderHandicapTeam === 'home' ? 'var(--brand-neon)' : '#aaa',
+                          fontWeight: 700,
+                          fontSize: '0.75rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Casa
+                      </button>
+                      <button
+                        onClick={() => setBuilderHandicapTeam('away')}
+                        style={{
+                          flex: 1,
+                          background: builderHandicapTeam === 'away' ? 'rgba(204, 255, 0, 0.08)' : '#0d0d12',
+                          border: builderHandicapTeam === 'away' ? '1px solid var(--brand-neon)' : '1px solid #222',
+                          borderRadius: '6px',
+                          padding: '8px',
+                          color: builderHandicapTeam === 'away' ? 'var(--brand-neon)' : '#aaa',
+                          fontWeight: 700,
+                          fontSize: '0.75rem',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Fora
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Seleção da Linha */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#888', marginBottom: '6px' }}>
+                      Linha de Handicap
+                    </label>
+                    <select
+                      value={builderHandicapLine}
+                      onChange={(e) => setBuilderHandicapLine(parseFloat(e.target.value))}
+                      style={{
+                        width: '100%',
+                        background: '#0d0d12',
+                        border: '1px solid #222',
+                        borderRadius: '6px',
+                        padding: '8px',
+                        color: '#fff',
+                        fontSize: '0.8rem',
+                        outline: 'none',
+                        cursor: 'pointer',
+                        fontFamily: 'inherit'
+                      }}
+                    >
+                      {[-2.0, -1.75, -1.5, -1.25, -1.0, -0.75, -0.5, -0.25, 0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0].map(val => (
+                        <option key={val} value={val}>
+                          {val === 0 ? '0.0 (DNB)' : val > 0 ? `+${val}` : `${val}`}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Odd da Casa (Manual) */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: '#888', marginBottom: '6px' }}>
+                      Cotação da Casa (Odd)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.05"
+                      value={builderHandicapOdd}
+                      onChange={(e) => setBuilderHandicapOdd(e.target.value)}
+                      style={{
+                        width: '100%',
+                        background: '#0d0d12',
+                        border: '1px solid #222',
+                        borderRadius: '6px',
+                        padding: '8px',
+                        color: '#fff',
+                        fontSize: '0.8rem',
+                        outline: 'none',
+                        fontFamily: 'inherit'
+                      }}
+                    />
+                  </div>
+                </div>
+
+                {/* Resultado dos Cálculos */}
+                {(() => {
+                  const scoreMatrix = game.stats?.scoreMatrix;
+                  const isHome = builderHandicapTeam === 'home';
+                  const prob = calculateDynamicHandicapProb(scoreMatrix, isHome, builderHandicapLine);
+                  const formatLineVal = (v) => v === 0 ? '0.0' : v > 0 ? `+${v}` : `${v}`;
+                  
+                  const backedClubName = isHome ? game.home : game.away;
+                  const handicapLabel = `${backedClubName} AH ${formatLineVal(builderHandicapLine)}`;
+                  const id = `${game.home} x ${game.away}_Handicap_${handicapLabel}`;
+                  const isAlreadySelected = builderSelections.some(s => s.id === id);
+
+                  return (
+                    <div style={{ 
+                      display: 'flex', 
+                      flexWrap: 'wrap', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between',
+                      background: '#0d0d12',
+                      padding: '12px 14px',
+                      borderRadius: '8px',
+                      border: '1px solid #1a1a24',
+                      gap: '12px'
+                    }}>
+                      <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                        <div>
+                          <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: '#666', fontWeight: 'bold' }}>Probabilidade</div>
+                          <div style={{ fontSize: '1.05rem', fontWeight: 900, color: 'var(--brand-neon)' }}>
+                            {Math.round(prob * 100)}%
+                          </div>
+                        </div>
+                        <div>
+                          <div style={{ fontSize: '0.65rem', textTransform: 'uppercase', color: '#666', fontWeight: 'bold' }}>Odd Justa</div>
+                          <div style={{ fontSize: '1.05rem', fontWeight: 900, color: '#aaa' }}>
+                            @{prob > 0 ? (1 / prob).toFixed(2) : '1.01'}
+                          </div>
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => {
+                          const selection = {
+                            label: handicapLabel,
+                            prob,
+                            odd: parseFloat(builderHandicapOdd) || (prob > 0 ? Number((1/prob).toFixed(2)) : 1.90),
+                            market: 'Handicap',
+                            id
+                          };
+                          if (isAlreadySelected) {
+                            setBuilderSelections(prev => prev.filter(s => s.id !== id));
+                          } else {
+                            setBuilderSelections(prev => [...prev, selection]);
+                          }
+                        }}
+                        style={{
+                          background: isAlreadySelected ? '#ff4d4d' : 'var(--brand-neon)',
+                          border: 'none',
+                          borderRadius: '8px',
+                          color: '#000',
+                          padding: '10px 16px',
+                          fontWeight: 'bold',
+                          fontSize: '0.8rem',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        {isAlreadySelected ? '🗑️ Remover Handicap' : '➕ Adicionar Handicap'}
+                      </button>
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Grid de Mercados e Seleções */}

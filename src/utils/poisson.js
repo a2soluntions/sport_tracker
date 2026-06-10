@@ -233,6 +233,9 @@ export function formatOdd(prob) {
 export function calculateDynamicHandicapProb(scoreMatrix, isHome, line) {
   if (!scoreMatrix || scoreMatrix.length === 0) return 0;
   
+  const lineVal = parseFloat(line);
+  if (isNaN(lineVal)) return 0;
+  
   // Helper to sum probabilities matching a condition on (HomeGoals - AwayGoals)
   const getProbForDiff = (conditionFn) => {
     let sum = 0;
@@ -246,8 +249,6 @@ export function calculateDynamicHandicapProb(scoreMatrix, isHome, line) {
     }
     return sum;
   };
-
-  const lineVal = parseFloat(line);
 
   // Check if quarter line (ends in .25 or .75)
   const isQuarter = Math.abs(Math.round(lineVal * 100)) % 50 !== 0;

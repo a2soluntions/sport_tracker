@@ -425,6 +425,12 @@ export default function PalpitesPage() {
   const [apiError, setApiError] = useState(null);
   const [roundInfo, setRoundInfo] = useState(null);
 
+  // Bet Builder states
+  const [openBuilderGameId, setOpenBuilderGameId] = useState(null);
+  const [builderSelections, setBuilderSelections] = useState([]);
+  const [builderStake, setBuilderStake] = useState('50');
+  const [builderCustomOdd, setBuilderCustomOdd] = useState('');
+
   // Estados do Simulador de Handicap para o Criador de Aposta
   const [builderHandicapTeam, setBuilderHandicapTeam] = useState('home'); // 'home' ou 'away'
   const [builderHandicapLine, setBuilderHandicapLine] = useState(-0.5);
@@ -519,11 +525,7 @@ export default function PalpitesPage() {
   const [openRadarGameId, setOpenRadarGameId] = useState(null);
   const [activeStatsTab, setActiveStatsTab] = useState('geral');
 
-  // Bet Builder states
-  const [openBuilderGameId, setOpenBuilderGameId] = useState(null);
-  const [builderSelections, setBuilderSelections] = useState([]);
-  const [builderStake, setBuilderStake] = useState('50');
-  const [builderCustomOdd, setBuilderCustomOdd] = useState('');
+
 
   useEffect(() => {
     const calcOdd = builderSelections.reduce((acc, s) => acc * Number(s.odd), 1).toFixed(2);

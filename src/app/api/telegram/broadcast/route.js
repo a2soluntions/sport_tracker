@@ -26,10 +26,22 @@ export async function POST(request) {
       }
     }
 
-    if (!botToken || !chatId) {
-      console.error('Missing Telegram credentials in environment variables', { botToken: !!botToken, chatId: chatId });
-      return NextResponse.json({ error: `Configuração do Telegram ausente no servidor (chatId: ${chatId})` }, { status: 500 });
+    const cleanBotToken = String(botToken).trim().replace(/['"]/g, '');
+    const cleanChatId = String(chatId).trim().replace(/['"]/g, '');
+
+    if (!cleanBotToken || !cleanChatId) {
+      console.error('Missing Telegram credentials in environment variables', { botToken: !!cleanBotToken, chatId: cleanChatId });
+      return NextResponse.json({ error: `Configuração do Telegram ausente no servidor (chatId: ${cleanChatId})` }, { status: 500 });
     }
+
+    console.log('[Telegram Broadcast] Sending request:', {
+      botTokenPrefix: cleanBotToken.substring(0, 10) + '...',
+      botTokenLength: cleanBotToken.length,
+      chatId: cleanChatId,
+      isVip,
+      targetChannel,
+      hasImage: !!imageUrl
+    });
 
     let finalMessage = '';
 
@@ -59,21 +71,21 @@ _Analise e faça sua entrada com responsabilidade!_ 📊`;
 _Palpite gerado pelo Algoritmo de Poisson_ 🤖`;
     }
 
-    let telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+    let telegramApiUrl = `https://api.telegram.org/bot${cleanBotToken}/sendMessage`;
     let payload = {
-      chat_id: chatId,
+      chat_id: cleanChatId,
       parse_mode: 'Markdown'
     };
 
     // Se o chat for do supergrupo/fórum VIP, adiciona o ID do tópico Geral (0) por padrão
-    if (chatId === '-1003872261817' || chatId === -1003872261817) {
+    if (cleanChatId === '-1003872261817') {
       payload.message_thread_id = 0;
     }
 
     let response;
     
     if (imageUrl && imageUrl.trim()) {
-      telegramApiUrl = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+      telegramApiUrl = `https://api.telegram.org/bot${cleanBotToken}/sendPhoto`;
       const imgVal = imageUrl.trim();
 
       if (imgVal.startsWith('data:image/')) {
@@ -88,10 +100,10 @@ _Palpite gerado pelo Algoritmo de Poisson_ 🤖`;
         const buffer = Buffer.from(base64Data, 'base64');
         
         const formData = new FormData();
-        formData.append('chat_id', chatId);
+        formData.append('chat_id', cleanChatId);
         formData.append('parse_mode', 'Markdown');
         formData.append('caption', finalMessage);
-        if (chatId === '-1003872261817' || chatId === -1003872261817) {
+        if (cleanChatId === '-1003872261817') {
           formData.append('message_thread_id', '0');
         }
         
@@ -124,11 +136,11 @@ _Palpite gerado pelo Algoritmo de Poisson_ 🤖`;
     }
 
     const data = await response.json();
-    console.log('[Telegram Broadcast] Resolved Chat ID:', chatId, 'API Response:', data);
+    console.log('[Telegram Broadcast] Resolved Chat ID:', cleanChatId, 'API Response:', data);
 
     if (!data.ok) {
       console.error('Telegram API Error:', data);
-      return NextResponse.json({ error: `${data.description} (ChatID: ${chatId})` }, { status: 400 });
+      return NextResponse.json({ error: `${data.description} (ChatID: ${cleanChatId})` }, { status: 400 });
     }
 
     return NextResponse.json({ success: true, messageId: data.result.message_id }, { status: 200 });

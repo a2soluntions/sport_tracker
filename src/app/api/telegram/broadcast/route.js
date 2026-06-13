@@ -140,7 +140,11 @@ _Palpite gerado pelo Algoritmo de Poisson_ 🤖`;
 
     if (!data.ok) {
       console.error('Telegram API Error:', data);
-      return NextResponse.json({ error: `${data.description} (ChatID: ${cleanChatId})` }, { status: 400 });
+      const tokenPrefix = cleanBotToken ? cleanBotToken.substring(0, 10) : 'null';
+      const tokenLen = cleanBotToken ? cleanBotToken.length : 0;
+      return NextResponse.json({ 
+        error: `${data.description} (ChatID: ${cleanChatId}, BotToken: ${tokenPrefix}... [len: ${tokenLen}])` 
+      }, { status: 400 });
     }
 
     return NextResponse.json({ success: true, messageId: data.result.message_id }, { status: 200 });

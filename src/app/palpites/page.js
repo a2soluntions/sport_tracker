@@ -1466,7 +1466,7 @@ export default function PalpitesPage() {
           allFixtures = (data.fixtures || []).filter(f => activeLeagueIds.has(String(f.sourceLeagueId)));
           primaryRound = data.round || 'Várias';
         } else {
-          const response = await fetch(`/api/football/fixtures?league=${selectedLeague}&date=${selectedDate}`);
+          const response = await fetch(`/api/football/fixtures?league=${selectedLeague}&date=${selectedDate}&all=true`);
           if (!response.ok) throw new Error('API response not ok');
           const data = await response.json();
           allFixtures = (data.fixtures || []).map(f => ({ ...f, sourceLeagueId: selectedLeague }));

@@ -8,6 +8,27 @@ const API_HOST = 'https://v3.football.api-sports.io';
 const cache = { fixtures: {}, stats: {} };
 const CACHE_DURATION_FIXTURES = 5 * 60 * 1000; 
 
+// Helper: classifica a data do jogo em relação a hoje (timezone de Brasília)
+function getDayCategory(rawDate) {
+  const formatter = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit'
+  });
+  const parts = formatter.formatToParts(new Date());
+  const todayStr = `${parts.find(p => p.type === 'year').value}-${parts.find(p => p.type === 'month').value}-${parts.find(p => p.type === 'day').value}`;
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tParts = formatter.formatToParts(tomorrow);
+  const tomorrowStr = `${tParts.find(p => p.type === 'year').value}-${tParts.find(p => p.type === 'month').value}-${tParts.find(p => p.type === 'day').value}`;
+
+  if (rawDate === todayStr) return 'HOJE';
+  if (rawDate === tomorrowStr) return 'AMANHA';
+  return 'OUTROS';
+}
+
 // Helper to fetch current round and fixtures from API-Sports
 async function fetchCurrentRoundFixtures(leagueId, activeSeason, nowTimestamp) {
   let currentRound = null;
@@ -212,7 +233,7 @@ async function fetchScraperFixtures(leagueId, targetDate, returnAll = false) {
           return `${localDateStr} • ${m.time}`;
         })(),
         rawDate: m.date,
-        dayCategory: 'TODOS',
+        dayCategory: getDayCategory(m.date),
         round: activeRound.number || '?',
         home: m.homeTeam.name,
         away: m.awayTeam.name,
@@ -352,7 +373,7 @@ export async function GET(request) {
           awayTeamId: m.teams.away.id,
           date: displayDate,
           rawDate: rawDate,
-          dayCategory: 'TODOS',
+          dayCategory: getDayCategory(rawDate),
           round: m.league.round ? m.league.round.replace('Regular Season - ', '') : '?',
           home: m.teams.home.name,
           away: m.teams.away.name,
@@ -542,7 +563,7 @@ export async function GET(request) {
         awayTeamId: m.teams.away.id,
         date: displayDate,
         rawDate: rawDate,
-        dayCategory: 'TODOS',
+        dayCategory: getDayCategory(rawDate),
         round: m.league.round ? m.league.round.replace('Regular Season - ', '') : '?',
         home: homeTeamName,
         away: awayTeamName,

@@ -43,7 +43,7 @@ export async function GET(request) {
       query = query.eq('resultado', resultado);
       if (resultado === 'pending' && !dateFilter) {
         const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
-        query = query.or(`campeonato.ilike.[LIVE|%,created_at.gte.${twoHoursAgo}`);
+        query = query.or(`campeonato.ilike."[LIVE|%",created_at.gte.${twoHoursAgo}`);
       }
     }
 

@@ -22,7 +22,8 @@ export default function SettingsPage() {
     alertPrematch: true,
     alertLive: true,
     receiveTelegram: true,
-    telegramChatId: ''
+    telegramChatId: '',
+    riskPct: 5
   });
 
   const [saved, setSaved] = useState(false);
@@ -97,6 +98,8 @@ export default function SettingsPage() {
       try {
         const userBancaKey = `ev_tracker_banca_initial_value_${user.id}`;
         const savedBanca = localStorage.getItem(userBancaKey);
+        const userRiskKey = `ev_tracker_max_risk_pct_${user.id}`;
+        const savedRisk = localStorage.getItem(userRiskKey);
 
         const { data, error } = await supabase
           .from('user_settings')
@@ -112,10 +115,15 @@ export default function SettingsPage() {
             alertPrematch: data.alert_prematch !== false,
             alertLive: data.alert_live !== false,
             receiveTelegram: data.receive_telegram !== false,
-            telegramChatId: data.telegram_chat_id || ''
+            telegramChatId: data.telegram_chat_id || '',
+            riskPct: savedRisk ? parseFloat(savedRisk) * 100 : 5
           });
-        } else if (savedBanca) {
-          setUserConfig(prev => ({ ...prev, banca: parseFloat(savedBanca) }));
+        } else {
+          setUserConfig(prev => ({
+            ...prev,
+            banca: parseFloat(savedBanca || 1000),
+            riskPct: savedRisk ? parseFloat(savedRisk) * 100 : 5
+          }));
         }
       } catch (err) {
         console.warn("Erro ao carregar configurações pessoais:", err);
@@ -204,6 +212,10 @@ export default function SettingsPage() {
           // Sincronizar cache local da banca
           const userBancaKey = `ev_tracker_banca_initial_value_${user.id}`;
           localStorage.setItem(userBancaKey, userConfig.banca.toString());
+          
+          // Sincronizar cache local da porcentagem de risco
+          const userRiskKey = `ev_tracker_max_risk_pct_${user.id}`;
+          localStorage.setItem(userRiskKey, (userConfig.riskPct / 100).toString());
           
           fetchSuccess = true;
         } catch (err) {
@@ -367,6 +379,32 @@ export default function SettingsPage() {
                 <small style={{ color: '#666', marginTop: '8px', display: 'block' }}>
                   Você só receberá alertas de palpites que tenham uma vantagem matemática de pelo menos {userConfig.minEV}%.
                 </small>
+              </div>
+
+              <hr style={{ border: '0', borderTop: '1px solid #222' }} />
+
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <label style={{ fontWeight: 'bold', color: '#fff' }}>Porcentagem de Risco Máximo da Banca</label>
+                  <span style={{ background: 'var(--brand-neon)', color: '#000', padding: '2px 10px', borderRadius: '20px', fontWeight: 'bold', fontSize: '0.85rem' }}>
+                    {userConfig.riskPct}% por aposta
+                  </span>
+                </div>
+                <input 
+                  type="range" 
+                  min="1" 
+                  max="10" 
+                  step="0.5"
+                  value={userConfig.riskPct} 
+                  onChange={(e) => setUserConfig(prev => ({ ...prev, riskPct: Number(e.target.value) }))}
+                  style={{ width: '100%', accentColor: 'var(--brand-neon)', cursor: 'pointer' }} 
+                />
+                <div style={{ background: 'rgba(204, 255, 0, 0.05)', border: '1px solid rgba(204, 255, 0, 0.2)', padding: '10px 14px', borderRadius: '8px', marginTop: '10px', fontSize: '0.82rem', color: '#ccc', display: 'flex', gap: '8px', alignItems: 'center' }}>
+                  <Info size={16} color="var(--brand-neon)" style={{ flexShrink: 0 }} />
+                  <span>
+                    <strong>Sugestão do Sistema:</strong> O valor ideal recomendado é <strong>5.0% (Half-Kelly)</strong> para otimizar o crescimento de banca com risco controlado de quebra.
+                  </span>
+                </div>
               </div>
             </div>
           </div>

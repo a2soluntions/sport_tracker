@@ -15,8 +15,7 @@ function getAdminSupabase() {
 }
 
 const PLANS = {
-  pro: { name: 'PRO', price: 19.90 },
-  vip: { name: 'VIP Elite', price: 49.90 }
+  vip: { name: 'VIP', price: 9.90 }
 };
 
 export async function POST(request) {

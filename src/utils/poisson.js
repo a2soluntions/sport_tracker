@@ -251,7 +251,8 @@ export function calculateDynamicHandicapProb(scoreMatrix, isHome, line) {
   };
 
   // Check if quarter line (ends in .25 or .75)
-  const isQuarter = Math.abs(Math.round(lineVal * 100)) % 50 !== 0;
+  const remainder = Math.abs(lineVal) % 0.5;
+  const isQuarter = Math.abs(remainder - 0.25) < 0.01;
 
   if (isQuarter) {
     const line1 = lineVal - 0.25;

@@ -1,0 +1,128 @@
+{
+  "default": {
+    "corners_avg": 9.8,
+    "corners_against_avg": 4.5,
+    "yellow_cards_avg": 2.3,
+    "red_cards_avg": 0.12
+  },
+  "Flamengo": {
+    "corners_avg": 6.2,
+    "corners_against_avg": 3.8,
+    "yellow_cards_avg": 1.9,
+    "red_cards_avg": 0.08
+  },
+  "Palmeiras": {
+    "corners_avg": 5.9,
+    "corners_against_avg": 4.1,
+    "yellow_cards_avg": 2.1,
+    "red_cards_avg": 0.10
+  },
+  "São Paulo": {
+    "corners_avg": 5.4,
+    "corners_against_avg": 4.3,
+    "yellow_cards_avg": 2.4,
+    "red_cards_avg": 0.11
+  },
+  "Corinthians": {
+    "corners_avg": 4.9,
+    "corners_against_avg": 4.8,
+    "yellow_cards_avg": 2.6,
+    "red_cards_avg": 0.15
+  },
+  "Fluminense": {
+    "corners_avg": 5.1,
+    "corners_against_avg": 4.6,
+    "yellow_cards_avg": 2.5,
+    "red_cards_avg": 0.13
+  },
+  "Vasco": {
+    "corners_avg": 4.8,
+    "corners_against_avg": 5.1,
+    "yellow_cards_avg": 2.8,
+    "red_cards_avg": 0.14
+  },
+  "Botafogo": {
+    "corners_avg": 5.6,
+    "corners_against_avg": 4.2,
+    "yellow_cards_avg": 2.2,
+    "red_cards_avg": 0.09
+  },
+  "Santos": {
+    "corners_avg": 5.0,
+    "corners_against_avg": 4.5,
+    "yellow_cards_avg": 2.3,
+    "red_cards_avg": 0.12
+  },
+  "Grêmio": {
+    "corners_avg": 5.2,
+    "corners_against_avg": 4.7,
+    "yellow_cards_avg": 2.4,
+    "red_cards_avg": 0.12
+  },
+  "Internacional": {
+    "corners_avg": 5.3,
+    "corners_against_avg": 4.4,
+    "yellow_cards_avg": 2.2,
+    "red_cards_avg": 0.11
+  },
+  "Cruzeiro": {
+    "corners_avg": 5.1,
+    "corners_against_avg": 4.5,
+    "yellow_cards_avg": 2.3,
+    "red_cards_avg": 0.10
+  },
+  "Atlético-MG": {
+    "corners_avg": 5.7,
+    "corners_against_avg": 4.0,
+    "yellow_cards_avg": 2.2,
+    "red_cards_avg": 0.10
+  },
+  "Athletico-PR": {
+    "corners_avg": 5.5,
+    "corners_against_avg": 4.2,
+    "yellow_cards_avg": 2.4,
+    "red_cards_avg": 0.11
+  },
+  "Bahia": {
+    "corners_avg": 5.2,
+    "corners_against_avg": 4.6,
+    "yellow_cards_avg": 2.3,
+    "red_cards_avg": 0.09
+  },
+  "Fortaleza": {
+    "corners_avg": 5.4,
+    "corners_against_avg": 4.3,
+    "yellow_cards_avg": 2.1,
+    "red_cards_avg": 0.08
+  },
+  "Cuiabá": {
+    "corners_avg": 4.5,
+    "corners_against_avg": 5.2,
+    "yellow_cards_avg": 2.6,
+    "red_cards_avg": 0.12
+  },
+  "Atlético-GO": {
+    "corners_avg": 4.7,
+    "corners_against_avg": 5.0,
+    "yellow_cards_avg": 2.7,
+    "red_cards_avg": 0.14
+  },
+  "CRB": {
+    "corners_avg": 4.4,
+    "corners_against_avg": 5.3,
+    "yellow_cards_avg": 2.8,
+    "red_cards_avg": 0.15
+  },
+  "Canada": {
+    "corners_avg": 5.0,
+    "corners_against_avg": 4.2,
+    "yellow_cards_avg": 1.8,
+    "red_cards_avg": 0.05
+  },
+  "Bosnia & Herzegovina": {
+    "corners_avg": 4.3,
+    "corners_against_avg": 5.1,
+    "yellow_cards_avg": 2.5,
+    "red_cards_avg": 0.12
+  }
+}

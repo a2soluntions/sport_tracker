@@ -111,6 +111,9 @@ export default function ResponsiveDashboard() {
   const [banca, setBanca] = useState(0);
   const [opportunities, setOpportunities] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [hiddenOpps, setHiddenOpps] = useState([]);
+  const [followedOpps, setFollowedOpps] = useState([]);
+  const [riskPct, setRiskPct] = useState(0.05); // default 5%
   
   // Modal Edit Banca
   const [showModal, setShowModal] = useState(false);
@@ -146,6 +149,30 @@ export default function ResponsiveDashboard() {
       } else {
         setInitialValue(1000);
         localStorage.setItem(userBancaKey, '1000');
+      }
+
+      const userRiskKey = `ev_tracker_max_risk_pct_${user.id}`;
+      const savedRisk = localStorage.getItem(userRiskKey);
+      if (savedRisk) {
+        setRiskPct(parseFloat(savedRisk));
+      } else {
+        setRiskPct(0.05);
+      }
+
+      const userHiddenKey = `ev_tracker_hidden_opps_${user.id}`;
+      const savedHidden = localStorage.getItem(userHiddenKey);
+      if (savedHidden) {
+        try {
+          setHiddenOpps(JSON.parse(savedHidden));
+        } catch (e) {}
+      }
+
+      const userFollowedKey = `ev_tracker_followed_opps_${user.id}`;
+      const savedFollowed = localStorage.getItem(userFollowedKey);
+      if (savedFollowed) {
+        try {
+          setFollowedOpps(JSON.parse(savedFollowed));
+        } catch (e) {}
       }
     };
     loadInitialValue();
@@ -322,8 +349,11 @@ export default function ResponsiveDashboard() {
 
   const activeOpportunities = useMemo(() => {
     const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
-    return opportunities.filter(opp => new Date(opp.created_at) > twelveHoursAgo);
-  }, [opportunities]);
+    return opportunities.filter(opp => 
+      new Date(opp.created_at) > twelveHoursAgo && 
+      !hiddenOpps.includes(opp.id)
+    );
+  }, [opportunities, hiddenOpps]);
 
   // Simulate Terminal Logs activity
   useEffect(() => {
@@ -362,12 +392,92 @@ export default function ResponsiveDashboard() {
     const qWin = 1 - pWin;
     const kellyFraction = (b * pWin - qWin) / b;
     
-    // Half-Kelly limit to 5% max
+    // Use user-defined riskPct or default 5% (Half-Kelly suggestion)
     let suggestedPct = (kellyFraction / 2);
-    if (suggestedPct > 0.05) suggestedPct = 0.05;
+    const maxRisk = riskPct || 0.05;
+    if (suggestedPct > maxRisk) suggestedPct = maxRisk;
     if (suggestedPct < 0.005) suggestedPct = 0.005; // min 0.5%
     
     return banca * suggestedPct;
+  };
+
+  const handleHideOpportunity = (oppId) => {
+    if (!user) return;
+    const updated = [...hiddenOpps, oppId];
+    setHiddenOpps(updated);
+    localStorage.setItem(`ev_tracker_hidden_opps_${user.id}`, JSON.stringify(updated));
+    
+    // Log event to terminal
+    const now = new Date().toLocaleTimeString('pt-BR');
+    setTerminalLogs(curr => [
+      ...curr,
+      { time: now, text: `👁️ DASHBOARD: Oportunidade ID ${oppId} ocultada pelo usuário.` }
+    ].slice(-50));
+  };
+
+  const handleFollowSignal = async (opp) => {
+    if (!user) return;
+    const stake = calculateKelly(opp.odd_oferecida, opp.odd_justa);
+    const newTx = {
+      date: new Date().toISOString().split('T')[0],
+      type: 'pendente',
+      amount: parseFloat(stake.toFixed(2)),
+      description: `[Sinal Seguido] ${opp.confronto} (${opp.mercado})`,
+      odd: parseFloat(opp.odd_oferecida)
+    };
+
+    let success = false;
+    let savedTx = null;
+    const userTxsKey = `ev_tracker_banca_txs_${user.id}`;
+    const userTxIdsKey = `ev_tracker_user_tx_ids_${user.id}`;
+
+    if (supabase) {
+      try {
+        const { data, error } = await supabase
+          .from('banca_transactions')
+          .insert([{ ...newTx, user_id: user.id }])
+          .select();
+        
+        if (error) throw error;
+        if (data && data.length > 0) {
+          savedTx = data[0];
+          success = true;
+          const userTxIds = JSON.parse(localStorage.getItem(userTxIdsKey) || '[]');
+          userTxIds.push(savedTx.id);
+          localStorage.setItem(userTxIdsKey, JSON.stringify(userTxIds));
+        }
+      } catch (err) {
+        console.warn("Erro ao salvar transação no Supabase, usando LocalStorage:", err);
+      }
+    }
+
+    if (!success) {
+      savedTx = { id: Date.now(), ...newTx };
+      const savedTxs = localStorage.getItem(userTxsKey);
+      let txList = [];
+      if (savedTxs) {
+        try {
+          txList = JSON.parse(savedTxs);
+        } catch (e) {}
+      }
+      txList = [savedTx, ...txList];
+      localStorage.setItem(userTxsKey, JSON.stringify(txList));
+    }
+
+    // Atualizar seguidos
+    const updatedFollowed = [...followedOpps, opp.id];
+    setFollowedOpps(updatedFollowed);
+    localStorage.setItem(`ev_tracker_followed_opps_${user.id}`, JSON.stringify(updatedFollowed));
+
+    // Atualizar banca
+    await fetchTransactions();
+
+    // Log event to terminal
+    const now = new Date().toLocaleTimeString('pt-BR');
+    setTerminalLogs(curr => [
+      ...curr,
+      { time: now, text: `💰 CARTEIRA: Seguindo sinal de ${opp.confronto}. Aposta de R$ ${stake.toFixed(2)} registrada.` }
+    ].slice(-50));
   };
 
   const getStatusColor = (oddJusta, oddMercado) => {
@@ -735,10 +845,16 @@ export default function ResponsiveDashboard() {
 
                       {/* Botões Brutalistas */}
                       <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
-                        <button className="btn-brutalist-neon" style={{ flex: 1, padding: '10px 14px', fontSize: '0.8rem' }}>
-                          💰 SEGUIR SINAL
-                        </button>
-                        <button className="btn-brutalist-danger" style={{ width: 'auto', padding: '10px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        {followedOpps.includes(opp.id) ? (
+                          <button className="btn-brutalist-neon" style={{ flex: 1, padding: '10px 14px', fontSize: '0.8rem', opacity: 0.6, cursor: 'not-allowed', background: '#333', color: '#888', border: '1px solid #444' }} disabled>
+                            ✅ SEGUIDO
+                          </button>
+                        ) : (
+                          <button onClick={() => handleFollowSignal(opp)} className="btn-brutalist-neon" style={{ flex: 1, padding: '10px 14px', fontSize: '0.8rem' }}>
+                            💰 SEGUIR SINAL
+                          </button>
+                        )}
+                        <button onClick={() => handleHideOpportunity(opp.id)} className="btn-brutalist-danger" style={{ width: 'auto', padding: '10px 14px', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                           OCULTAR
                         </button>
                       </div>

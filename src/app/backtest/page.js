@@ -761,30 +761,100 @@ export default function RelatorioApostasPage() {
       
       {/* Print styles */}
       <style dangerouslySetInnerHTML={{ __html: `
+        @page {
+          size: A4 portrait;
+          margin: 15mm 15mm 15mm 15mm;
+        }
         @media print {
+          html, body, .app-container, .main-content, .table-responsive-container, 
+          [class*="app-container"], [class*="main-content"], [class*="app_container"], [class*="main_content"] {
+            overflow: visible !important;
+            height: auto !important;
+            min-height: auto !important;
+            max-height: none !important;
+          }
           body {
             background: #ffffff !important;
             color: #000000 !important;
+            font-size: 11pt !important;
+            padding: 0 !important;
+            margin: 0 !important;
           }
-          header, button, select, nav, aside, .no-print {
+          header, button, select, nav, aside, .no-print,
+          [class*="mobileHeader"], [class*="bottomNav"], [class*="sidebar"] {
             display: none !important;
+            height: 0 !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            position: absolute !important;
+            visibility: hidden !important;
+          }
+          .main-content {
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          .main-content > div {
+            padding: 0 !important;
+            margin: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+          }
+          /* Grid de KPIs lado a lado na impressão */
+          .grid-responsive-cards {
+            display: grid !important;
+            grid-template-columns: repeat(4, 1fr) !important;
+            gap: 12px !important;
+            margin-bottom: 20px !important;
+          }
+          /* Gráficos um abaixo do outro na impressão para evitar sobreposição */
+          .backtest-charts-grid {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 20px !important;
+            margin-bottom: 20px !important;
+            page-break-inside: avoid;
+          }
+          .responsive-chart-wrapper {
+            width: 100% !important;
+            height: 250px !important;
           }
           .glass-panel {
             background: #ffffff !important;
             color: #000000 !important;
-            border: 1px solid #ccc !important;
+            border: 1px solid #e2e8f0 !important;
             box-shadow: none !important;
+            border-radius: 8px !important;
+            padding: 12px !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
           h1, h2, h3, p, div, span, td, th {
             color: #000000 !important;
           }
+          /* Forçar cores de gráficos na impressão */
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
           table {
             border-collapse: collapse;
             width: 100% !important;
+            page-break-inside: auto;
+          }
+          tr {
+            page-break-inside: avoid;
+            page-break-after: auto;
           }
           th, td {
-            border: 1px solid #666 !important;
+            border-bottom: 1px solid #e2e8f0 !important;
             padding: 8px !important;
+          }
+          th {
+            background-color: #f8fafc !important;
+            font-weight: bold !important;
           }
         }
       `}} />

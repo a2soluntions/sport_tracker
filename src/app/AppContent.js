@@ -27,6 +27,20 @@ export default function AppContent({ children }) {
         }
       })
       .catch(err => console.warn('Erro ao checar versão inicial:', err));
+
+    // Rastreamento automático de visitante único (Baseado em localStorage)
+    if (typeof window !== 'undefined') {
+      const isUnique = !localStorage.getItem('ev_tracker_unique_visited');
+      if (isUnique) {
+        fetch('/api/track-visit', { method: 'POST' })
+          .then(res => {
+            if (res.ok) {
+              localStorage.setItem('ev_tracker_unique_visited', 'true');
+            }
+          })
+          .catch(err => console.warn('Erro ao registrar visita:', err));
+      }
+    }
   }, []);
 
   // Se estiver carregando a sessão, mostra spinner brutalista

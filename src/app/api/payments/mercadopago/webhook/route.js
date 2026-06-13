@@ -50,19 +50,85 @@ export async function POST(request) {
         
         const supabase = getAdminSupabase();
         if (supabase && userId && planKey) {
+          let profileData = {
+            id: userId,
+            plan: planKey,
+            coupon_code: couponCode || null,
+            updated_at: new Date().toISOString()
+          };
+
+          const isTelegramUser = userId.startsWith('tg_');
+          if (isTelegramUser) {
+            profileData.email = `${userId}@oddsentry.com`;
+            profileData.name = 'Cliente Telegram';
+            profileData.role = 'user';
+          }
+
           const { error } = await supabase
             .from('profiles')
-            .update({
-              plan: planKey,
-              coupon_code: couponCode || null
-            })
-            .eq('id', userId);
+            .upsert(profileData);
 
           if (error) {
-            console.error('[Webhook] Erro ao atualizar perfil no Supabase:', error);
+            console.error('[Webhook] Erro ao atualizar/upsert perfil no Supabase:', error);
             return NextResponse.json({ error: 'Erro ao salvar no banco.' }, { status: 500 });
           } else {
             console.log(`[Webhook] Sucesso: Plano ${planKey} ativado para o usuário ${userId}`);
+            
+            // Se for usuário Telegram, criar suas configurações locais de notificação
+            if (isTelegramUser) {
+              const tgChatId = userId.replace('tg_', '');
+              await supabase
+                .from('user_settings')
+                .upsert({
+                  id: userId,
+                  telegram_chat_id: tgChatId,
+                  receive_telegram: true,
+                  banca: 1000,
+                  min_ev: 5,
+                  alert_prematch: true,
+                  alert_live: true,
+                  updated_at: new Date().toISOString()
+                });
+
+              // Gerar link de convite para o grupo VIP do Telegram
+              const botToken = process.env.TELEGRAM_BOT_TOKEN;
+              const vipGroupId = process.env.TELEGRAM_VIP_CHAT_ID;
+              
+              if (botToken && vipGroupId) {
+                try {
+                  const expireDate = Math.floor(Date.now() / 1000) + 86400; // 24 horas
+                  const inviteRes = await fetch(`https://api.telegram.org/bot${botToken}/createChatInviteLink`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                      chat_id: vipGroupId,
+                      member_limit: 1,
+                      expire_date: expireDate
+                    })
+                  });
+                  const inviteData = await inviteRes.json();
+                  
+                  if (inviteData.ok && inviteData.result?.invite_link) {
+                    const inviteLink = inviteData.result.invite_link;
+                    const message = `🏆 *PAGAMENTO APROVADO!* 🏆\n\nSeu plano *${planKey.toUpperCase()}* foi ativado com sucesso.\n\nAqui está o seu link de convite exclusivo para entrar no nosso Grupo VIP de Sinais:\n👉 [ENTRAR NO GRUPO VIP](${inviteLink})\n\n*(Este link expira em 24h e é válido para apenas uma entrada)*`;
+                    
+                    await fetch(`https://api.telegram.org/bot${botToken}/sendMessage`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({
+                        chat_id: tgChatId,
+                        text: message,
+                        parse_mode: 'Markdown'
+                      })
+                    });
+                  } else {
+                    console.error('[Webhook Telegram] Erro ao criar link de convite:', inviteData);
+                  }
+                } catch (tgErr) {
+                  console.error('[Webhook Telegram] Falha ao enviar convite VIP:', tgErr);
+                }
+              }
+            }
           }
         }
       }

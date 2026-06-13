@@ -27,8 +27,8 @@ export async function POST(request) {
     }
 
     if (!botToken || !chatId) {
-      console.error('Missing Telegram credentials in environment variables');
-      return NextResponse.json({ error: 'Configuração do Telegram ausente no servidor' }, { status: 500 });
+      console.error('Missing Telegram credentials in environment variables', { botToken: !!botToken, chatId: chatId });
+      return NextResponse.json({ error: `Configuração do Telegram ausente no servidor (chatId: ${chatId})` }, { status: 500 });
     }
 
     let finalMessage = '';
@@ -116,10 +116,11 @@ _Palpite gerado pelo Algoritmo de Poisson_ 🤖`;
     }
 
     const data = await response.json();
+    console.log('[Telegram Broadcast] Resolved Chat ID:', chatId, 'API Response:', data);
 
     if (!data.ok) {
       console.error('Telegram API Error:', data);
-      return NextResponse.json({ error: data.description }, { status: 400 });
+      return NextResponse.json({ error: `${data.description} (ChatID: ${chatId})` }, { status: 400 });
     }
 
     return NextResponse.json({ success: true, messageId: data.result.message_id }, { status: 200 });

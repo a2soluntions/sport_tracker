@@ -65,6 +65,11 @@ _Palpite gerado pelo Algoritmo de Poisson_ 🤖`;
       parse_mode: 'Markdown'
     };
 
+    // Se o chat for do supergrupo/fórum VIP, adiciona o ID do tópico Geral (0) por padrão
+    if (chatId === '-1003872261817' || chatId === -1003872261817) {
+      payload.message_thread_id = 0;
+    }
+
     let response;
     
     if (imageUrl && imageUrl.trim()) {
@@ -86,6 +91,9 @@ _Palpite gerado pelo Algoritmo de Poisson_ 🤖`;
         formData.append('chat_id', chatId);
         formData.append('parse_mode', 'Markdown');
         formData.append('caption', finalMessage);
+        if (chatId === '-1003872261817' || chatId === -1003872261817) {
+          formData.append('message_thread_id', '0');
+        }
         
         // O construtor do Blob do Node (Next.js server side) aceita buffers
         const blob = new Blob([buffer], { type: contentType });

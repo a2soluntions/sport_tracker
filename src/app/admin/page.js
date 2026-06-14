@@ -134,9 +134,59 @@ export default function AdminDashboard() {
   const [newHourInput, setNewHourInput] = useState('');
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [palpitesBotEnabled, setPalpitesBotEnabled] = useState(false);
-  const [palpitesHours, setPalpitesHours] = useState(['12:00']);
-  const [palpitesLeagues, setPalpitesLeagues] = useState([]);
-  const [newPalpitesHourInput, setNewPalpitesHourInput] = useState('');
+  const [palpitesSchedules, setPalpitesSchedules] = useState([]);
+  const [palpitesHourInput, setPalpitesHourInput] = useState('');
+  const [palpitesSelectedLeagues, setPalpitesSelectedLeagues] = useState([]);
+
+  // Time auto-format mask helper
+  const handleTimeChange = (e, setter) => {
+    let val = e.target.value.replace(/\D/g, '');
+    if (val.length > 4) val = val.slice(0, 4);
+    
+    // Validate hours
+    if (val.length >= 2) {
+      let hh = parseInt(val.slice(0, 2));
+      if (hh > 23) hh = 23;
+      val = String(hh).padStart(2, '0') + val.slice(2);
+    }
+    // Validate minutes
+    if (val.length === 4) {
+      let mm = parseInt(val.slice(2, 4));
+      if (mm > 59) mm = 59;
+      val = val.slice(0, 2) + String(mm).padStart(2, '0');
+    }
+    
+    if (val.length > 2) {
+      setter(`${val.slice(0, 2)}:${val.slice(2)}`);
+    } else {
+      setter(val);
+    }
+  };
+
+  const handleTimeBlur = (value, setter) => {
+    let val = value.replace(/\D/g, '');
+    if (!val) return;
+    
+    if (val.length === 1) {
+      setter(`0${val}:00`);
+    } else if (val.length === 2) {
+      let hh = parseInt(val);
+      if (hh > 23) hh = 23;
+      setter(`${String(hh).padStart(2, '0')}:00`);
+    } else if (val.length === 3) {
+      let hh = parseInt(val.slice(0, 2));
+      if (hh > 23) hh = 23;
+      let mm = parseInt(val.slice(2) + '0');
+      if (mm > 59) mm = 59;
+      setter(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
+    } else if (val.length === 4) {
+      let hh = parseInt(val.slice(0, 2));
+      if (hh > 23) hh = 23;
+      let mm = parseInt(val.slice(2, 4));
+      if (mm > 59) mm = 59;
+      setter(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
+    }
+  };
   const [dispatchHistory, setDispatchHistory] = useState([]);
   const [companyInfo, setCompanyInfo] = useState({
     cnpj_cpf: '',
@@ -218,7 +268,7 @@ export default function AdminDashboard() {
     }
   }, [activeTab, oppsPage, oppsLimit, filterDate, filterLeague, sortEV]);
 
-  const handleSaveTelegramSettings = async () => {
+  const handleSaveEVSettings = async () => {
     try {
       setIsSavingSettings(true);
       
@@ -237,32 +287,63 @@ export default function AdminDashboard() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'telegram_bot_hours', value: botHours })
       });
-      const res4 = await adminFetch('/api/admin/settings', {
+
+      if (res1.ok && res2.ok && res3.ok) {
+        showNotification('Configurações do Robô EV salvas com sucesso!', 'success');
+      } else {
+        showNotification('Erro ao salvar configurações do Robô EV.', 'error');
+      }
+    } catch (err) {
+      console.error('Erro ao salvar configurações EV:', err);
+      showNotification('Falha de rede ao salvar configurações', 'error');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const handleSavePalpitesSettings = async () => {
+    try {
+      setIsSavingSettings(true);
+      
+      const res1 = await adminFetch('/api/admin/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'telegram_palpites_enabled', value: palpitesBotEnabled })
       });
-      const res5 = await adminFetch('/api/admin/settings', {
+      const res2 = await adminFetch('/api/admin/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'telegram_palpites_hours', value: palpitesHours })
-      });
-      const res6 = await adminFetch('/api/admin/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'telegram_palpites_leagues', value: palpitesLeagues })
+        body: JSON.stringify({ key: 'telegram_palpites_schedules', value: palpitesSchedules })
       });
 
-      if (res1.ok && res2.ok && res3.ok && res4.ok && res5.ok && res6.ok) {
-        showNotification('Configurações do Telegram salvas com sucesso!', 'success');
+      if (res1.ok && res2.ok) {
+        showNotification('Configurações de Palpites salvas com sucesso!', 'success');
       } else {
-        showNotification('Erro ao salvar algumas configurações.', 'error');
+        showNotification('Erro ao salvar configurações de Palpites.', 'error');
       }
     } catch (err) {
-      console.error('Erro ao salvar configurações:', err);
+      console.error('Erro ao salvar configurações de Palpites:', err);
       showNotification('Falha de rede ao salvar configurações', 'error');
     } finally {
       setIsSavingSettings(false);
+    }
+  };
+
+  const savePalpitesSchedulesDirectly = async (newSchedules) => {
+    try {
+      const res = await adminFetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'telegram_palpites_schedules', value: newSchedules })
+      });
+      if (res.ok) {
+        showNotification('Histórico de agendamentos atualizado e salvo!', 'success');
+      } else {
+        showNotification('Erro ao salvar agendamentos na nuvem.', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Falha ao conectar para salvar agendamentos.', 'error');
     }
   };
 
@@ -555,8 +636,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
           if (settings.telegram_bot_min_ev !== undefined) setBotMinEv(settings.telegram_bot_min_ev);
           if (settings.telegram_bot_hours !== undefined) setBotHours(settings.telegram_bot_hours);
           if (settings.telegram_palpites_enabled !== undefined) setPalpitesBotEnabled(settings.telegram_palpites_enabled);
-          if (settings.telegram_palpites_hours !== undefined) setPalpitesHours(settings.telegram_palpites_hours);
-          if (settings.telegram_palpites_leagues !== undefined) setPalpitesLeagues(settings.telegram_palpites_leagues);
+          if (settings.telegram_palpites_schedules !== undefined) setPalpitesSchedules(settings.telegram_palpites_schedules);
           if (settings.company_info) {
             setCompanyInfo(prev => ({ ...prev, ...settings.company_info }));
           }
@@ -3678,7 +3758,8 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                         type="text"
                         placeholder="HH:MM (ex: 14:30)"
                         value={newHourInput}
-                        onChange={(e) => setNewHourInput(e.target.value)}
+                        onChange={(e) => handleTimeChange(e, setNewHourInput)}
+                        onBlur={(e) => handleTimeBlur(e.target.value, setNewHourInput)}
                         style={{
                           flex: 1,
                           background: '#0a0a0f',
@@ -3747,6 +3828,29 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                       ))}
                     </div>
                   </div>
+
+                  <button
+                    onClick={handleSaveEVSettings}
+                    disabled={isSavingSettings}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid var(--brand-neon)',
+                      color: 'var(--brand-neon)',
+                      padding: '6px',
+                      borderRadius: '4px',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem',
+                      transition: 'all 0.2s',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '4px',
+                      marginTop: '2px'
+                    }}
+                  >
+                    💾 Salvar Configurações de EV
+                  </button>
                 </div>
 
                 <div style={{ borderTop: '1px solid #222', margin: '4px 0' }}></div>
@@ -3786,17 +3890,19 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                     </button>
                   </div>
 
-                  {/* HORARIOS PROGRAMADOS PALPITES */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  {/* HORARIO PROGRAMADOS PALPITES E SELEÇÃO LIGAS */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: '#0a0a0f', padding: '10px', borderRadius: '6px', border: '1px solid #1a1a24' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff' }}>Novo Agendamento:</div>
                     <div style={{ display: 'flex', gap: '6px' }}>
                       <input
                         type="text"
                         placeholder="HH:MM (ex: 12:00)"
-                        value={newPalpitesHourInput}
-                        onChange={(e) => setNewPalpitesHourInput(e.target.value)}
+                        value={palpitesHourInput}
+                        onChange={(e) => handleTimeChange(e, setPalpitesHourInput)}
+                        onBlur={(e) => handleTimeBlur(e.target.value, setPalpitesHourInput)}
                         style={{
                           flex: 1,
-                          background: '#0a0a0f',
+                          background: '#050508',
                           border: '1px solid #222',
                           borderRadius: '4px',
                           color: '#fff',
@@ -3807,17 +3913,32 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                       />
                       <button
                         onClick={() => {
-                          const val = newPalpitesHourInput.trim();
-                          if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val)) {
-                            if (!palpitesHours.includes(val)) {
-                              setPalpitesHours([...palpitesHours, val].sort());
-                              setNewPalpitesHourInput('');
-                            } else {
-                              showNotification('Horário já cadastrado', 'info');
-                            }
-                          } else {
+                          const val = palpitesHourInput.trim();
+                          if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val)) {
                             showNotification('Formato inválido (Use HH:MM)', 'error');
+                            return;
                           }
+                          if (palpitesSelectedLeagues.length === 0) {
+                            showNotification('Selecione pelo menos uma liga para este horário', 'error');
+                            return;
+                          }
+                          // Evitar duplicados no mesmo horário
+                          if (palpitesSchedules.some(s => s.hour === val)) {
+                            showNotification('Já existe um agendamento para este horário', 'error');
+                            return;
+                          }
+                          
+                          const newSched = {
+                            id: Date.now().toString(),
+                            hour: val,
+                            leagues: [...palpitesSelectedLeagues]
+                          };
+                          
+                          const updated = [...palpitesSchedules, newSched].sort((a,b) => a.hour.localeCompare(b.hour));
+                          setPalpitesSchedules(updated);
+                          setPalpitesHourInput('');
+                          setPalpitesSelectedLeagues([]);
+                          savePalpitesSchedulesDirectly(updated);
                         }}
                         style={{
                           background: '#1a1a24',
@@ -3830,63 +3951,33 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                           cursor: 'pointer'
                         }}
                       >
-                        Add
+                        Agendar
                       </button>
                     </div>
 
-                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                      {palpitesHours.map((hr, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            background: '#1a1a24',
-                            border: '1px solid #222',
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            fontSize: '0.7rem',
-                            color: '#fff',
-                            fontFamily: 'monospace'
-                          }}
-                        >
-                          <span>{hr}</span>
-                          <button
-                            onClick={() => setPalpitesHours(palpitesHours.filter(h => h !== hr))}
-                            style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold' }}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* SELEÇÃO DE LIGAS PALPITES */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ fontSize: '0.76rem', color: '#aaa', fontWeight: 'bold' }}>Ligas Ativas para Palpites:</div>
+                    {/* SELEÇÃO DE LIGAS NO CRUADOR DE AGENDAMENTO */}
+                    <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: '4px' }}>Selecionar Ligas do Horário:</div>
                     <div style={{ 
                       display: 'grid', 
                       gridTemplateColumns: '1fr 1fr', 
-                      gap: '6px', 
-                      maxHeight: '120px', 
+                      gap: '4px', 
+                      maxHeight: '100px', 
                       overflowY: 'auto', 
                       border: '1px solid #222', 
-                      padding: '8px', 
-                      borderRadius: '6px', 
-                      background: '#0a0a0f' 
+                      padding: '6px', 
+                      borderRadius: '4px', 
+                      background: '#050508' 
                     }} className="custom-scrollbar">
                       {ligasSaaS.map(liga => {
-                        const isSelected = palpitesLeagues.includes(String(liga.id));
+                        const isSelected = palpitesSelectedLeagues.includes(String(liga.id));
                         return (
                           <label 
                             key={liga.id} 
                             style={{ 
                               display: 'flex', 
                               alignItems: 'center', 
-                              gap: '6px', 
-                              fontSize: '0.72rem', 
+                              gap: '4px', 
+                              fontSize: '0.7rem', 
                               color: isSelected ? '#00d2ff' : '#666', 
                               cursor: 'pointer',
                               userSelect: 'none'
@@ -3897,9 +3988,9 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                               checked={isSelected}
                               onChange={() => {
                                 if (isSelected) {
-                                  setPalpitesLeagues(palpitesLeagues.filter(id => id !== String(liga.id)));
+                                  setPalpitesSelectedLeagues(palpitesSelectedLeagues.filter(id => id !== String(liga.id)));
                                 } else {
-                                  setPalpitesLeagues([...palpitesLeagues, String(liga.id)]);
+                                  setPalpitesSelectedLeagues([...palpitesSelectedLeagues, String(liga.id)]);
                                 }
                               }}
                               style={{ accentColor: '#00d2ff', cursor: 'pointer' }}
@@ -3910,15 +4001,70 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                       })}
                     </div>
                   </div>
+
+                  {/* HISTÓRICO DE DESPACHO VIP / AGENDADOS */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid #222', paddingTop: '8px' }}>
+                    <div style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 'bold' }}>Histórico de Despacho VIP:</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '150px', overflowY: 'auto' }} className="custom-scrollbar">
+                      {palpitesSchedules.length === 0 ? (
+                        <div style={{ fontSize: '0.72rem', color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '12px' }}>
+                          Nenhum agendamento cadastrado.
+                        </div>
+                      ) : (
+                        palpitesSchedules.map(sched => (
+                          <div 
+                            key={sched.id} 
+                            style={{ 
+                              display: 'flex', 
+                              justifyContent: 'space-between', 
+                              alignItems: 'center', 
+                              background: '#0a0a0f', 
+                              border: '1px solid #222', 
+                              padding: '6px 8px', 
+                              borderRadius: '4px' 
+                            }}
+                          >
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxWidth: '85%' }}>
+                              <span style={{ fontSize: '0.78rem', color: '#00d2ff', fontFamily: 'monospace', fontWeight: 'bold' }}>
+                                ⏱️ {sched.hour}
+                              </span>
+                              <span style={{ fontSize: '0.7rem', color: '#ccc', wordBreak: 'break-word' }}>
+                                {sched.leagues.map(id => ligasSaaS.find(l => String(l.id) === String(id))?.name || id).join(', ')}
+                              </span>
+                            </div>
+                            <button
+                              onClick={() => {
+                                const updated = palpitesSchedules.filter(s => s.id !== sched.id);
+                                setPalpitesSchedules(updated);
+                                savePalpitesSchedulesDirectly(updated);
+                              }}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#ff4d4d',
+                                cursor: 'pointer',
+                                fontSize: '0.7rem',
+                                fontWeight: 'bold',
+                                padding: '4px'
+                              }}
+                              title="Remover agendamento"
+                            >
+                              Excluir
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
 
                 <button
-                  onClick={handleSaveTelegramSettings}
+                  onClick={handleSavePalpitesSettings}
                   disabled={isSavingSettings}
                   style={{
                     background: 'transparent',
-                    border: '1px solid var(--brand-neon)',
-                    color: 'var(--brand-neon)',
+                    border: '1px solid #00d2ff',
+                    color: '#00d2ff',
                     padding: '8px',
                     borderRadius: '6px',
                     fontWeight: 'bold',
@@ -3931,8 +4077,14 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                     justifyContent: 'center',
                     gap: '6px'
                   }}
+                  onMouseEnter={e => {
+                    e.currentTarget.style.background = 'rgba(0, 210, 255, 0.15)';
+                  }}
+                  onMouseLeave={e => {
+                    e.currentTarget.style.background = 'transparent';
+                  }}
                 >
-                  {isSavingSettings ? 'Salvando...' : '💾 Salvar Configurações'}
+                  {isSavingSettings ? 'Salvando...' : '💾 Salvar Configurações de Palpites'}
                 </button>
               </div>
 

@@ -27,11 +27,13 @@ function isTimeActive(scheduledStr, currentHour, currentMinute) {
   }
 }
 
-export async function POST(request) {
+async function handleDispatch(request) {
   try {
-    // 1. Verify Authorization (Bearer process.env.SUPABASE_SERVICE_ROLE_KEY)
+    // 1. Verify Authorization (Bearer process.env.SUPABASE_SERVICE_ROLE_KEY) or x-vercel-cron header
     const authHeader = request.headers.get('authorization');
-    if (authHeader !== `Bearer ${supabaseServiceKey}`) {
+    const isCron = request.headers.get('x-vercel-cron') === 'true';
+
+    if (authHeader !== `Bearer ${supabaseServiceKey}` && !isCron) {
       return NextResponse.json({ error: 'Acesso não autorizado' }, { status: 401 });
     }
 
@@ -90,16 +92,20 @@ export async function POST(request) {
 
     // 4. Handle Palpites automatic dispatch
     const palpitesEnabled = settings.telegram_palpites_enabled === true;
-    const palpitesHours = settings.telegram_palpites_hours || [];
-    const palpitesLeagues = settings.telegram_palpites_leagues || [];
+    const palpitesSchedules = settings.telegram_palpites_schedules || [];
 
-    if (palpitesEnabled && palpitesHours.length > 0 && palpitesLeagues.length > 0) {
-      for (const scheduledHour of palpitesHours) {
+    if (palpitesEnabled && palpitesSchedules.length > 0) {
+      for (const sched of palpitesSchedules) {
+        const scheduledHour = sched.hour;
+        const schedLeagues = (sched.leagues || []).map(String);
+        
+        if (schedLeagues.length === 0) continue;
+
         const isActive = isTimeActive(scheduledHour, currentHour, currentMinute);
         const alreadyRunToday = (lastRuns.palpites[todayDateStr] || []).includes(scheduledHour);
 
         if (isActive && !alreadyRunToday) {
-          console.log(`[Auto-Dispatch] Triggering Palpites for hour: ${scheduledHour}`);
+          console.log(`[Auto-Dispatch] Triggering Palpites for hour: ${scheduledHour} with leagues:`, schedLeagues);
 
           // Fetch fixtures for today
           const origin = request.nextUrl.origin;
@@ -113,10 +119,10 @@ export async function POST(request) {
             // Filter fixtures by selected leagues and today's dayCategory
             const todayGames = allFixtures.filter(g => 
               g.dayCategory === 'HOJE' && 
-              palpitesLeagues.includes(String(g.sourceLeagueId || ''))
+              schedLeagues.includes(String(g.sourceLeagueId || ''))
             );
 
-            checkedPalpitesCount = todayGames.length;
+            checkedPalpitesCount += todayGames.length;
 
             if (todayGames.length > 0) {
               const botToken = process.env.TELEGRAM_BOT_TOKEN;
@@ -190,4 +196,12 @@ export async function POST(request) {
     console.error('[Auto-Dispatch] Error:', err);
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
+}
+
+export async function GET(request) {
+  return handleDispatch(request);
+}
+
+export async function POST(request) {
+  return handleDispatch(request);
 }

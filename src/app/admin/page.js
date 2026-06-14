@@ -133,6 +133,10 @@ export default function AdminDashboard() {
   const [botHours, setBotHours] = useState(['10:00', '14:00', '18:00']);
   const [newHourInput, setNewHourInput] = useState('');
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+  const [palpitesBotEnabled, setPalpitesBotEnabled] = useState(false);
+  const [palpitesHours, setPalpitesHours] = useState(['12:00']);
+  const [palpitesLeagues, setPalpitesLeagues] = useState([]);
+  const [newPalpitesHourInput, setNewPalpitesHourInput] = useState('');
   const [dispatchHistory, setDispatchHistory] = useState([]);
   const [companyInfo, setCompanyInfo] = useState({
     cnpj_cpf: '',
@@ -214,27 +218,42 @@ export default function AdminDashboard() {
     }
   }, [activeTab, oppsPage, oppsLimit, filterDate, filterLeague, sortEV]);
 
-  const handleSaveTelegramSettings = async (enabled, minEv, hoursList) => {
+  const handleSaveTelegramSettings = async () => {
     try {
       setIsSavingSettings(true);
       
       const res1 = await adminFetch('/api/admin/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'telegram_bot_enabled', value: enabled })
+        body: JSON.stringify({ key: 'telegram_bot_enabled', value: botEnabled })
       });
       const res2 = await adminFetch('/api/admin/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'telegram_bot_min_ev', value: parseFloat(minEv) })
+        body: JSON.stringify({ key: 'telegram_bot_min_ev', value: parseFloat(botMinEv) })
       });
       const res3 = await adminFetch('/api/admin/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'telegram_bot_hours', value: hoursList })
+        body: JSON.stringify({ key: 'telegram_bot_hours', value: botHours })
+      });
+      const res4 = await adminFetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'telegram_palpites_enabled', value: palpitesBotEnabled })
+      });
+      const res5 = await adminFetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'telegram_palpites_hours', value: palpitesHours })
+      });
+      const res6 = await adminFetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'telegram_palpites_leagues', value: palpitesLeagues })
       });
 
-      if (res1.ok && res2.ok && res3.ok) {
+      if (res1.ok && res2.ok && res3.ok && res4.ok && res5.ok && res6.ok) {
         showNotification('Configurações do Telegram salvas com sucesso!', 'success');
       } else {
         showNotification('Erro ao salvar algumas configurações.', 'error');
@@ -535,6 +554,9 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
           if (settings.telegram_bot_enabled !== undefined) setBotEnabled(settings.telegram_bot_enabled);
           if (settings.telegram_bot_min_ev !== undefined) setBotMinEv(settings.telegram_bot_min_ev);
           if (settings.telegram_bot_hours !== undefined) setBotHours(settings.telegram_bot_hours);
+          if (settings.telegram_palpites_enabled !== undefined) setPalpitesBotEnabled(settings.telegram_palpites_enabled);
+          if (settings.telegram_palpites_hours !== undefined) setPalpitesHours(settings.telegram_palpites_hours);
+          if (settings.telegram_palpites_leagues !== undefined) setPalpitesLeagues(settings.telegram_palpites_leagues);
           if (settings.company_info) {
             setCompanyInfo(prev => ({ ...prev, ...settings.company_info }));
           }
@@ -3584,157 +3606,330 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
               {/* CONFIGS DO AGENDAMENTO (MAIS COMPACTO) */}
-              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #222', paddingBottom: '8px' }}>
                   <Clock size={16} color="var(--brand-neon)" />
                   ⏱️ Configuração de Disparos por Horários
                 </h3>
                 
-                {/* LIGA / DESLIGA BOT */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0a0a0f', padding: '8px 12px', borderRadius: '6px', border: '1px solid #1a1a24' }}>
-                  <div>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fff' }}>Robô de Sinais VIP</div>
+                {/* SEÇÃO 1: ALERTA EV */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--brand-neon)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                    1. Alertas de Assimetria EV
                   </div>
-                  <button
-                    onClick={() => setBotEnabled(!botEnabled)}
-                    style={{
-                      width: '44px',
-                      height: '22px',
-                      borderRadius: '11px',
-                      background: botEnabled ? 'var(--brand-neon)' : '#222',
-                      border: 'none',
-                      position: 'relative',
-                      cursor: 'pointer',
-                      transition: 'background 0.2s'
-                    }}
-                  >
-                    <div style={{
-                      width: '18px',
-                      height: '18px',
-                      borderRadius: '50%',
-                      background: botEnabled ? '#000' : '#888',
-                      position: 'absolute',
-                      top: '2px',
-                      left: botEnabled ? '24px' : '2px',
-                      transition: 'all 0.2s'
-                    }} />
-                  </button>
-                </div>
-
-                {/* EV MINIMO SLIDER */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                    <span style={{ color: '#aaa', fontWeight: 'bold' }}>Vantagem Mínima (EV%)</span>
-                    <span style={{ color: 'var(--brand-neon)', fontFamily: 'monospace', fontWeight: 'bold' }}>+{botMinEv.toFixed(1)}%</span>
-                  </div>
-                  <input
-                    type="range"
-                    min="3.0"
-                    max="15.0"
-                    step="0.5"
-                    value={botMinEv}
-                    onChange={(e) => setBotMinEv(parseFloat(e.target.value))}
-                    style={{
-                      width: '100%',
-                      accentColor: 'var(--brand-neon)',
-                      background: '#222',
-                      height: '4px',
-                      borderRadius: '2px',
-                      cursor: 'pointer'
-                    }}
-                  />
-                </div>
-
-                {/* HORARIOS PROGRAMADOS */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid #222', paddingTop: '10px' }}>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <input
-                      type="text"
-                      placeholder="HH:MM (ex: 14:30)"
-                      value={newHourInput}
-                      onChange={(e) => setNewHourInput(e.target.value)}
-                      style={{
-                        flex: 1,
-                        background: '#0a0a0f',
-                        border: '1px solid #222',
-                        borderRadius: '4px',
-                        color: '#fff',
-                        padding: '4px 8px',
-                        fontSize: '0.75rem',
-                        outline: 'none'
-                      }}
-                    />
+                  
+                  {/* LIGA / DESLIGA BOT EV */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0a0a0f', padding: '8px 12px', borderRadius: '6px', border: '1px solid #1a1a24' }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>Robô de Sinais VIP</div>
                     <button
-                      onClick={() => {
-                        const val = newHourInput.trim();
-                        if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val)) {
-                          if (!botHours.includes(val)) {
-                            setBotHours([...botHours, val].sort());
-                            setNewHourInput('');
-                          } else {
-                            showNotification('Horário já cadastrado', 'info');
-                          }
-                        } else {
-                          showNotification('Formato inválido (Use HH:MM)', 'error');
-                        }
-                      }}
+                      onClick={() => setBotEnabled(!botEnabled)}
                       style={{
-                        background: '#1a1a24',
-                        border: '1px solid #333',
-                        color: 'var(--brand-neon)',
-                        padding: '4px 10px',
-                        borderRadius: '4px',
-                        fontSize: '0.75rem',
-                        fontWeight: 'bold',
-                        cursor: 'pointer'
+                        width: '44px',
+                        height: '22px',
+                        borderRadius: '11px',
+                        background: botEnabled ? 'var(--brand-neon)' : '#222',
+                        border: 'none',
+                        position: 'relative',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s'
                       }}
                     >
-                      Add
+                      <div style={{
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        background: botEnabled ? '#000' : '#888',
+                        position: 'absolute',
+                        top: '2px',
+                        left: botEnabled ? '24px' : '2px',
+                        transition: 'all 0.2s'
+                      }} />
                     </button>
                   </div>
 
-                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                    {botHours.map((hr, idx) => (
-                      <div
-                        key={idx}
+                  {/* EV MINIMO SLIDER */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                      <span style={{ color: '#aaa', fontWeight: 'bold' }}>Vantagem Mínima (EV%)</span>
+                      <span style={{ color: 'var(--brand-neon)', fontFamily: 'monospace', fontWeight: 'bold' }}>+{botMinEv.toFixed(1)}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="3.0"
+                      max="15.0"
+                      step="0.5"
+                      value={botMinEv}
+                      onChange={(e) => setBotMinEv(parseFloat(e.target.value))}
+                      style={{
+                        width: '100%',
+                        accentColor: 'var(--brand-neon)',
+                        background: '#222',
+                        height: '4px',
+                        borderRadius: '2px',
+                        cursor: 'pointer'
+                      }}
+                    />
+                  </div>
+
+                  {/* HORARIOS PROGRAMADOS EV */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input
+                        type="text"
+                        placeholder="HH:MM (ex: 14:30)"
+                        value={newHourInput}
+                        onChange={(e) => setNewHourInput(e.target.value)}
                         style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          background: '#1a1a24',
+                          flex: 1,
+                          background: '#0a0a0f',
                           border: '1px solid #222',
-                          padding: '2px 6px',
                           borderRadius: '4px',
-                          fontSize: '0.7rem',
                           color: '#fff',
-                          fontFamily: 'monospace'
+                          padding: '4px 8px',
+                          fontSize: '0.75rem',
+                          outline: 'none'
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          const val = newHourInput.trim();
+                          if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val)) {
+                            if (!botHours.includes(val)) {
+                              setBotHours([...botHours, val].sort());
+                              setNewHourInput('');
+                            } else {
+                              showNotification('Horário já cadastrado', 'info');
+                            }
+                          } else {
+                            showNotification('Formato inválido (Use HH:MM)', 'error');
+                          }
+                        }}
+                        style={{
+                          background: '#1a1a24',
+                          border: '1px solid #333',
+                          color: 'var(--brand-neon)',
+                          padding: '4px 10px',
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          cursor: 'pointer'
                         }}
                       >
-                        <span>{hr}</span>
-                        <button
-                          onClick={() => setBotHours(botHours.filter(h => h !== hr))}
-                          style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold' }}
+                        Add
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      {botHours.map((hr, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: '#1a1a24',
+                            border: '1px solid #222',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontSize: '0.7rem',
+                            color: '#fff',
+                            fontFamily: 'monospace'
+                          }}
                         >
-                          ✕
-                        </button>
-                      </div>
-                    ))}
+                          <span>{hr}</span>
+                          <button
+                            onClick={() => setBotHours(botHours.filter(h => h !== hr))}
+                            style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold' }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ borderTop: '1px solid #222', margin: '4px 0' }}></div>
+
+                {/* SEÇÃO 2: PALPITES */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#00d2ff', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                    2. Palpites de Gols/1X2
+                  </div>
+                  
+                  {/* LIGA / DESLIGA BOT PALPITES */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0a0a0f', padding: '8px 12px', borderRadius: '6px', border: '1px solid #1a1a24' }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>Robô de Palpites</div>
+                    <button
+                      onClick={() => setPalpitesBotEnabled(!palpitesBotEnabled)}
+                      style={{
+                        width: '44px',
+                        height: '22px',
+                        borderRadius: '11px',
+                        background: palpitesBotEnabled ? '#00d2ff' : '#222',
+                        border: 'none',
+                        position: 'relative',
+                        cursor: 'pointer',
+                        transition: 'background 0.2s'
+                      }}
+                    >
+                      <div style={{
+                        width: '18px',
+                        height: '18px',
+                        borderRadius: '50%',
+                        background: palpitesBotEnabled ? '#000' : '#888',
+                        position: 'absolute',
+                        top: '2px',
+                        left: palpitesBotEnabled ? '24px' : '2px',
+                        transition: 'all 0.2s'
+                      }} />
+                    </button>
+                  </div>
+
+                  {/* HORARIOS PROGRAMADOS PALPITES */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input
+                        type="text"
+                        placeholder="HH:MM (ex: 12:00)"
+                        value={newPalpitesHourInput}
+                        onChange={(e) => setNewPalpitesHourInput(e.target.value)}
+                        style={{
+                          flex: 1,
+                          background: '#0a0a0f',
+                          border: '1px solid #222',
+                          borderRadius: '4px',
+                          color: '#fff',
+                          padding: '4px 8px',
+                          fontSize: '0.75rem',
+                          outline: 'none'
+                        }}
+                      />
+                      <button
+                        onClick={() => {
+                          const val = newPalpitesHourInput.trim();
+                          if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val)) {
+                            if (!palpitesHours.includes(val)) {
+                              setPalpitesHours([...palpitesHours, val].sort());
+                              setNewPalpitesHourInput('');
+                            } else {
+                              showNotification('Horário já cadastrado', 'info');
+                            }
+                          } else {
+                            showNotification('Formato inválido (Use HH:MM)', 'error');
+                          }
+                        }}
+                        style={{
+                          background: '#1a1a24',
+                          border: '1px solid #333',
+                          color: '#00d2ff',
+                          padding: '4px 10px',
+                          borderRadius: '4px',
+                          fontSize: '0.75rem',
+                          fontWeight: 'bold',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Add
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                      {palpitesHours.map((hr, idx) => (
+                        <div
+                          key={idx}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            background: '#1a1a24',
+                            border: '1px solid #222',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontSize: '0.7rem',
+                            color: '#fff',
+                            fontFamily: 'monospace'
+                          }}
+                        >
+                          <span>{hr}</span>
+                          <button
+                            onClick={() => setPalpitesHours(palpitesHours.filter(h => h !== hr))}
+                            style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold' }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* SELEÇÃO DE LIGAS PALPITES */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ fontSize: '0.76rem', color: '#aaa', fontWeight: 'bold' }}>Ligas Ativas para Palpites:</div>
+                    <div style={{ 
+                      display: 'grid', 
+                      gridTemplateColumns: '1fr 1fr', 
+                      gap: '6px', 
+                      maxHeight: '120px', 
+                      overflowY: 'auto', 
+                      border: '1px solid #222', 
+                      padding: '8px', 
+                      borderRadius: '6px', 
+                      background: '#0a0a0f' 
+                    }} className="custom-scrollbar">
+                      {ligasSaaS.map(liga => {
+                        const isSelected = palpitesLeagues.includes(String(liga.id));
+                        return (
+                          <label 
+                            key={liga.id} 
+                            style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '6px', 
+                              fontSize: '0.72rem', 
+                              color: isSelected ? '#00d2ff' : '#666', 
+                              cursor: 'pointer',
+                              userSelect: 'none'
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => {
+                                if (isSelected) {
+                                  setPalpitesLeagues(palpitesLeagues.filter(id => id !== String(liga.id)));
+                                } else {
+                                  setPalpitesLeagues([...palpitesLeagues, String(liga.id)]);
+                                }
+                              }}
+                              style={{ accentColor: '#00d2ff', cursor: 'pointer' }}
+                            />
+                            {liga.name}
+                          </label>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
                 <button
-                  onClick={() => handleSaveTelegramSettings(botEnabled, botMinEv, botHours)}
+                  onClick={handleSaveTelegramSettings}
                   disabled={isSavingSettings}
                   style={{
                     background: 'transparent',
                     border: '1px solid var(--brand-neon)',
                     color: 'var(--brand-neon)',
-                    padding: '6px',
-                    borderRadius: '4px',
+                    padding: '8px',
+                    borderRadius: '6px',
                     fontWeight: 'bold',
                     cursor: 'pointer',
-                    fontSize: '0.78rem',
-                    transition: 'all 0.2s'
+                    fontSize: '0.8rem',
+                    transition: 'all 0.2s',
+                    marginTop: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '6px'
                   }}
                 >
                   {isSavingSettings ? 'Salvando...' : '💾 Salvar Configurações'}

@@ -111,8 +111,8 @@ export default function NotificationsPage() {
             rawDate: opp.created_at
           }));
           setNotifications(mapped);
-          if (filteredData.length > 0) {
-            localStorage.setItem('ev_tracker_last_viewed_notification', String(filteredData[0].id));
+          if (data.length > 0) {
+            localStorage.setItem('ev_tracker_last_viewed_notification', String(data[0].id));
             window.dispatchEvent(new Event('notifications_read'));
           }
           try {

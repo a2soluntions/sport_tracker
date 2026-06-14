@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { HelpCircle, ChevronDown, ChevronUp, MessageCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { supabase } from '../../lib/supabaseClient';
 
 function AccordionItem({ question, answer, isOpen, onToggle }) {
   return (
@@ -53,30 +54,85 @@ function AccordionItem({ question, answer, isOpen, onToggle }) {
 
 export default function FAQPage() {
   const [openIndex, setOpenIndex] = useState(0);
+  const [companyInfo, setCompanyInfo] = useState({
+    cnpj_cpf: '',
+    razao_social: 'A2 Solutions',
+    endereco: '',
+    contato: '(34) 99840-8962',
+    instagram: '',
+    telegram: '',
+    facebook: '',
+    email_suporte: ''
+  });
+
+  useEffect(() => {
+    const fetchCompanyInfo = async () => {
+      if (!supabase) return;
+      try {
+        const { data, error } = await supabase
+          .from('saas_settings')
+          .select('*')
+          .eq('key', 'company_info')
+          .single();
+        if (data && data.value) {
+          setCompanyInfo(prev => ({ ...prev, ...data.value }));
+        }
+      } catch (err) {
+        console.warn("Erro ao buscar dados da empresa:", err);
+      }
+    };
+    fetchCompanyInfo();
+  }, []);
+
+  const cleanPhone = companyInfo.contato.replace(/\D/g, '');
+  const waLink = cleanPhone ? `https://wa.me/55${cleanPhone.startsWith('55') ? cleanPhone.slice(2) : cleanPhone}` : '#';
 
   const faqData = [
     {
-      question: "O que significa Valor Esperado (+EV) nas apostas?",
-      answer: "O Valor Esperado positivo (+EV) indica que uma determinada ODD oferecida pela casa de apostas está pagando mais do que deveria com base na probabilidade real calculada pelo modelo matemático. A longo prazo, focar em apostas +EV garante retorno financeiro positivo, pois você está comprando probabilidades com desconto."
+      question: "Como funcionam os palpites e a modelagem matemática?",
+      answer: "Nossos palpites não são baseados em intuição ou achismos. Nós utilizamos modelagem matemática estatística avançada (incluindo Distribuição de Poisson e análise de Gols Esperados - xG). O algoritmo analisa dados históricos de ataque, defesa, confrontos diretos e o momento atual das equipes para calcular a probabilidade real de cada evento (vitória, gols, etc.). Quando essa probabilidade é maior do que a odd oferecida pela casa de apostas, um alerta é gerado."
     },
     {
-      question: "Como funciona a modelagem matemática baseada em Poisson?",
-      answer: "A Distribuição de Poisson é uma fórmula estatística usada para prever a probabilidade de um número específico de eventos ocorrer em um intervalo de tempo. No futebol, calculamos a força de ataque e defesa de cada equipe para descobrir a média esperada de gols (xG) para o mandante e o visitante. Com isso, simulamos a probabilidade exata de vitória, empate, derrota ou quantidade de gols e comparamos com as cotações das casas em busca de valor."
+      question: "O que é Valor Esperado (+EV) e por que ele é mais importante que a Taxa de Assertividade?",
+      answer: "O Valor Esperado positivo (+EV) indica que uma cotação paga mais do que a probabilidade real do evento acontecer. Um erro comum é focar apenas na taxa de assertividade (quantidade de acertos). Um robô que acerta 80% das vezes pode ser perdedor se as odds médias forem de 1.10. Em contrapartida, acertar apenas 40% das vezes com odds médias de 3.00 gera um lucro extraordinário a longo prazo. O foco absoluto deve ser encontrar valor (+EV), e não apenas 'acertar' palpites individuais."
     },
     {
-      question: "O robô de odds atualiza os alertas em tempo real?",
-      answer: "Sim. Nossos coletores varrem de forma contínua as atualizações de cotações das principais casas mundiais (como Betano e Betfair) e cruzam na hora com a nossa central de processamento matemático. Quando detectada uma assimetria superior à margem configurada, o sinal é gerado na dashboard e transmitido para os canais."
+      question: "Quais são os riscos de jogar sem Gestão de Banca ou com valores altos?",
+      answer: "Apostar sem uma gestão de banca rigorosa ou expor valores altos em poucas apostas é o maior erro de qualquer apostador. O esporte é imprevisível e sujeito a variabilidade estatística (sequências inevitáveis de perdas, os chamados 'reds'). A gestão de banca protege seu capital limitando o investimento a uma porcentagem pequena (por exemplo, 1% a 3% do capital total por entrada, no máximo 5% sob o Critério de Kelly). Isso permite que você absorva as oscilações naturais e permaneça lucrativo a longo prazo."
+    },
+    {
+      question: "Como meus dados estão protegidos perante a LGPD (Lei Geral de Proteção de Dados)?",
+      answer: (
+        <div>
+          Levamos a sua privacidade extremamente a sério. Em total conformidade com a LGPD, todos os dados coletados na plataforma são criptografados de ponta a ponta e armazenados em servidores altamente protegidos. Garantimos que suas informações pessoais nunca serão compartilhadas com terceiros sob qualquer pretexto. Você tem o direito assegurado de consultar, alterar ou solicitar a exclusão de seus dados a qualquer momento.
+          <div style={{ marginTop: '12px' }}>
+            <a 
+              href="https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/lei/l13709.htm" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              style={{ 
+                color: 'var(--brand-neon)', 
+                textDecoration: 'underline', 
+                fontWeight: 'bold',
+                fontSize: '0.85rem'
+              }}
+            >
+              Clique aqui para ler o texto completo da Lei nº 13.709 (LGPD) ↗
+            </a>
+          </div>
+        </div>
+      )
     },
     {
       question: "Como funciona o método de gestão de banca Kelly?",
-      answer: "O Critério de Kelly é uma fórmula matemática que determina o valor ideal a ser investido em cada aposta para maximizar o crescimento da banca a longo prazo, considerando o tamanho da vantagem e a probabilidade de acerto. Para maior segurança e proteção contra variações negativas (reds), o sistema implementa o Half-Kelly limitado a no máximo 5% do capital por entrada."
+      answer: "O Critério de Kelly é uma fórmula matemática que determina o tamanho ideal de uma aposta para maximizar o crescimento da banca a longo prazo. Ele balanceia a probabilidade calculada e a cotação oferecida. Para garantir a segurança dos nossos usuários contra variações negativas, sugerimos trabalhar com frações (como Half-Kelly ou Quarter-Kelly), limitando rigidamente a stake para proteger seu capital."
     },
     {
       question: "Quem é responsável pelo desenvolvimento e administração do portal?",
       answer: (
         <div>
-          Todo o portal, banco de dados, scrapers e motores matemáticos foram desenvolvidos e são geridos integralmente pela <strong>A2 Solutions</strong>.
-          Se você tiver alguma dúvida técnica, problema de acesso ou sugestão de melhoria, entre em contato direto pelo suporte no WhatsApp: <strong>(34) 99840-8962</strong>.
+          Todo o portal, banco de dados, scrapers e motores matemáticos foram desenvolvidos e são geridos integralmente pela <strong>{companyInfo.razao_social}</strong>.
+          Se você tiver alguma dúvida técnica, problema de acesso ou sugestão de melhoria, entre em contato direto pelo suporte no WhatsApp: <strong>{companyInfo.contato}</strong>.
         </div>
       )
     }
@@ -129,12 +185,12 @@ export default function FAQPage() {
         <div>
           <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem', fontWeight: 'bold' }}>Ainda com dúvidas?</h3>
           <p style={{ margin: '4px 0 0 0', color: '#888', fontSize: '0.85rem' }}>
-            Nossa equipe técnica da A2 Solutions está disponível para atendimento no WhatsApp.
+            Nossa equipe técnica da {companyInfo.razao_social} está disponível para atendimento no WhatsApp.
           </p>
         </div>
 
         <a 
-          href="https://wa.me/5534998408962"
+          href={waLink}
           target="_blank"
           rel="noopener noreferrer"
           style={{
@@ -156,14 +212,14 @@ export default function FAQPage() {
           onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
         >
           <MessageCircle size={16} fill="#fff" />
-          <span>WhatsApp (34) 99840-8962</span>
+          <span>WhatsApp {companyInfo.contato}</span>
         </a>
       </div>
 
       {/* Botão Voltar */}
       <div style={{ marginTop: '10px' }}>
         <Link 
-          href="/" 
+          href="/dashboard" 
           style={{
             display: 'inline-flex',
             alignItems: 'center',

@@ -97,10 +97,7 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     await logout();
-    if (typeof window !== 'undefined') {
-      window.close();
-    }
-    router.push('/login');
+    router.push('/');
   };
 
   const getPlanStyles = (plan, role, couponCode) => {
@@ -225,7 +222,7 @@ export default function Sidebar() {
         </div>
         
         <nav className={styles.nav}>
-          <Link href="/" className={`${styles.navItem} ${pathname === '/' ? styles.navItemActive : ''}`}>
+          <Link href="/dashboard" className={`${styles.navItem} ${pathname === '/dashboard' ? styles.navItemActive : ''}`}>
             <Zap size={20} className={styles.navIcon} /> 
             <span>Alertas +EV</span>
           </Link>
@@ -392,7 +389,7 @@ export default function Sidebar() {
 
       {/* Mobile Bottom Navigation Bar */}
       <nav className={styles.bottomNav}>
-        <Link href="/" className={`${styles.bottomNavItem} ${pathname === '/' ? styles.bottomNavItemActive : ''}`}>
+        <Link href="/dashboard" className={`${styles.bottomNavItem} ${pathname === '/dashboard' ? styles.bottomNavItemActive : ''}`}>
           <Zap size={18} className={styles.bottomNavIcon} />
           <span>Alertas</span>
         </Link>

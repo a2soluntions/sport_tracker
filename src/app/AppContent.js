@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import LoginPage from './login/page';
@@ -10,6 +10,7 @@ import { Loader2 } from 'lucide-react';
 
 export default function AppContent({ children }) {
   const pathname = usePathname();
+  const router = useRouter();
   const { user, loading } = useAuth();
 
   useEffect(() => {
@@ -43,7 +44,14 @@ export default function AppContent({ children }) {
     }
   }, []);
 
-  // Se estiver carregando a sessão, mostra spinner brutalista
+  // Redirecionar usuário logado da raiz '/' para o dashboard
+  useEffect(() => {
+    if (!loading && user && pathname === '/') {
+      router.push('/dashboard');
+    }
+  }, [user, loading, pathname, router]);
+
+  // Se estiver carregando a sessão, mostra spinner de carregamento
   if (loading) {
     return (
       <div style={{
@@ -76,21 +84,35 @@ export default function AppContent({ children }) {
     );
   }
 
-  // Páginas sem Sidebar (Login e Redefinir Senha)
-  if (pathname === '/login' || pathname === '/redefinir-senha') {
+  // Lista de rotas públicas
+  const publicPaths = ['/', '/login', '/redefinir-senha', '/faq', '/quem-somos', '/pricing'];
+  const isPublicPath = publicPaths.includes(pathname);
+
+  // Páginas públicas para usuários NÃO logados (sem sidebar)
+  if (!user && isPublicPath) {
+    return (
+      <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        {children}
+        <CookieConsent />
+      </div>
+    );
+  }
+
+  // Se tentar acessar página privada sem estar logado, renderiza tela de login
+  if (!user && !isPublicPath) {
     return (
       <>
-        {children}
+        <LoginPage />
         <CookieConsent />
       </>
     );
   }
 
-  // Se não estiver logado, força a renderização da tela de login para qualquer outra rota
-  if (!user) {
+  // Páginas sem Sidebar (Login e Redefinir Senha) para usuários autenticados
+  if (pathname === '/login' || pathname === '/redefinir-senha') {
     return (
       <>
-        <LoginPage />
+        {children}
         <CookieConsent />
       </>
     );

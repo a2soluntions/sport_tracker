@@ -52,7 +52,12 @@ export default function NotificationsPage() {
       const cached = localStorage.getItem(cachedOppKey);
       if (cached) {
         const parsed = JSON.parse(cached);
-        const mapped = parsed.map((opp) => ({
+        const todayStr = new Date().toDateString();
+        const filteredCached = parsed.filter(opp => {
+          if (!opp.created_at) return false;
+          return new Date(opp.created_at).toDateString() === todayStr;
+        });
+        const mapped = filteredCached.map((opp) => ({
           id: opp.id,
           type: 'alert',
           title: `Assimetria Encontrada: ${opp.confronto}`,
@@ -85,13 +90,19 @@ export default function NotificationsPage() {
           .from('ev_opportunities')
           .select('*')
           .order('id', { ascending: false })
-          .limit(30);
+          .limit(100); // Pegar mais registros para garantir que cobrimos o dia de hoje caso haja muitos
 
         if (error) throw error;
 
         if (active && data) {
-          // Converter oportunidades em formato de notificação
-          const mapped = data.map((opp) => ({
+          // Converter oportunidades em formato de notificação mantendo apenas as de hoje
+          const todayStr = new Date().toDateString();
+          const filteredData = data.filter(opp => {
+            if (!opp.created_at) return false;
+            return new Date(opp.created_at).toDateString() === todayStr;
+          });
+
+          const mapped = filteredData.map((opp) => ({
             id: opp.id,
             type: 'alert',
             title: `Assimetria Encontrada: ${opp.confronto}`,
@@ -100,8 +111,8 @@ export default function NotificationsPage() {
             rawDate: opp.created_at
           }));
           setNotifications(mapped);
-          if (data.length > 0) {
-            localStorage.setItem('ev_tracker_last_viewed_notification', String(data[0].id));
+          if (filteredData.length > 0) {
+            localStorage.setItem('ev_tracker_last_viewed_notification', String(filteredData[0].id));
             window.dispatchEvent(new Event('notifications_read'));
           }
           try {

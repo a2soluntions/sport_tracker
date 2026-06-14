@@ -26,9 +26,19 @@ export default function LoginPage() {
   // Redirecionar se já estiver autenticado
   useEffect(() => {
     if (user) {
-      router.push('/');
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirect = searchParams.get('redirect') || '/dashboard';
+      router.push(redirect);
     }
   }, [user, router]);
+
+  // Checar se deve abrir diretamente na tela de cadastro
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search);
+    if (searchParams.get('register') === 'true') {
+      setIsRegister(true);
+    }
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -66,14 +76,20 @@ export default function LoginPage() {
         const res = await signUp(email, password, name);
         if (res.success) {
           setSuccessMsg(res.message || 'Cadastro realizado com sucesso! Entrando...');
-          setTimeout(() => router.push('/'), 2000);
+          setTimeout(() => {
+            const searchParams = new URLSearchParams(window.location.search);
+            const redirect = searchParams.get('redirect') || '/dashboard';
+            router.push(redirect);
+          }, 2000);
         } else {
           setError(res.error || 'Falha no cadastro.');
         }
       } else {
         const res = await login(email, password);
         if (res.success) {
-          router.push('/');
+          const searchParams = new URLSearchParams(window.location.search);
+          const redirect = searchParams.get('redirect') || '/dashboard';
+          router.push(redirect);
         } else {
           setError(res.error || 'Credenciais inválidas.');
         }
@@ -103,10 +119,9 @@ export default function LoginPage() {
           redirectTo: `${window.location.origin}/login`,
         });
         if (error) throw error;
-        setSuccessMsg('Um link de redefinição de senha foi enviado para o seu e-mail cadastrado no Supabase.');
+        setSuccessMsg('Um link de redefinição de senha foi enviado para o seu e-mail.');
       } else {
-        // Mock fallback
-        setSuccessMsg('E-mail de recuperação de senha enviado com sucesso! (Modo Simulado: verifique sua caixa de entrada).');
+        setSuccessMsg('E-mail de recuperação de senha enviado com sucesso!');
       }
     } catch (err) {
       setError(err.message || 'Falha ao enviar e-mail de recuperação.');
@@ -115,20 +130,19 @@ export default function LoginPage() {
     }
   };
 
-  // Login de demonstração rápido
   const handleQuickDemo = async () => {
     setError('');
     setLoading(true);
     try {
-      // Criar ou fazer login com uma conta demo
       const demoEmail = 'demo@a2sporttrackers.com';
       const demoPassword = 'demopassword123';
       const demoName = 'Investidor PRO (Demo)';
 
-      // Cadastrar se não existir e fazer login com persistência local forçada
       await signUp(demoEmail, demoPassword, demoName, true);
       await login(demoEmail, demoPassword, true);
-      router.push('/');
+      const searchParams = new URLSearchParams(window.location.search);
+      const redirect = searchParams.get('redirect') || '/dashboard';
+      router.push(redirect);
     } catch (err) {
       setError('Não foi possível inicializar a demonstração.');
     } finally {
@@ -145,25 +159,29 @@ export default function LoginPage() {
     );
   }
 
-  // RENDER PÁGINA DE RECUPERAÇÃO DE SENHA
+  // RECUPERAÇÃO DE SENHA
   if (isForgotPassword) {
     return (
       <div style={{
         display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
         minHeight: '100vh',
         background: '#09090b',
         color: '#fff',
-        fontFamily: 'system-ui, sans-serif'
+        fontFamily: 'system-ui, sans-serif',
+        padding: '20px'
       }}>
-        {/* Coluna da Esquerda: Formulário de Recuperação */}
         <div style={{
-          flex: '1 1 500px',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
-          padding: '40px 24px',
-          maxWidth: '560px',
-          margin: '0 auto',
+          padding: '40px',
+          maxWidth: '460px',
+          width: '100%',
+          background: '#111115',
+          border: '1px solid #222',
+          borderRadius: '12px',
           zIndex: 2
         }}>
           {/* Logo */}
@@ -174,7 +192,7 @@ export default function LoginPage() {
             <span style={{ fontSize: '1.4rem', fontWeight: 900, letterSpacing: '0.5px' }}>a2sport<span style={{ color: 'var(--brand-neon)' }}>trackers</span></span>
           </div>
 
-          <h2 style={{ fontSize: '2rem', fontWeight: 800, marginBottom: '8px', textTransform: 'uppercase' }}>
+          <h2 style={{ fontSize: '2.0rem', fontWeight: 800, marginBottom: '8px', textTransform: 'uppercase' }}>
             Recuperar Senha
           </h2>
           <p style={{ color: '#888', fontSize: '0.95rem', marginBottom: '32px' }}>
@@ -298,72 +316,32 @@ export default function LoginPage() {
             <span>Voltar para o Login</span>
           </button>
         </div>
-
-        {/* Coluna da Direita: Painel Estético (Desktop Only) */}
-        <div style={{
-          flex: '1.2 1 500px',
-          background: 'linear-gradient(135deg, #111116, #07070a)',
-          borderLeft: '1px solid #1c1c24',
-          position: 'relative',
-          overflow: 'hidden',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          padding: '60px'
-        }} className="mobile-hide">
-          <div style={{
-            position: 'absolute',
-            top: '-20%',
-            right: '-20%',
-            width: '500px',
-            height: '500px',
-            background: 'radial-gradient(circle, rgba(204, 255, 0, 0.06) 0%, rgba(0,0,0,0) 70%)',
-            borderRadius: '50%'
-          }}></div>
-          <div style={{ maxWidth: '480px', position: 'relative', zIndex: 3 }}>
-            <span style={{
-              background: 'rgba(204, 255, 0, 0.1)',
-              color: 'var(--brand-neon)',
-              border: '1px solid rgba(204, 255, 0, 0.2)',
-              padding: '6px 12px',
-              borderRadius: '20px',
-              fontSize: '0.75rem',
-              fontWeight: 'bold',
-              letterSpacing: '1px',
-              textTransform: 'uppercase'
-            }}>
-              Recuperação Segura
-            </span>
-            <h1 style={{ fontSize: '2.5rem', fontWeight: 900, marginTop: '20px', lineHeight: 1.2, textTransform: 'uppercase' }}>
-              Redefina sua senha com facilidade
-            </h1>
-            <p style={{ color: '#888', marginTop: '16px', lineHeight: 1.6, fontSize: '1rem' }}>
-              Enviaremos um link seguro para que você possa cadastrar uma nova senha e restabelecer o acesso instantâneo ao seu painel +EV.
-            </p>
-          </div>
-        </div>
       </div>
     );
   }
 
-  // RENDER PÁGINA PADRÃO LOGIN/CADASTRO
+  // DEFAULT LOGIN/CADASTRO
   return (
     <div style={{
       display: 'flex',
+      justifyContent: 'center',
+      alignItems: 'center',
       minHeight: '100vh',
       background: '#09090b',
       color: '#fff',
-      fontFamily: 'system-ui, sans-serif'
+      fontFamily: 'system-ui, sans-serif',
+      padding: '20px'
     }}>
-      {/* Coluna da Esquerda: Formulário */}
       <div style={{
-        flex: '1 1 500px',
         display: 'flex',
         flexDirection: 'column',
         justifyContent: 'center',
-        padding: '40px 24px',
-        maxWidth: '560px',
-        margin: '0 auto',
+        padding: '40px',
+        maxWidth: '460px',
+        width: '100%',
+        background: '#111115',
+        border: '1px solid #222',
+        borderRadius: '12px',
         zIndex: 2
       }}>
         {/* Logo */}
@@ -616,7 +594,9 @@ export default function LoginPage() {
             try {
               const res = await loginWithGoogle();
               if (res.success) {
-                router.push('/');
+                const searchParams = new URLSearchParams(window.location.search);
+                const redirect = searchParams.get('redirect') || '/dashboard';
+                router.push(redirect);
               } else {
                 setError(res.error || 'Falha ao entrar com o Google.');
               }
@@ -690,9 +670,10 @@ export default function LoginPage() {
         </button>
 
         {/* Toggle Modo */}
-        <p style={{ color: '#888', fontSize: '0.9rem', textAlign: 'center', marginTop: '30px' }}>
+        <p style={{ color: '#888', fontSize: '0.9rem', textAlign: 'center', marginTop: '30px', marginBlockEnd: 0 }}>
           {isRegister ? 'Já possui conta?' : 'Não tem conta ainda?'} &nbsp;
           <button 
+            type="button"
             onClick={() => {
               setIsRegister(!isRegister);
               setError('');
@@ -712,82 +693,6 @@ export default function LoginPage() {
         </p>
       </div>
 
-      {/* Coluna da Direita: Painel Estético (Desktop Only) */}
-      <div style={{
-        flex: '1.2 1 500px',
-        background: 'linear-gradient(135deg, #111116, #07070a)',
-        borderLeft: '1px solid #1c1c24',
-        position: 'relative',
-        overflow: 'hidden',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-        padding: '60px'
-      }} className="mobile-hide">
-        {/* Glow neon ao fundo */}
-        <div style={{
-          position: 'absolute',
-          top: '-20%',
-          right: '-20%',
-          width: '500px',
-          height: '500px',
-          background: 'radial-gradient(circle, rgba(204, 255, 0, 0.06) 0%, rgba(0,0,0,0) 70%)',
-          borderRadius: '50%'
-        }}></div>
-
-        {/* Conteúdo decorativo */}
-        <div style={{ maxWidth: '480px', position: 'relative', zIndex: 3 }}>
-          <span style={{
-            background: 'rgba(204, 255, 0, 0.1)',
-            color: 'var(--brand-neon)',
-            border: '1px solid rgba(204, 255, 0, 0.2)',
-            padding: '6px 12px',
-            borderRadius: '20px',
-            fontSize: '0.75rem',
-            fontWeight: 'bold',
-            letterSpacing: '1px',
-            textTransform: 'uppercase'
-          }}>
-            ANÁLISE INTELIGENTE DE ODDS & VALOR
-          </span>
-          <h1 style={{
-            fontSize: '2.5rem',
-            fontWeight: 900,
-            marginTop: '20px',
-            lineHeight: 1.2,
-            textTransform: 'uppercase'
-          }}>
-            Aproveite a Inteligência Pura <span style={{ color: 'var(--brand-neon)' }}>+EV</span> do Mercado
-          </h1>
-          <p style={{ color: '#888', marginTop: '16px', lineHeight: 1.6, fontSize: '1rem' }}>
-            Nossa engine baseia-se em regressão estatística de Poisson bidimensional para comparar em tempo real as odds de bookmakers mundiais com as probabilidades matemáticas reais de cada confronto.
-          </p>
-
-          {/* Cards de Destaque */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '40px' }}>
-            <div style={{ display: 'flex', gap: '16px', background: '#141419', border: '1px solid #222', borderRadius: '12px', padding: '16px' }}>
-              <div style={{ color: 'var(--brand-neon)', marginTop: '4px' }}>
-                <Zap size={20} />
-              </div>
-              <div>
-                <h4 style={{ fontWeight: 'bold', color: '#fff', fontSize: '0.95rem' }}>Trial Incondicional de 7 dias</h4>
-                <p style={{ color: '#888', fontSize: '0.8rem', marginTop: '4px' }}>Experimente acesso ilimitado por 7 dias. Sem compromisso, sem necessidade de dados de faturamento iniciais.</p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '16px', background: '#141419', border: '1px solid #222', borderRadius: '12px', padding: '16px' }}>
-              <div style={{ color: 'var(--brand-neon)', marginTop: '4px' }}>
-                <Zap size={20} />
-              </div>
-              <div>
-                <h4 style={{ fontWeight: 'bold', color: '#fff', fontSize: '0.95rem' }}>Alertas em Tempo Real</h4>
-                <p style={{ color: '#888', fontSize: '0.8rem', marginTop: '4px' }}>Identifique distorções de odds no exato momento da publicação e envie direto para seus canais no Telegram.</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      
       <style jsx>{`
         .spin {
           animation: spin 1s linear infinite;

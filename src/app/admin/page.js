@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabaseClient';
 import { 
@@ -113,8 +113,11 @@ export default function AdminDashboard() {
   const [selectedBets, setSelectedBets] = useState([]);
   const [customMessage, setCustomMessage] = useState('');
   const [cardImageUrl, setCardImageUrl] = useState('');
+  const [buttonText, setButtonText] = useState('');
+  const [buttonUrl, setButtonUrl] = useState('');
   const [msgTemplate, setMsgTemplate] = useState('free');
   const [isVipSending, setIsVipSending] = useState(false);
+  const fileInputRef = useRef(null);
   
   // Paginação da lista
   const [oppsPage, setOppsPage] = useState(1);
@@ -131,13 +134,30 @@ export default function AdminDashboard() {
   const [newHourInput, setNewHourInput] = useState('');
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [dispatchHistory, setDispatchHistory] = useState([]);
+  const [companyInfo, setCompanyInfo] = useState({
+    cnpj_cpf: '',
+    razao_social: '',
+    endereco: '',
+    contato: '',
+    instagram: '',
+    telegram: '',
+    facebook: '',
+    email_suporte: ''
+  });
 
   // Carregar histórico local
   useEffect(() => {
     const history = localStorage.getItem('ev_telegram_dispatch_history');
     if (history) {
       try {
-        setDispatchHistory(JSON.parse(history));
+        const parsed = JSON.parse(history);
+        const todayStr = new Date().toDateString();
+        const filtered = parsed.filter(item => {
+          if (!item.timestamp) return false;
+          return new Date(item.timestamp).toDateString() === todayStr;
+        });
+        setDispatchHistory(filtered);
+        localStorage.setItem('ev_telegram_dispatch_history', JSON.stringify(filtered));
       } catch (e) {
         console.error('Error parsing dispatch history:', e);
       }
@@ -152,7 +172,12 @@ export default function AdminDashboard() {
       message,
       status // 'success' | 'error'
     };
-    const updated = [newItem, ...dispatchHistory].slice(0, 100);
+    const todayStr = new Date().toDateString();
+    const filteredCurrent = dispatchHistory.filter(item => {
+      if (!item.timestamp) return false;
+      return new Date(item.timestamp).toDateString() === todayStr;
+    });
+    const updated = [newItem, ...filteredCurrent].slice(0, 100);
     setDispatchHistory(updated);
     localStorage.setItem('ev_telegram_dispatch_history', JSON.stringify(updated));
   };
@@ -217,6 +242,60 @@ export default function AdminDashboard() {
     } catch (err) {
       console.error('Erro ao salvar configurações:', err);
       showNotification('Falha de rede ao salvar configurações', 'error');
+    } finally {
+      setIsSavingSettings(false);
+    }
+  };
+
+  const formatCPFCNPJ = (val) => {
+    const raw = val.replace(/\D/g, '');
+    if (raw.length <= 11) {
+      return raw
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    } else {
+      return raw
+        .substring(0, 14)
+        .replace(/(\d{2})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1/$2')
+        .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+    }
+  };
+
+  const formatPhone = (val) => {
+    const raw = val.replace(/\D/g, '');
+    if (raw.length <= 10) {
+      return raw
+        .replace(/(\d{2})(\d)/, '($1) $2')
+        .replace(/(\d{4})(\d{1,4})$/, '$1-$2');
+    } else {
+      return raw
+        .substring(0, 11)
+        .replace(/(\d{2})(\d)/, '($1) $2')
+        .replace(/(\d{5})(\d{1,4})$/, '$1-$2');
+    }
+  };
+
+  const handleSaveCompanyInfo = async (e) => {
+    if (e) e.preventDefault();
+    try {
+      setIsSavingSettings(true);
+      const res = await adminFetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'company_info', value: companyInfo })
+      });
+      if (res.ok) {
+        showNotification('Informações da empresa salvas com sucesso!', 'success');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showNotification('Erro ao salvar: ' + (data.error || 'Erro interno'), 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Falha de rede ao salvar informações', 'error');
     } finally {
       setIsSavingSettings(false);
     }
@@ -287,7 +366,9 @@ export default function AdminDashboard() {
           isVip: broadcastChannel === 'vip',
           targetChannel: broadcastChannel,
           message: customMessage,
-          imageUrl: cardImageUrl
+          imageUrl: cardImageUrl,
+          buttonText,
+          buttonUrl
         })
       });
 
@@ -296,6 +377,11 @@ export default function AdminDashboard() {
         showNotification(`Mensagem enviada com sucesso para o canal ${broadcastChannel.toUpperCase()}!`, 'success');
         setCustomMessage('');
         setCardImageUrl('');
+        setButtonText('');
+        setButtonUrl('');
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
       } else {
         const errData = await response.json().catch(() => ({}));
         addHistoryItem(`Card (${broadcastChannel.toUpperCase()})`, `Falha: ${errData.error || 'Erro'}`, 'error');
@@ -449,6 +535,9 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
           if (settings.telegram_bot_enabled !== undefined) setBotEnabled(settings.telegram_bot_enabled);
           if (settings.telegram_bot_min_ev !== undefined) setBotMinEv(settings.telegram_bot_min_ev);
           if (settings.telegram_bot_hours !== undefined) setBotHours(settings.telegram_bot_hours);
+          if (settings.company_info) {
+            setCompanyInfo(prev => ({ ...prev, ...settings.company_info }));
+          }
           
           // Ligas ativas na aba palpites
           setLigasSaaS(settings.target_leagues || [
@@ -2477,6 +2566,206 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
               </div>
             </div>
 
+            {/* 6. Informações da Empresa */}
+            <div className="glass-panel" style={{ padding: '20px' }}>
+              <h3 style={{ fontSize: '1.02rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 16px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                🏢 Dados da Empresa / Suporte
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: '#888', lineHeight: 1.4, marginBottom: '16px' }}>
+                Insira as informações de contato, dados cadastrais e links de suporte. Esses dados serão exibidos nas seções institucionais do app.
+              </p>
+
+              <form onSubmit={handleSaveCompanyInfo} style={{ display: 'flex', flexDirection: 'column', gap: '12px', width: '100%' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 'bold' }}>CPF ou CNPJ</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: 00.000.000/0001-00"
+                    value={companyInfo.cnpj_cpf}
+                    onChange={(e) => setCompanyInfo({ ...companyInfo, cnpj_cpf: formatCPFCNPJ(e.target.value) })}
+                    style={{
+                      background: '#16161a',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 'bold' }}>Nome / Razão Social</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: A2 Solutions LTDA"
+                    value={companyInfo.razao_social}
+                    onChange={(e) => setCompanyInfo({ ...companyInfo, razao_social: e.target.value })}
+                    style={{
+                      background: '#16161a',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 'bold' }}>Endereço Completo</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: Av. Paulista, 1000 - São Paulo, SP"
+                    value={companyInfo.endereco}
+                    onChange={(e) => setCompanyInfo({ ...companyInfo, endereco: e.target.value })}
+                    style={{
+                      background: '#16161a',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 'bold' }}>Telefone / WhatsApp</label>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: (11) 99999-9999"
+                    value={companyInfo.contato}
+                    onChange={(e) => setCompanyInfo({ ...companyInfo, contato: formatPhone(e.target.value) })}
+                    style={{
+                      background: '#16161a',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 'bold' }}>E-mail de Suporte</label>
+                  <input 
+                    type="email" 
+                    placeholder="suporte@a2sporttrackers.com"
+                    value={companyInfo.email_suporte}
+                    onChange={(e) => setCompanyInfo({ ...companyInfo, email_suporte: e.target.value })}
+                    style={{
+                      background: '#16161a',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 'bold' }}>Instagram</label>
+                  <input 
+                    type="text" 
+                    placeholder="@a2sports"
+                    value={companyInfo.instagram}
+                    onChange={(e) => setCompanyInfo({ ...companyInfo, instagram: e.target.value })}
+                    style={{
+                      background: '#16161a',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 'bold' }}>Telegram (Grupo/Link)</label>
+                  <input 
+                    type="text" 
+                    placeholder="t.me/a2sports"
+                    value={companyInfo.telegram}
+                    onChange={(e) => setCompanyInfo({ ...companyInfo, telegram: e.target.value })}
+                    style={{
+                      background: '#16161a',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 'bold' }}>Facebook</label>
+                  <input 
+                    type="text" 
+                    placeholder="fb.com/a2sports"
+                    value={companyInfo.facebook}
+                    onChange={(e) => setCompanyInfo({ ...companyInfo, facebook: e.target.value })}
+                    style={{
+                      background: '#16161a',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      width: '100%',
+                      boxSizing: 'border-box'
+                    }}
+                  />
+                </div>
+
+                <button 
+                  type="submit" 
+                  disabled={isSavingSettings}
+                  style={{
+                    background: 'var(--brand-neon)',
+                    color: '#000',
+                    border: 'none',
+                    borderRadius: '6px',
+                    padding: '10px',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    fontSize: '0.85rem',
+                    marginTop: '10px',
+                    transition: 'all 0.2s',
+                    boxShadow: '0 4px 15px rgba(204, 255, 0, 0.15)'
+                  }}
+                >
+                  {isSavingSettings ? 'Salvando...' : '💾 Salvar Informações da Empresa'}
+                </button>
+              </form>
+            </div>
+
           </div>
         </div>
       )}
@@ -3288,10 +3577,10 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
             </button>
           </div>
 
-          {/* GRID SUPERIOR: CONFIGS & CARDS */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '20px', alignItems: 'start' }}>
+          {/* GRID SUPERIOR: CONFIGS, HISTÓRICO E PREVIEW - 3 COLUNAS */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 0.8fr 0.7fr', gap: '16px', alignItems: 'stretch' }}>
             
-            {/* COLUNA ESQUERDA: CONFIGS E CRIADOR DE CARDS (MENORES) */}
+            {/* COLUNA 1: CONFIGS E CRIADOR DE CARDS */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
               {/* CONFIGS DO AGENDAMENTO (MAIS COMPACTO) */}
@@ -3483,6 +3772,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                   </label>
                   <div style={{ display: 'flex', gap: '6px', flexDirection: 'column' }}>
                     <input
+                      ref={fileInputRef}
                       type="file"
                       accept="image/*"
                       onChange={(e) => {
@@ -3541,6 +3831,47 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                   />
                 </div>
 
+                {/* Botão de Link Opcional */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid #222', paddingTop: '10px' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#aaa', fontWeight: 'bold' }}>
+                    🔗 Botão de Link com a Mensagem (Opcional)
+                  </label>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <input
+                      type="text"
+                      placeholder="Texto (Ex: 💎 Assinar VIP)"
+                      value={buttonText}
+                      onChange={(e) => setButtonText(e.target.value)}
+                      style={{
+                        flex: 1,
+                        background: '#0a0a0f',
+                        border: '1px solid #222',
+                        borderRadius: '4px',
+                        color: '#fff',
+                        padding: '6px 10px',
+                        fontSize: '0.78rem',
+                        outline: 'none'
+                      }}
+                    />
+                    <input
+                      type="text"
+                      placeholder="Link (Ex: https://t.me/...)"
+                      value={buttonUrl}
+                      onChange={(e) => setButtonUrl(e.target.value)}
+                      style={{
+                        flex: 1.5,
+                        background: '#0a0a0f',
+                        border: '1px solid #222',
+                        borderRadius: '4px',
+                        color: '#fff',
+                        padding: '6px 10px',
+                        fontSize: '0.78rem',
+                        outline: 'none'
+                      }}
+                    />
+                  </div>
+                </div>
+
                 {/* Seleção do Canal de Destino */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '0.78rem', color: '#aaa', fontWeight: 'bold' }}>
@@ -3587,85 +3918,9 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
 
             </div>
 
-            {/* COLUNA DIREITA: PREVIEW E HISTÓRICO COM ALTURA FIXA E SCROLLBAR */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              
-              {/* DYNAMIC PREVIEW */}
-              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', flexGrow: 1 }}>
-                <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  👁️ Prévia da Mensagem (Telegram)
-                </h3>
-                
-                <div style={{
-                  background: 'radial-gradient(circle at top, #1e2c3a, #151f28)',
-                  borderRadius: '8px',
-                  padding: '12px',
-                  border: '1px solid #283747',
-                  boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between',
-                  minHeight: '220px',
-                  flexGrow: 1
-                }}>
-                  <div style={{
-                    background: '#182533',
-                    border: '1px solid #202f3e',
-                    borderRadius: '8px',
-                    padding: '0',
-                    color: '#eef2f5',
-                    fontSize: '0.8rem',
-                    lineHeight: '1.4',
-                    maxWidth: '100%',
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-                    overflow: 'hidden'
-                  }}>
-                    {cardImageUrl && (
-                      <div style={{ width: '100%', borderBottom: '1px solid #202f3e' }}>
-                        <img 
-                          src={cardImageUrl} 
-                          alt="Pré-visualização do Card" 
-                          style={{ width: '100%', height: 'auto', display: 'block', maxHeight: '180px', objectFit: 'cover' }}
-                        />
-                      </div>
-                    )}
-                    <div style={{ padding: '8px 10px', whiteSpace: 'pre-wrap' }}>
-                      {customMessage.trim() ? (
-                        customMessage
-                          .split('\n')
-                          .map((line, idx) => {
-                            let rendered = line;
-                            const boldMatches = rendered.match(/\*(.*?)\*/g);
-                            if (boldMatches) {
-                              boldMatches.forEach(m => {
-                                const clean = m.replace(/\*/g, '');
-                                rendered = rendered.replace(m, `<strong>${clean}</strong>`);
-                              });
-                            }
-                            const italicMatches = rendered.match(/_(.*?)_/g);
-                            if (italicMatches) {
-                              italicMatches.forEach(m => {
-                                const clean = m.replace(/_/g, '');
-                                rendered = rendered.replace(m, `<em>${clean}</em>`);
-                              });
-                            }
-                            return <div key={idx} dangerouslySetInnerHTML={{ __html: rendered || '&nbsp;' }} />;
-                          })
-                      ) : cardImageUrl ? (
-                        <span style={{ color: '#7a8a99', fontStyle: 'italic' }}>Apenas imagem (sem legenda)</span>
-                      ) : (
-                        <span style={{ color: '#7a8a99', fontStyle: 'italic' }}>Nenhum conteúdo criado.</span>
-                      )}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.65rem', color: '#7a8a99', marginTop: '10px', padding: '0 4px' }}>
-                    {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • Algoritmo Bot
-                  </div>
-                </div>
-              </div>
-
-              {/* LOG / HISTORICO COM ALTURA FIXA E SCROLLBAR */}
-              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {/* COLUNA 2: HISTÓRICO DE DESPACHO VIP */}
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '8px' }}>
                   <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
                     📜 Histórico de Despacho VIP
@@ -3685,9 +3940,9 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                 </div>
 
                 <div 
-                  className="no-scrollbar"
                   style={{
-                    height: '190px',
+                    height: '150px',
+                    flexGrow: 1,
                     overflowY: 'auto',
                     display: 'flex',
                     flexDirection: 'column',
@@ -3729,7 +3984,105 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                   )}
                 </div>
               </div>
+            </div>
 
+            {/* COLUNA 3: PRÉVIA DA MENSAGEM (TELEGRAM - FORMATO 9:16) */}
+            <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
+                <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  👁️ Prévia da Mensagem (Telegram)
+                </h3>
+                
+                <div style={{
+                  background: 'radial-gradient(circle at top, #1e2c3a, #151f28)',
+                  borderRadius: '8px',
+                  padding: '10px',
+                  border: '1px solid #283747',
+                  boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justifyContent: 'space-between'
+                }}>
+                  <div style={{
+                    background: '#182533',
+                    border: '1px solid #202f3e',
+                    borderRadius: '8px',
+                    padding: '0',
+                    color: '#eef2f5',
+                    fontSize: '0.78rem',
+                    lineHeight: '1.4',
+                    maxWidth: '100%',
+                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                    overflow: 'hidden'
+                  }}>
+                    {cardImageUrl && (
+                      <div style={{ width: '100%', borderBottom: '1px solid #202f3e' }}>
+                        <img 
+                          src={cardImageUrl} 
+                          alt="Pré-visualização do Card" 
+                          style={{ width: '100%', height: 'auto', maxHeight: '180px', display: 'block', objectFit: 'contain' }}
+                        />
+                      </div>
+                    )}
+                    <div style={{ padding: '8px 10px', whiteSpace: 'pre-wrap' }}>
+                      {customMessage.trim() ? (
+                        customMessage
+                          .split('\n')
+                          .map((line, idx) => {
+                            let rendered = line;
+                            const boldMatches = rendered.match(/\*(.*?)\*/g);
+                            if (boldMatches) {
+                              boldMatches.forEach(m => {
+                                const clean = m.replace(/\*/g, '');
+                                rendered = rendered.replace(m, `<strong>${clean}</strong>`);
+                              });
+                            }
+                            const italicMatches = rendered.match(/_(.*?)_/g);
+                            if (italicMatches) {
+                              italicMatches.forEach(m => {
+                                const clean = m.replace(/_/g, '');
+                                rendered = rendered.replace(m, `<em>${clean}</em>`);
+                              });
+                            }
+                            return <div key={idx} dangerouslySetInnerHTML={{ __html: rendered || '&nbsp;' }} />;
+                          })
+                      ) : cardImageUrl ? (
+                        <span style={{ color: '#7a8a99', fontStyle: 'italic' }}>Apenas imagem (sem legenda)</span>
+                      ) : (
+                        <span style={{ color: '#7a8a99', fontStyle: 'italic' }}>Nenhum conteúdo criado.</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {buttonText && (
+                    <div style={{ marginTop: '8px' }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          background: '#2b5278',
+                          color: '#fff',
+                          padding: '8px 12px',
+                          borderRadius: '6px',
+                          fontSize: '0.78rem',
+                          fontWeight: 'bold',
+                          textAlign: 'center',
+                          border: '1px solid #36618e',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                          cursor: 'default'
+                        }}
+                      >
+                        {buttonText}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.65rem', color: '#7a8a99', marginTop: '10px', padding: '0 4px' }}>
+                    {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • Algoritmo Bot
+                  </div>
+                </div>
+              </div>
             </div>
 
           </div>

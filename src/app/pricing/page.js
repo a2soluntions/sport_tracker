@@ -46,7 +46,7 @@ export default function PricingPage() {
   const plans = {
     gratis: { name: 'Grátis (Trial)', price: 'R$ 0,00', days: 7 },
     pro: { name: 'PRO', price: 'R$ 19,90', priceVal: 19.90 },
-    vip: { name: 'VIP Elite', price: 'R$ 49,90', priceVal: 49.90 }
+    telegram: { name: 'Telegram VIP', price: 'R$ 9,90', priceVal: 9.90 }
   };
 
   // Efeito para tratar o retorno do Checkout Pro (Mercado Pago)
@@ -70,6 +70,26 @@ export default function PricingPage() {
       setShowCheckout(true);
     }
   }, []);
+
+  // Abrir checkout automaticamente se a rota contiver o parâmetro 'plan' (ex: ?plan=pro)
+  useEffect(() => {
+    if (user) {
+      const searchParams = new URLSearchParams(window.location.search);
+      const planParam = searchParams.get('plan');
+      if (planParam && (planParam === 'pro' || planParam === 'vip')) {
+        // Atrasar levemente para garantir a inicialização correta dos estados do Mercado Pago
+        const timer = setTimeout(() => {
+          handleOpenCheckout(planParam);
+        }, 100);
+        
+        // Limpar query param para não reabrir se atualizar a página
+        const newUrl = window.location.pathname;
+        window.history.replaceState({}, '', newUrl);
+        
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [user]);
 
   // Polling para checar status do pagamento Pix
   useEffect(() => {
@@ -292,7 +312,7 @@ export default function PricingPage() {
       {/* Grid de Planos */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))',
         gap: '24px',
         marginTop: '20px'
       }}>
@@ -475,11 +495,11 @@ export default function PricingPage() {
           </div>
         </div>
 
-        {/* Plano VIP Elite */}
+        {/* Telegram VIP */}
         <div style={{
           background: '#111116',
-          border: '1px solid #b339ff',
-          boxShadow: '0 0 15px rgba(179, 57, 255, 0.05)',
+          border: '1px solid #0088cc',
+          boxShadow: '0 0 15px rgba(0, 136, 204, 0.05)',
           borderRadius: '16px',
           padding: '24px',
           display: 'flex',
@@ -488,74 +508,60 @@ export default function PricingPage() {
           position: 'relative'
         }}>
           <div>
-            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', textTransform: 'uppercase', color: '#b339ff' }}>VIP Elite</h3>
+            <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', textTransform: 'uppercase', color: '#0088cc' }}>Telegram VIP</h3>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '4px', margin: '16px 0' }}>
-              <span style={{ fontSize: '2rem', fontWeight: 900, color: '#b339ff' }}>R$ 49,90</span>
+              <span style={{ fontSize: '2rem', fontWeight: 900, color: '#0088cc' }}>R$ 9,90</span>
               <span style={{ color: '#888', fontSize: '0.85rem' }}>/ mês</span>
             </div>
             <p style={{ color: '#aaa', fontSize: '0.82rem', lineHeight: 1.4, marginBottom: '24px' }}>
-              Para consultorias e integradores de canais de tipster. Notificações automáticas irrestritas.
+              Receba todos os alertas de valor (+EV) diretamente no seu celular via bot oficial.
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderTop: '1px solid #222', paddingTop: '16px' }}>
               <div style={{ display: 'flex', gap: '8px', fontSize: '0.82rem', color: '#ccc' }}>
-                <CheckCircle2 size={16} color="#b339ff" style={{ flexShrink: 0 }} />
-                <strong>Funcionalidades PRO inclusas</strong>
+                <CheckCircle2 size={16} color="#0088cc" style={{ flexShrink: 0 }} />
+                <span>Alertas direto no celular via bot</span>
               </div>
               <div style={{ display: 'flex', gap: '8px', fontSize: '0.82rem', color: '#ccc' }}>
-                <CheckCircle2 size={16} color="#b339ff" style={{ flexShrink: 0 }} />
-                <span>Integração de Bot e Notificações via Telegram</span>
+                <CheckCircle2 size={16} color="#0088cc" style={{ flexShrink: 0 }} />
+                <span>Link direto para colocar a aposta</span>
               </div>
               <div style={{ display: 'flex', gap: '8px', fontSize: '0.82rem', color: '#ccc' }}>
-                <CheckCircle2 size={16} color="#b339ff" style={{ flexShrink: 0 }} />
-                <span>Canal VIP com 100% de automação de sinais</span>
+                <CheckCircle2 size={16} color="#0088cc" style={{ flexShrink: 0 }} />
+                <span>Avisos sonoros de odds desreguladas</span>
               </div>
               <div style={{ display: 'flex', gap: '8px', fontSize: '0.82rem', color: '#ccc' }}>
-                <CheckCircle2 size={16} color="#b339ff" style={{ flexShrink: 0 }} />
-                <span>Suporte prioritário e chave API para desenvolvedores</span>
+                <CheckCircle2 size={16} color="#0088cc" style={{ flexShrink: 0 }} />
+                <span>Acesso imediato pós-pagamento</span>
               </div>
             </div>
           </div>
 
           <div style={{ marginTop: '30px' }}>
-            {user?.plan === 'vip' ? (
-              <button 
-                disabled 
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: '1px solid rgba(76, 175, 80, 0.4)',
-                  background: 'rgba(76, 175, 80, 0.1)',
-                  color: '#4CAF50',
-                  fontWeight: 'bold',
-                  cursor: 'not-allowed',
-                  fontSize: '0.9rem'
-                }}
-              >
-                ✓ Plano VIP Ativo
-              </button>
-            ) : (
-              <button 
-                onClick={() => handleOpenCheckout('vip')}
-                style={{
-                  width: '100%',
-                  padding: '12px',
-                  borderRadius: '8px',
-                  border: 'none',
-                  background: '#b339ff',
-                  color: '#fff',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  fontSize: '0.9rem',
-                  boxShadow: '0 4px 15px rgba(179, 57, 255, 0.2)',
-                  transition: 'transform 0.2s'
-                }}
-                onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-                onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-              >
-                Assinar Plano VIP 💎
-              </button>
-            )}
+            <a 
+              href="https://www.mercadopago.com.br/checkout/v1/redirect?pref_id=2276008902-619a6fe2-dd52-42e1-9564-fd3ecbd75935"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{
+                width: '100%',
+                padding: '12px',
+                borderRadius: '8px',
+                border: 'none',
+                background: '#0088cc',
+                color: '#fff',
+                fontWeight: 'bold',
+                cursor: 'pointer',
+                fontSize: '0.9rem',
+                display: 'block',
+                textAlign: 'center',
+                textDecoration: 'none',
+                boxShadow: '0 4px 15px rgba(0, 136, 204, 0.2)',
+                transition: 'transform 0.2s'
+              }}
+              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+            >
+              Assinar Telegram VIP 💎
+            </a>
           </div>
         </div>
 

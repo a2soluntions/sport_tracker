@@ -4,7 +4,7 @@ import { verifyAdmin } from '@/lib/adminAuth';
 export async function POST(request) {
   try {
     const body = await request.json();
-    const { match, tip, probability, odd, isVip, message: customMessage, opportunity, imageUrl, targetChannel } = body;
+    const { match, tip, probability, odd, isVip, message: customMessage, opportunity, imageUrl, targetChannel, buttonText, buttonUrl } = body;
 
     const botToken = process.env.TELEGRAM_BOT_TOKEN;
     let chatId = process.env.TELEGRAM_CHAT_ID;
@@ -40,7 +40,8 @@ export async function POST(request) {
       chatId: cleanChatId,
       isVip,
       targetChannel,
-      hasImage: !!imageUrl
+      hasImage: !!imageUrl,
+      hasButton: !!(buttonText && buttonUrl)
     });
 
     let finalMessage = '';
@@ -51,23 +52,23 @@ export async function POST(request) {
       const ev = parseFloat(opportunity.vantagem_ev_porcentagem || 0).toFixed(2);
       const risk = Math.max(0.5, Math.min(5.0, (opportunity.vantagem_ev_porcentagem * 0.25))).toFixed(1);
       finalMessage = `⚽ *NOVO PALPITE PRÉ-JOGO!*
-
+ 
 🏆 *Campeonato:* ${opportunity.campeonato || 'Geral'}
 ⚔️ *Confronto:* ${opportunity.confronto}
 🎯 *Mercado:* ${opportunity.mercado}
 📈 *Odd Recomendada:* @${opportunity.odd_oferecida} (Justa: @${opportunity.odd_justa})
 🔥 *Vantagem (EV):* +${ev}%
 🛡️ *Gestão de Risco:* ${risk}% da sua banca
-
+ 
 _Analise e faça sua entrada com responsabilidade!_ 📊`;
     } else {
       finalMessage = `🏆 *NOVO PALPITE VIP* 🏆
-
+ 
 ⚽ *Jogo:* ${match}
 🎯 *Palpite:* ${tip}
 📊 *Probabilidade:* ${probability}%
 🔥 *Odd Justa:* @${odd}
-
+ 
 _Palpite gerado pelo Algoritmo de Poisson_ 🤖`;
     }
 
@@ -80,6 +81,13 @@ _Palpite gerado pelo Algoritmo de Poisson_ 🤖`;
     // Se o chat for do supergrupo/fórum VIP, adiciona o ID do tópico Geral (0) por padrão
     if (cleanChatId === '-1003872261817') {
       payload.message_thread_id = 0;
+    }
+
+    // Adiciona botão inline se preenchido
+    if (buttonText && buttonUrl) {
+      payload.reply_markup = {
+        inline_keyboard: [[{ text: buttonText, url: buttonUrl.trim() }]]
+      };
     }
 
     let response;
@@ -105,6 +113,11 @@ _Palpite gerado pelo Algoritmo de Poisson_ 🤖`;
         formData.append('caption', finalMessage);
         if (cleanChatId === '-1003872261817') {
           formData.append('message_thread_id', '0');
+        }
+        if (buttonText && buttonUrl) {
+          formData.append('reply_markup', JSON.stringify({
+            inline_keyboard: [[{ text: buttonText, url: buttonUrl.trim() }]]
+          }));
         }
         
         // O construtor do Blob do Node (Next.js server side) aceita buffers

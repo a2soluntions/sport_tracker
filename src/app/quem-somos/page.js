@@ -1,10 +1,44 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Target, TrendingUp, Sparkles, MessageCircle, ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
+import { supabase } from '../../lib/supabaseClient';
 
 export default function QuemSomosPage() {
+  const [companyInfo, setCompanyInfo] = useState({
+    cnpj_cpf: '',
+    razao_social: 'A2 Solutions',
+    endereco: '',
+    contato: '(34) 99840-8962',
+    instagram: '',
+    telegram: '',
+    facebook: '',
+    email_suporte: ''
+  });
+
+  useEffect(() => {
+    const fetchCompanyInfo = async () => {
+      if (!supabase) return;
+      try {
+        const { data, error } = await supabase
+          .from('saas_settings')
+          .select('*')
+          .eq('key', 'company_info')
+          .single();
+        if (data && data.value) {
+          setCompanyInfo(prev => ({ ...prev, ...data.value }));
+        }
+      } catch (err) {
+        console.warn("Erro ao buscar dados da empresa:", err);
+      }
+    };
+    fetchCompanyInfo();
+  }, []);
+
+  const cleanPhone = companyInfo.contato.replace(/\D/g, '');
+  const waLink = cleanPhone ? `https://wa.me/55${cleanPhone.startsWith('55') ? cleanPhone.slice(2) : cleanPhone}` : '#';
+
   return (
     <div style={{ padding: '0 20px', maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '32px', paddingBottom: '60px' }}>
       
@@ -71,18 +105,22 @@ export default function QuemSomosPage() {
         </div>
 
         <p style={{ color: '#ccc', fontSize: '0.95rem', lineHeight: 1.6, margin: 0 }}>
-          Todo o desenvolvimento de software, hospedagem, integrações de APIs, inteligência artificial de modelagem e sustentação técnica do portal <strong>a2sporttrackers</strong> é gerido e mantido de ponta a ponta pela <strong>A2 Solutions</strong>.
+          Todo o desenvolvimento de software, hospedagem, integrações de APIs, inteligência artificial de modelagem e sustentação técnica do portal <strong>a2sporttrackers</strong> é gerido e mantido de ponta a ponta pela <strong>{companyInfo.razao_social}</strong>.
         </p>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px', flexWrap: 'wrap', background: '#09090b', padding: '20px', borderRadius: '12px', border: '1px solid #222' }}>
           <div style={{ flex: '1 1 200px' }}>
-            <div style={{ color: '#fff', fontWeight: 'bold', fontSize: '0.95rem' }}>A2 Solutions</div>
-            <div style={{ color: '#666', fontSize: '0.8rem', marginTop: '4px' }}>CNPJ e Operações sob regulação e segurança.</div>
-            <div style={{ color: 'var(--brand-neon)', fontSize: '0.9rem', fontWeight: 'bold', marginTop: '6px', fontFamily: 'monospace' }}>Suporte: (34) 99840-8962</div>
+            <div style={{ color: '#fff', fontWeight: 'bold', fontSize: '0.95rem' }}>{companyInfo.razao_social}</div>
+            <div style={{ color: '#666', fontSize: '0.8rem', marginTop: '4px' }}>
+              {companyInfo.cnpj_cpf ? `CNPJ: ${companyInfo.cnpj_cpf}` : 'CNPJ e Operações sob regulação e segurança.'}
+            </div>
+            <div style={{ color: 'var(--brand-neon)', fontSize: '0.9rem', fontWeight: 'bold', marginTop: '6px', fontFamily: 'monospace' }}>
+              Suporte: {companyInfo.contato}
+            </div>
           </div>
 
           <a 
-            href="https://wa.me/5534998408962" 
+            href={waLink} 
             target="_blank" 
             rel="noopener noreferrer"
             style={{

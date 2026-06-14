@@ -248,6 +248,10 @@ export default function GestaoBancaPage() {
   const [mounted, setMounted] = useState(false);
   const [syncStatus, setSyncStatus] = useState('connecting'); // 'connecting', 'cloud', 'local'
   
+  // Pagination States
+  const [bancaPage, setBancaPage] = useState(1);
+  const [bancaLimit, setBancaLimit] = useState(10);
+  
   // Modal States
   const [showModal, setShowModal] = useState(false);
   const [modalInputVal, setModalInputVal] = useState('');
@@ -269,6 +273,23 @@ export default function GestaoBancaPage() {
       return t;
     });
   }, [transactions]);
+
+  const filteredTransactions = useMemo(() => {
+    return normalizedTransactions.filter(t => t.type === 'ganho' || t.type === 'perda' || t.type === 'alavancagem' || t.type === 'pendente');
+  }, [normalizedTransactions]);
+
+  const paginatedTransactions = useMemo(() => {
+    const startIndex = (bancaPage - 1) * bancaLimit;
+    return filteredTransactions.slice(startIndex, startIndex + bancaLimit);
+  }, [filteredTransactions, bancaPage, bancaLimit]);
+
+  // Reset page to 1 if the list size shrinks below current page range
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(filteredTransactions.length / bancaLimit));
+    if (bancaPage > maxPage) {
+      setBancaPage(maxPage);
+    }
+  }, [filteredTransactions.length, bancaLimit, bancaPage]);
 
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
@@ -964,8 +985,78 @@ export default function GestaoBancaPage() {
         <h2 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0, color: '#ccc', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
           Histórico de Lançamentos
         </h2>
+
+        {filteredTransactions.length > 0 && (
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid #222', flexWrap: 'wrap', gap: '12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#888' }}>
+              <span>Itens visíveis:</span>
+              <select
+                value={bancaLimit}
+                onChange={(e) => {
+                  setBancaLimit(parseInt(e.target.value));
+                  setBancaPage(1);
+                }}
+                style={{
+                  background: '#1a1a24',
+                  border: '1px solid #333',
+                  color: '#fff',
+                  padding: '4px 8px',
+                  borderRadius: '4px',
+                  outline: 'none',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value={10}>10 por página</option>
+                <option value={25}>25 por página</option>
+                <option value={50}>50 por página</option>
+                <option value={100}>100 por página</option>
+              </select>
+              <span>de {filteredTransactions.length} lançamentos</span>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button
+                disabled={bancaPage === 1}
+                onClick={() => setBancaPage(p => Math.max(1, p - 1))}
+                style={{
+                  background: '#1a1a24',
+                  border: '1px solid #333',
+                  color: bancaPage === 1 ? '#444' : '#fff',
+                  padding: '6px 12px',
+                  borderRadius: '4px',
+                  fontSize: '0.78rem',
+                  cursor: bancaPage === 1 ? 'not-allowed' : 'pointer',
+                  fontWeight: 'bold',
+                  transition: 'all 0.2s'
+                }}
+              >
+                ◀ Anterior
+              </button>
+              <span style={{ fontSize: '0.8rem', color: '#ccc', fontFamily: 'monospace' }}>
+                Página {bancaPage} de {Math.max(1, Math.ceil(filteredTransactions.length / bancaLimit))}
+              </span>
+              <button
+                disabled={bancaPage >= Math.ceil(filteredTransactions.length / bancaLimit)}
+                onClick={() => setBancaPage(p => p + 1)}
+                style={{
+                  background: '#1a1a24',
+                  border: '1px solid #333',
+                  color: bancaPage >= Math.ceil(filteredTransactions.length / bancaLimit) ? '#444' : '#fff',
+                  padding: '6px 12px',
+                  borderRadius: '4px',
+                  fontSize: '0.78rem',
+                  cursor: bancaPage >= Math.ceil(filteredTransactions.length / bancaLimit) ? 'not-allowed' : 'pointer',
+                  fontWeight: 'bold',
+                  transition: 'all 0.2s'
+                }}
+              >
+                Próxima ▶
+              </button>
+            </div>
+          </div>
+        )}
         
-        {normalizedTransactions.filter(t => t.type === 'ganho' || t.type === 'perda' || t.type === 'alavancagem' || t.type === 'pendente').length === 0 ? (
+        {filteredTransactions.length === 0 ? (
           <div style={{ color: '#888', fontStyle: 'italic', padding: '32px', textAlign: 'center' }}>
             Nenhum ganho ou perda registrado. Comece gravando um lançamento acima.
           </div>
@@ -983,7 +1074,7 @@ export default function GestaoBancaPage() {
                 </tr>
               </thead>
               <tbody>
-                 {normalizedTransactions.filter(t => t.type === 'ganho' || t.type === 'perda' || t.type === 'alavancagem' || t.type === 'pendente').map((tx) => {
+                 {paginatedTransactions.map((tx) => {
                   const isGain = tx.type === 'ganho';
                   const isLoss = tx.type === 'perda';
                   const isPending = tx.type === 'pendente';

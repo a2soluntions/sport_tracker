@@ -260,6 +260,10 @@ export default function RelatorioApostasPage() {
   const [fixtures, setFixtures] = useState([]);
   const [confirmDeleteModal, setConfirmDeleteModal] = useState({ show: false, txId: null });
 
+  // Pagination States
+  const [backtestPage, setBacktestPage] = useState(1);
+  const [backtestLimit, setBacktestLimit] = useState(10);
+
   const showToast = (message, type = 'success') => {
     setToast({ show: true, message, type });
     setTimeout(() => {
@@ -577,6 +581,19 @@ export default function RelatorioApostasPage() {
       .filter(t => t.type === 'ganho' || t.type === 'perda' || t.type === 'pendente')
       .sort((a, b) => new Date(b.date) - new Date(a.date)); // descending date for table
   }, [transactions]);
+
+  const paginatedBets = useMemo(() => {
+    const startIndex = (backtestPage - 1) * backtestLimit;
+    return bets.slice(startIndex, startIndex + backtestLimit);
+  }, [bets, backtestPage, backtestLimit]);
+
+  // Reset page to 1 if the list size shrinks below current page range
+  useEffect(() => {
+    const maxPage = Math.max(1, Math.ceil(bets.length / backtestLimit));
+    if (backtestPage > maxPage) {
+      setBacktestPage(maxPage);
+    }
+  }, [bets.length, backtestLimit, backtestPage]);
 
   // Chronological order for chart
   const chronoBets = useMemo(() => {
@@ -1078,6 +1095,77 @@ export default function RelatorioApostasPage() {
             <h2 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0, color: '#ccc', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
               Detalhamento de Apostas Efetuadas
             </h2>
+
+            {bets.length > 0 && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingBottom: '8px', borderBottom: '1px solid #222', flexWrap: 'wrap', gap: '12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.78rem', color: '#888' }}>
+                  <span>Itens visíveis:</span>
+                  <select
+                    value={backtestLimit}
+                    onChange={(e) => {
+                      setBacktestLimit(parseInt(e.target.value));
+                      setBacktestPage(1);
+                    }}
+                    style={{
+                      background: '#1a1a24',
+                      border: '1px solid #333',
+                      color: '#fff',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      outline: 'none',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <option value={10}>10 por página</option>
+                    <option value={25}>25 por página</option>
+                    <option value={50}>50 por página</option>
+                    <option value={100}>100 por página</option>
+                  </select>
+                  <span>de {bets.length} apostas</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <button
+                    disabled={backtestPage === 1}
+                    onClick={() => setBacktestPage(p => Math.max(1, p - 1))}
+                    style={{
+                      background: '#1a1a24',
+                      border: '1px solid #333',
+                      color: backtestPage === 1 ? '#444' : '#fff',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      fontSize: '0.78rem',
+                      cursor: backtestPage === 1 ? 'not-allowed' : 'pointer',
+                      fontWeight: 'bold',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    ◀ Anterior
+                  </button>
+                  <span style={{ fontSize: '0.8rem', color: '#ccc', fontFamily: 'monospace' }}>
+                    Página {backtestPage} de {Math.max(1, Math.ceil(bets.length / backtestLimit))}
+                  </span>
+                  <button
+                    disabled={backtestPage >= Math.ceil(bets.length / backtestLimit)}
+                    onClick={() => setBacktestPage(p => p + 1)}
+                    style={{
+                      background: '#1a1a24',
+                      border: '1px solid #333',
+                      color: backtestPage >= Math.ceil(bets.length / backtestLimit) ? '#444' : '#fff',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      fontSize: '0.78rem',
+                      cursor: backtestPage >= Math.ceil(bets.length / backtestLimit) ? 'not-allowed' : 'pointer',
+                      fontWeight: 'bold',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    Próxima ▶
+                  </button>
+                </div>
+              </div>
+            )}
+
             <div className="table-responsive-container">
               <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                 <thead>
@@ -1092,7 +1180,7 @@ export default function RelatorioApostasPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {bets.map((tx) => {
+                  {paginatedBets.map((tx) => {
                     const isGain = tx.type === 'ganho';
                     const isLoss = tx.type === 'perda';
                     const isPending = tx.type === 'pendente';

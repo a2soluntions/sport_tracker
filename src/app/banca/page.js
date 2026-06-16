@@ -736,6 +736,38 @@ export default function GestaoBancaPage() {
       showToast('Transação excluída com sucesso!', 'success');
     }
   };
+
+  const handleToggleStatus = async (tx) => {
+    let nextType = 'pendente';
+    if (tx.type === 'pendente') nextType = 'ganho';
+    else if (tx.type === 'ganho') nextType = 'perda';
+    else if (tx.type === 'perda') nextType = 'pendente';
+    else if (tx.type === 'alavancagem') return; // Alavancagem não altera status
+
+    const userTxsKey = `ev_tracker_banca_txs_${user?.id || 'guest'}`;
+
+    // Atualiza localmente
+    const updated = transactions.map(t => t.id === tx.id ? { ...t, type: nextType } : t);
+    setTransactions(updated);
+    localStorage.setItem(userTxsKey, JSON.stringify(updated));
+
+    // Atualiza no Supabase
+    if (syncStatus === 'cloud' && supabase && user) {
+      try {
+        const { error } = await supabase
+          .from('banca_transactions')
+          .update({ type: nextType })
+          .eq('id', tx.id);
+        if (error) throw error;
+        showToast('Resultado da aposta alterado!', 'success');
+      } catch (err) {
+        console.warn("Erro ao atualizar status no Supabase:", err);
+        showToast("Erro ao sincronizar alteração na nuvem", "error");
+      }
+    } else {
+      showToast('Resultado da aposta alterado!', 'success');
+    }
+  };
   
   // Cálculos de métricas da Banca
   const stats = useMemo(() => {
@@ -745,6 +777,7 @@ export default function GestaoBancaPage() {
     let totalLoss = 0;
     let wins = 0;
     let losses = 0;
+    let pendingStakes = 0;
 
     normalizedTransactions.forEach(t => {
       if (t.type === 'aporte') totalDeposits += t.amount;
@@ -758,10 +791,13 @@ export default function GestaoBancaPage() {
         totalLoss += t.amount;
         losses += 1;
       }
+      else if (t.type === 'pendente') {
+        pendingStakes += t.amount;
+      }
     });
 
     const netProfit = totalProfit - totalLoss;
-    const currentBalance = initialValue + netProfit; // Saldo calculado automaticamente
+    const currentBalance = totalDeposits - totalWithdrawals + netProfit - pendingStakes; // Saldo calculado automaticamente descontando pendentes
     const totalYield = totalLoss > 0 ? (netProfit / totalLoss) * 100 : 0;
 
     const totalBets = wins + losses;
@@ -1121,15 +1157,20 @@ export default function GestaoBancaPage() {
                         })()}
                       </td>
                       <td style={{ padding: '12px', textAlign: 'center' }}>
-                        <span style={{ 
-                          padding: '4px 10px', 
-                          borderRadius: '20px', 
-                          fontSize: '0.75rem', 
-                          fontWeight: 600,
-                          background: isGain ? 'rgba(0, 210, 255, 0.15)' : isLoss ? 'rgba(255, 77, 77, 0.15)' : isAlav ? 'rgba(76, 175, 80, 0.15)' : 'rgba(255, 193, 7, 0.15)',
-                          color: isGain ? '#00d2ff' : isLoss ? '#ff4d4d' : isAlav ? '#4CAF50' : '#FFC107',
-                          border: '1px solid ' + (isGain ? 'rgba(0,210,255,0.3)' : isLoss ? 'rgba(255,77,77,0.3)' : isAlav ? 'rgba(76,175,80,0.3)' : 'rgba(255,193,7,0.3)')
-                        }}>
+                        <span 
+                          onClick={() => handleToggleStatus(tx)}
+                          title={tx.type !== 'alavancagem' ? "Clique para alternar o resultado da aposta (GANHO / PERDA / PENDENTE)" : undefined}
+                          style={{ 
+                            padding: '4px 10px', 
+                            borderRadius: '20px', 
+                            fontSize: '0.75rem', 
+                            fontWeight: 600,
+                            cursor: tx.type !== 'alavancagem' ? 'pointer' : 'default',
+                            background: isGain ? 'rgba(0, 210, 255, 0.15)' : isLoss ? 'rgba(255, 77, 77, 0.15)' : isAlav ? 'rgba(76, 175, 80, 0.15)' : 'rgba(255, 193, 7, 0.15)',
+                            color: isGain ? '#00d2ff' : isLoss ? '#ff4d4d' : isAlav ? '#4CAF50' : '#FFC107',
+                            border: '1px solid ' + (isGain ? 'rgba(0,210,255,0.3)' : isLoss ? 'rgba(255,77,77,0.3)' : isAlav ? 'rgba(76,175,80,0.3)' : 'rgba(255,193,7,0.3)')
+                          }}
+                        >
                           <span className="mobile-hide">{isGain ? 'GANHO' : isLoss ? 'PERDA' : isAlav ? 'ALAVANCAGEM' : 'PENDENTE'}</span>
                           <span className="mobile-show">{isGain ? 'G' : isLoss ? 'P' : isAlav ? 'A' : 'E'}</span>
                         </span>

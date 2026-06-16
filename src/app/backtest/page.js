@@ -575,6 +575,37 @@ export default function RelatorioApostasPage() {
     }
   };
 
+  const handleToggleStatus = async (tx) => {
+    let nextType = 'pendente';
+    if (tx.type === 'pendente') nextType = 'ganho';
+    else if (tx.type === 'ganho') nextType = 'perda';
+    else if (tx.type === 'perda') nextType = 'pendente';
+
+    const userTxsKey = `ev_tracker_banca_txs_${user?.id || 'guest'}`;
+
+    // Atualiza localmente
+    const updated = transactions.map(t => t.id === tx.id ? { ...t, type: nextType } : t);
+    setTransactions(updated);
+    localStorage.setItem(userTxsKey, JSON.stringify(updated));
+
+    // Atualiza no Supabase
+    if (supabase && user) {
+      try {
+        const { error } = await supabase
+          .from('banca_transactions')
+          .update({ type: nextType })
+          .eq('id', tx.id);
+        if (error) throw error;
+        showToast('Resultado da aposta alterado!', 'success');
+      } catch (err) {
+        console.warn("Erro ao atualizar status no Supabase:", err);
+        showToast("Erro ao sincronizar alteração na nuvem", "error");
+      }
+    } else {
+      showToast('Resultado da aposta alterado!', 'success');
+    }
+  };
+
   // Filter only betting transactions (exclude deposit/withdrawal)
   const bets = useMemo(() => {
     return transactions
@@ -603,6 +634,8 @@ export default function RelatorioApostasPage() {
   // Stats Calculations
   const stats = useMemo(() => {
     let totalInvested = 0;
+    let resolvedInvested = 0;
+    let pendingInvested = 0;
     let netProfit = 0;
     let greens = 0;
     let reds = 0;
@@ -614,23 +647,28 @@ export default function RelatorioApostasPage() {
         const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;
         netProfit += profit;
         greens += 1;
+        resolvedInvested += t.amount;
       } else if (t.type === 'perda') {
         netProfit -= t.amount;
         reds += 1;
+        resolvedInvested += t.amount;
       } else if (t.type === 'pendente') {
         pending += 1;
+        pendingInvested += t.amount;
       }
     });
 
     const totalBets = bets.length;
     const resolvedBetsCount = greens + reds;
     const hitRate = resolvedBetsCount > 0 ? (greens / resolvedBetsCount) * 100 : 0;
-    const roi = totalInvested > 0 ? (netProfit / totalInvested) * 100 : 0;
+    const roi = resolvedInvested > 0 ? (netProfit / resolvedInvested) * 100 : 0;
 
     return {
       totalBets,
       resolvedBetsCount,
       totalInvested,
+      resolvedInvested,
+      pendingInvested,
       netProfit,
       hitRate,
       roi,
@@ -974,17 +1012,22 @@ export default function RelatorioApostasPage() {
             <div className="glass-panel" style={{ background: 'linear-gradient(135deg, #111115, #161622)', borderLeft: '4px solid ' + (isProfitable ? '#4CAF50' : '#ff4d4d'), padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Resultado Líquido</div>
               <div style={{ fontSize: '1.8rem', fontWeight: 800, color: isProfitable ? '#4CAF50' : '#ff4d4d', marginTop: '4px' }}>
-                {isProfitable ? '+' : ''}R$ {stats.netProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                {isProfitable ? '+' : ''}R$ {stats.netProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#555', marginTop: '4px' }}>{stats.roi >= 0 ? '+' : ''}{stats.roi.toFixed(1)}% ROI líquido</div>
+              <div style={{ fontSize: '0.75rem', color: '#555', marginTop: '4px' }}>{stats.roi >= 0 ? '+' : ''}{stats.roi.toFixed(1)}% ROI (sobre resolvidas)</div>
             </div>
 
             <div className="glass-panel" style={{ background: 'linear-gradient(135deg, #111115, #161622)', borderLeft: '4px solid #00d2ff', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Volume Apostado</div>
               <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff', marginTop: '4px' }}>
-                R$ {stats.totalInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                R$ {stats.totalInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </div>
-              <div style={{ fontSize: '0.75rem', color: '#555', marginTop: '4px' }}>Total movimentado</div>
+              <div style={{ fontSize: '0.75rem', color: '#555', marginTop: '4px' }}>
+                {stats.pendingInvested > 0 
+                  ? `R$ ${stats.pendingInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pendentes`
+                  : 'Nenhuma aposta pendente'
+                }
+              </div>
             </div>
 
             <div className="glass-panel" style={{ background: 'linear-gradient(135deg, #111115, #161622)', borderLeft: '4px solid #FFD700', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
@@ -1061,9 +1104,10 @@ export default function RelatorioApostasPage() {
                     <PieChart>
                       <Pie
                         data={[
-                          { name: 'Acertos', value: stats.greens },
-                          { name: 'Perdas', value: stats.reds }
-                        ]}
+                          { name: 'Acertos', value: stats.greens, color: 'var(--brand-neon)' },
+                          { name: 'Perdas', value: stats.reds, color: '#ff003c' },
+                          { name: 'Pendentes', value: stats.pending, color: '#FFC107' }
+                        ].filter(item => item.value > 0)}
                         cx="50%"
                         cy="50%"
                         innerRadius={35}
@@ -1071,8 +1115,13 @@ export default function RelatorioApostasPage() {
                         paddingAngle={5}
                         dataKey="value"
                       >
-                        <Cell fill="var(--brand-neon)" />
-                        <Cell fill="#ff003c" />
+                        {[
+                          { name: 'Acertos', value: stats.greens, color: 'var(--brand-neon)' },
+                          { name: 'Perdas', value: stats.reds, color: '#ff003c' },
+                          { name: 'Pendentes', value: stats.pending, color: '#FFC107' }
+                        ].filter(item => item.value > 0).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
                       </Pie>
                       <Tooltip 
                         contentStyle={{ backgroundColor: '#141419', border: '1px solid #333', borderRadius: '8px' }}
@@ -1225,15 +1274,20 @@ export default function RelatorioApostasPage() {
                           })()}
                         </td>
                         <td style={{ padding: '12px', textAlign: 'center' }}>
-                          <span style={{ 
-                            padding: '4px 10px', 
-                            borderRadius: '20px', 
-                            fontSize: '0.75rem', 
-                            fontWeight: 600,
-                            background: isGain ? 'rgba(76, 175, 80, 0.15)' : isLoss ? 'rgba(255, 77, 77, 0.15)' : 'rgba(255, 193, 7, 0.15)',
-                            color: isGain ? '#4CAF50' : isLoss ? '#ff4d4d' : '#FFC107',
-                            border: '1px solid ' + (isGain ? 'rgba(76,175,80,0.3)' : isLoss ? 'rgba(255,77,77,0.3)' : 'rgba(255,193,7,0.3)')
-                          }}>
+                          <span 
+                            onClick={() => handleToggleStatus(tx)}
+                            title="Clique para alternar o resultado da aposta (GREEN / RED / PENDENTE)"
+                            style={{ 
+                              padding: '4px 10px', 
+                              borderRadius: '20px', 
+                              fontSize: '0.75rem', 
+                              fontWeight: 600,
+                              cursor: 'pointer',
+                              background: isGain ? 'rgba(76, 175, 80, 0.15)' : isLoss ? 'rgba(255, 77, 77, 0.15)' : 'rgba(255, 193, 7, 0.15)',
+                              color: isGain ? '#4CAF50' : isLoss ? '#ff4d4d' : '#FFC107',
+                              border: '1px solid ' + (isGain ? 'rgba(76,175,80,0.3)' : isLoss ? 'rgba(255,77,77,0.3)' : 'rgba(255,193,7,0.3)')
+                            }}
+                          >
                             <span className="mobile-hide">{isGain ? 'GREEN' : isLoss ? 'RED' : 'PENDENTE'}</span>
                             <span className="mobile-show">{isGain ? 'G' : isLoss ? 'R' : 'P'}</span>
                           </span>
@@ -1243,7 +1297,7 @@ export default function RelatorioApostasPage() {
                           <span className="mobile-show">{tx.odd ? `@${formatOddMobile(tx.odd)}` : '-'}</span>
                         </td>
                         <td style={{ padding: '12px', textAlign: 'right', fontWeight: 500, color: '#fff' }}>
-                          R$ {tx.amount.toFixed(2)}
+                          R$ {tx.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </td>
                         <td style={{ 
                           padding: '12px', 
@@ -1253,8 +1307,8 @@ export default function RelatorioApostasPage() {
                         }}>
                           {isPending ? '' : isGain ? '+' : '-'} R$ {
                             isGain && tx.odd 
-                              ? (tx.amount * (tx.odd - 1)).toFixed(2)
-                              : tx.amount.toFixed(2)
+                              ? (tx.amount * (tx.odd - 1)).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+                              : tx.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
                           }
                         </td>
                         <td style={{ padding: '12px' }} className="no-print">

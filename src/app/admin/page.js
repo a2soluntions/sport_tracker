@@ -137,6 +137,7 @@ export default function AdminDashboard() {
   const [palpitesSchedules, setPalpitesSchedules] = useState([]);
   const [palpitesHourInput, setPalpitesHourInput] = useState('');
   const [palpitesSelectedLeagues, setPalpitesSelectedLeagues] = useState([]);
+  const [telegramHistoryTab, setTelegramHistoryTab] = useState('agendados'); // 'agendados' | 'historico'
 
   // Time auto-format mask helper
   const handleTimeChange = (e, setter) => {
@@ -268,84 +269,24 @@ export default function AdminDashboard() {
     }
   }, [activeTab, oppsPage, oppsLimit, filterDate, filterLeague, sortEV]);
 
-  const handleSaveEVSettings = async () => {
-    try {
-      setIsSavingSettings(true);
-      
-      const res1 = await adminFetch('/api/admin/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'telegram_bot_enabled', value: botEnabled })
-      });
-      const res2 = await adminFetch('/api/admin/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'telegram_bot_min_ev', value: parseFloat(botMinEv) })
-      });
-      const res3 = await adminFetch('/api/admin/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'telegram_bot_hours', value: botHours })
-      });
-
-      if (res1.ok && res2.ok && res3.ok) {
-        showNotification('Configurações do Robô EV salvas com sucesso!', 'success');
-      } else {
-        showNotification('Erro ao salvar configurações do Robô EV.', 'error');
-      }
-    } catch (err) {
-      console.error('Erro ao salvar configurações EV:', err);
-      showNotification('Falha de rede ao salvar configurações', 'error');
-    } finally {
-      setIsSavingSettings(false);
-    }
-  };
-
-  const handleSavePalpitesSettings = async () => {
-    try {
-      setIsSavingSettings(true);
-      
-      const res1 = await adminFetch('/api/admin/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'telegram_palpites_enabled', value: palpitesBotEnabled })
-      });
-      const res2 = await adminFetch('/api/admin/settings', {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'telegram_palpites_schedules', value: palpitesSchedules })
-      });
-
-      if (res1.ok && res2.ok) {
-        showNotification('Configurações de Palpites salvas com sucesso!', 'success');
-      } else {
-        showNotification('Erro ao salvar configurações de Palpites.', 'error');
-      }
-    } catch (err) {
-      console.error('Erro ao salvar configurações de Palpites:', err);
-      showNotification('Falha de rede ao salvar configurações', 'error');
-    } finally {
-      setIsSavingSettings(false);
-    }
-  };
-
-  const savePalpitesSchedulesDirectly = async (newSchedules) => {
+  const saveSettingDirectly = async (key, value, silent = false) => {
     try {
       const res = await adminFetch('/api/admin/settings', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ key: 'telegram_palpites_schedules', value: newSchedules })
+        body: JSON.stringify({ key, value })
       });
-      if (res.ok) {
-        showNotification('Histórico de agendamentos atualizado e salvo!', 'success');
-      } else {
-        showNotification('Erro ao salvar agendamentos na nuvem.', 'error');
+      if (res.ok && !silent) {
+        showNotification('Configuração atualizada com sucesso!', 'success');
+      } else if (!res.ok && !silent) {
+        showNotification('Erro ao salvar configuração na nuvem.', 'error');
       }
     } catch (err) {
       console.error(err);
-      showNotification('Falha ao conectar para salvar agendamentos.', 'error');
+      if (!silent) showNotification('Falha ao conectar para salvar configuração.', 'error');
     }
   };
+
 
   const formatCPFCNPJ = (val) => {
     const raw = val.replace(/\D/g, '');
@@ -3679,419 +3620,136 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
             </button>
           </div>
 
-          {/* GRID SUPERIOR: CONFIGS, HISTÓRICO E PREVIEW - 3 COLUNAS */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 0.8fr 0.7fr', gap: '16px', alignItems: 'stretch' }}>
+          {/* GRID SUPERIOR: CONFIGS, HISTÓRICO E PREVIEW - 4 COLUNAS */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.1fr 0.9fr', gap: '12px', alignItems: 'stretch' }}>
             
-            {/* COLUNA 1: CONFIGS E CRIADOR DE CARDS */}
+            {/* COLUNA 1: CONFIGS EV E CRIADOR DE CARDS */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
-              {/* CONFIGS DO AGENDAMENTO (MAIS COMPACTO) */}
+              {/* CONFIGS DO AGENDAMENTO EV */}
               <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #222', paddingBottom: '8px' }}>
                   <Clock size={16} color="var(--brand-neon)" />
-                  ⏱️ Configuração de Disparos por Horários
+                  ⏱️ Robô de Sinais VIP (+EV)
                 </h3>
                 
-                {/* SEÇÃO 1: ALERTA EV */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: 'var(--brand-neon)', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                    1. Alertas de Assimetria EV
-                  </div>
-                  
-                  {/* LIGA / DESLIGA BOT EV */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0a0a0f', padding: '8px 12px', borderRadius: '6px', border: '1px solid #1a1a24' }}>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>Robô de Sinais VIP</div>
-                    <button
-                      onClick={() => setBotEnabled(!botEnabled)}
-                      style={{
-                        width: '44px',
-                        height: '22px',
-                        borderRadius: '11px',
-                        background: botEnabled ? 'var(--brand-neon)' : '#222',
-                        border: 'none',
-                        position: 'relative',
-                        cursor: 'pointer',
-                        transition: 'background 0.2s'
-                      }}
-                    >
-                      <div style={{
-                        width: '18px',
-                        height: '18px',
-                        borderRadius: '50%',
-                        background: botEnabled ? '#000' : '#888',
-                        position: 'absolute',
-                        top: '2px',
-                        left: botEnabled ? '24px' : '2px',
-                        transition: 'all 0.2s'
-                      }} />
-                    </button>
-                  </div>
-
-                  {/* EV MINIMO SLIDER */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
-                      <span style={{ color: '#aaa', fontWeight: 'bold' }}>Vantagem Mínima (EV%)</span>
-                      <span style={{ color: 'var(--brand-neon)', fontFamily: 'monospace', fontWeight: 'bold' }}>+{botMinEv.toFixed(1)}%</span>
-                    </div>
-                    <input
-                      type="range"
-                      min="3.0"
-                      max="15.0"
-                      step="0.5"
-                      value={botMinEv}
-                      onChange={(e) => setBotMinEv(parseFloat(e.target.value))}
-                      style={{
-                        width: '100%',
-                        accentColor: 'var(--brand-neon)',
-                        background: '#222',
-                        height: '4px',
-                        borderRadius: '2px',
-                        cursor: 'pointer'
-                      }}
-                    />
-                  </div>
-
-                  {/* HORARIOS PROGRAMADOS EV */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <input
-                        type="text"
-                        placeholder="HH:MM (ex: 14:30)"
-                        value={newHourInput}
-                        onChange={(e) => handleTimeChange(e, setNewHourInput)}
-                        onBlur={(e) => handleTimeBlur(e.target.value, setNewHourInput)}
-                        style={{
-                          flex: 1,
-                          background: '#0a0a0f',
-                          border: '1px solid #222',
-                          borderRadius: '4px',
-                          color: '#fff',
-                          padding: '4px 8px',
-                          fontSize: '0.75rem',
-                          outline: 'none'
-                        }}
-                      />
-                      <button
-                        onClick={() => {
-                          const val = newHourInput.trim();
-                          if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val)) {
-                            if (!botHours.includes(val)) {
-                              setBotHours([...botHours, val].sort());
-                              setNewHourInput('');
-                            } else {
-                              showNotification('Horário já cadastrado', 'info');
-                            }
-                          } else {
-                            showNotification('Formato inválido (Use HH:MM)', 'error');
-                          }
-                        }}
-                        style={{
-                          background: '#1a1a24',
-                          border: '1px solid #333',
-                          color: 'var(--brand-neon)',
-                          padding: '4px 10px',
-                          borderRadius: '4px',
-                          fontSize: '0.75rem',
-                          fontWeight: 'bold',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Add
-                      </button>
-                    </div>
-
-                    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                      {botHours.map((hr, idx) => (
-                        <div
-                          key={idx}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '4px',
-                            background: '#1a1a24',
-                            border: '1px solid #222',
-                            padding: '2px 6px',
-                            borderRadius: '4px',
-                            fontSize: '0.7rem',
-                            color: '#fff',
-                            fontFamily: 'monospace'
-                          }}
-                        >
-                          <span>{hr}</span>
-                          <button
-                            onClick={() => setBotHours(botHours.filter(h => h !== hr))}
-                            style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontWeight: 'bold' }}
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-
+                {/* LIGA / DESLIGA BOT EV */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0a0a0f', padding: '8px 12px', borderRadius: '6px', border: '1px solid #1a1a24' }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>Ativar Sinais</div>
                   <button
-                    onClick={handleSaveEVSettings}
-                    disabled={isSavingSettings}
+                    onClick={() => {
+                      const newVal = !botEnabled;
+                      setBotEnabled(newVal);
+                      saveSettingDirectly('telegram_bot_enabled', newVal, true);
+                    }}
                     style={{
-                      background: 'transparent',
-                      border: '1px solid var(--brand-neon)',
-                      color: 'var(--brand-neon)',
-                      padding: '6px',
-                      borderRadius: '4px',
-                      fontWeight: 'bold',
+                      width: '44px',
+                      height: '22px',
+                      borderRadius: '11px',
+                      background: botEnabled ? 'var(--brand-neon)' : '#222',
+                      border: 'none',
+                      position: 'relative',
                       cursor: 'pointer',
-                      fontSize: '0.75rem',
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '4px',
-                      marginTop: '2px'
+                      transition: 'background 0.2s'
                     }}
                   >
-                    💾 Salvar Configurações de EV
+                    <div style={{
+                      width: '18px',
+                      height: '18px',
+                      borderRadius: '50%',
+                      background: botEnabled ? '#000' : '#888',
+                      position: 'absolute',
+                      top: '2px',
+                      left: botEnabled ? '24px' : '2px',
+                      transition: 'all 0.2s'
+                    }} />
                   </button>
                 </div>
 
-                <div style={{ borderTop: '1px solid #222', margin: '4px 0' }}></div>
-
-                {/* SEÇÃO 2: PALPITES */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#00d2ff', letterSpacing: '0.5px', textTransform: 'uppercase' }}>
-                    2. Palpites de Gols/1X2
+                {/* EV MINIMO SLIDER */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem' }}>
+                    <span style={{ color: '#aaa', fontWeight: 'bold' }}>Vantagem Mínima</span>
+                    <span style={{ color: 'var(--brand-neon)', fontFamily: 'monospace', fontWeight: 'bold' }}>+{botMinEv.toFixed(1)}%</span>
                   </div>
-                  
-                  {/* LIGA / DESLIGA BOT PALPITES */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0a0a0f', padding: '8px 12px', borderRadius: '6px', border: '1px solid #1a1a24' }}>
-                    <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>Robô de Palpites</div>
-                    <button
-                      onClick={() => setPalpitesBotEnabled(!palpitesBotEnabled)}
-                      style={{
-                        width: '44px',
-                        height: '22px',
-                        borderRadius: '11px',
-                        background: palpitesBotEnabled ? '#00d2ff' : '#222',
-                        border: 'none',
-                        position: 'relative',
-                        cursor: 'pointer',
-                        transition: 'background 0.2s'
-                      }}
-                    >
-                      <div style={{
-                        width: '18px',
-                        height: '18px',
-                        borderRadius: '50%',
-                        background: palpitesBotEnabled ? '#000' : '#888',
-                        position: 'absolute',
-                        top: '2px',
-                        left: palpitesBotEnabled ? '24px' : '2px',
-                        transition: 'all 0.2s'
-                      }} />
-                    </button>
-                  </div>
-
-                  {/* HORARIO PROGRAMADOS PALPITES E SELEÇÃO LIGAS */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: '#0a0a0f', padding: '10px', borderRadius: '6px', border: '1px solid #1a1a24' }}>
-                    <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff' }}>Novo Agendamento:</div>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <input
-                        type="text"
-                        placeholder="HH:MM (ex: 12:00)"
-                        value={palpitesHourInput}
-                        onChange={(e) => handleTimeChange(e, setPalpitesHourInput)}
-                        onBlur={(e) => handleTimeBlur(e.target.value, setPalpitesHourInput)}
-                        style={{
-                          flex: 1,
-                          background: '#050508',
-                          border: '1px solid #222',
-                          borderRadius: '4px',
-                          color: '#fff',
-                          padding: '4px 8px',
-                          fontSize: '0.75rem',
-                          outline: 'none'
-                        }}
-                      />
-                      <button
-                        onClick={() => {
-                          const val = palpitesHourInput.trim();
-                          if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val)) {
-                            showNotification('Formato inválido (Use HH:MM)', 'error');
-                            return;
-                          }
-                          if (palpitesSelectedLeagues.length === 0) {
-                            showNotification('Selecione pelo menos uma liga para este horário', 'error');
-                            return;
-                          }
-                          // Evitar duplicados no mesmo horário
-                          if (palpitesSchedules.some(s => s.hour === val)) {
-                            showNotification('Já existe um agendamento para este horário', 'error');
-                            return;
-                          }
-                          
-                          const newSched = {
-                            id: Date.now().toString(),
-                            hour: val,
-                            leagues: [...palpitesSelectedLeagues]
-                          };
-                          
-                          const updated = [...palpitesSchedules, newSched].sort((a,b) => a.hour.localeCompare(b.hour));
-                          setPalpitesSchedules(updated);
-                          setPalpitesHourInput('');
-                          setPalpitesSelectedLeagues([]);
-                          savePalpitesSchedulesDirectly(updated);
-                        }}
-                        style={{
-                          background: '#1a1a24',
-                          border: '1px solid #333',
-                          color: '#00d2ff',
-                          padding: '4px 10px',
-                          borderRadius: '4px',
-                          fontSize: '0.75rem',
-                          fontWeight: 'bold',
-                          cursor: 'pointer'
-                        }}
-                      >
-                        Agendar
-                      </button>
-                    </div>
-
-                    {/* SELEÇÃO DE LIGAS NO CRUADOR DE AGENDAMENTO */}
-                    <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: '4px' }}>Selecionar Ligas do Horário:</div>
-                    <div style={{ 
-                      display: 'grid', 
-                      gridTemplateColumns: '1fr 1fr', 
-                      gap: '4px', 
-                      maxHeight: '100px', 
-                      overflowY: 'auto', 
-                      border: '1px solid #222', 
-                      padding: '6px', 
-                      borderRadius: '4px', 
-                      background: '#050508' 
-                    }} className="custom-scrollbar">
-                      {ligasSaaS.map(liga => {
-                        const isSelected = palpitesSelectedLeagues.includes(String(liga.id));
-                        return (
-                          <label 
-                            key={liga.id} 
-                            style={{ 
-                              display: 'flex', 
-                              alignItems: 'center', 
-                              gap: '4px', 
-                              fontSize: '0.7rem', 
-                              color: isSelected ? '#00d2ff' : '#666', 
-                              cursor: 'pointer',
-                              userSelect: 'none'
-                            }}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={isSelected}
-                              onChange={() => {
-                                if (isSelected) {
-                                  setPalpitesSelectedLeagues(palpitesSelectedLeagues.filter(id => id !== String(liga.id)));
-                                } else {
-                                  setPalpitesSelectedLeagues([...palpitesSelectedLeagues, String(liga.id)]);
-                                }
-                              }}
-                              style={{ accentColor: '#00d2ff', cursor: 'pointer' }}
-                            />
-                            {liga.name}
-                          </label>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* HISTÓRICO DE DESPACHO VIP / AGENDADOS */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid #222', paddingTop: '8px' }}>
-                    <div style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 'bold' }}>Histórico de Despacho VIP:</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', maxHeight: '150px', overflowY: 'auto' }} className="custom-scrollbar">
-                      {palpitesSchedules.length === 0 ? (
-                        <div style={{ fontSize: '0.72rem', color: '#666', fontStyle: 'italic', textAlign: 'center', padding: '12px' }}>
-                          Nenhum agendamento cadastrado.
-                        </div>
-                      ) : (
-                        palpitesSchedules.map(sched => (
-                          <div 
-                            key={sched.id} 
-                            style={{ 
-                              display: 'flex', 
-                              justifyContent: 'space-between', 
-                              alignItems: 'center', 
-                              background: '#0a0a0f', 
-                              border: '1px solid #222', 
-                              padding: '6px 8px', 
-                              borderRadius: '4px' 
-                            }}
-                          >
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxWidth: '85%' }}>
-                              <span style={{ fontSize: '0.78rem', color: '#00d2ff', fontFamily: 'monospace', fontWeight: 'bold' }}>
-                                ⏱️ {sched.hour}
-                              </span>
-                              <span style={{ fontSize: '0.7rem', color: '#ccc', wordBreak: 'break-word' }}>
-                                {sched.leagues.map(id => ligasSaaS.find(l => String(l.id) === String(id))?.name || id).join(', ')}
-                              </span>
-                            </div>
-                            <button
-                              onClick={() => {
-                                const updated = palpitesSchedules.filter(s => s.id !== sched.id);
-                                setPalpitesSchedules(updated);
-                                savePalpitesSchedulesDirectly(updated);
-                              }}
-                              style={{
-                                background: 'transparent',
-                                border: 'none',
-                                color: '#ff4d4d',
-                                cursor: 'pointer',
-                                fontSize: '0.7rem',
-                                fontWeight: 'bold',
-                                padding: '4px'
-                              }}
-                              title="Remover agendamento"
-                            >
-                              Excluir
-                            </button>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
+                  <input
+                    type="range"
+                    min="3.0"
+                    max="15.0"
+                    step="0.5"
+                    value={botMinEv}
+                    onChange={(e) => setBotMinEv(parseFloat(e.target.value))}
+                    onMouseUp={() => saveSettingDirectly('telegram_bot_min_ev', parseFloat(botMinEv), true)}
+                    onTouchEnd={() => saveSettingDirectly('telegram_bot_min_ev', parseFloat(botMinEv), true)}
+                    style={{
+                      width: '100%',
+                      accentColor: 'var(--brand-neon)',
+                      background: '#222',
+                      height: '4px',
+                      borderRadius: '2px',
+                      cursor: 'pointer'
+                    }}
+                  />
                 </div>
 
-                <button
-                  onClick={handleSavePalpitesSettings}
-                  disabled={isSavingSettings}
-                  style={{
-                    background: 'transparent',
-                    border: '1px solid #00d2ff',
-                    color: '#00d2ff',
-                    padding: '8px',
-                    borderRadius: '6px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    transition: 'all 0.2s',
-                    marginTop: '4px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '6px'
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = 'rgba(0, 210, 255, 0.15)';
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = 'transparent';
-                  }}
-                >
-                  {isSavingSettings ? 'Salvando...' : '💾 Salvar Configurações de Palpites'}
-                </button>
+                {/* HORARIOS PROGRAMADOS EV */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff' }}>Novo Agendamento:</div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <input
+                      type="text"
+                      placeholder="HH:MM"
+                      value={newHourInput}
+                      onChange={(e) => handleTimeChange(e, setNewHourInput)}
+                      onBlur={(e) => handleTimeBlur(e.target.value, setNewHourInput)}
+                      style={{
+                        flex: 1,
+                        background: '#0a0a0f',
+                        border: '1px solid #222',
+                        borderRadius: '4px',
+                        color: '#fff',
+                        padding: '4px 8px',
+                        fontSize: '0.75rem',
+                        outline: 'none'
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        const val = newHourInput.trim();
+                        if (/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val)) {
+                          if (!botHours.includes(val)) {
+                            const newHours = [...botHours, val].sort();
+                            setBotHours(newHours);
+                            setNewHourInput('');
+                            saveSettingDirectly('telegram_bot_hours', newHours);
+                          } else {
+                            showNotification('Horário já cadastrado', 'info');
+                          }
+                        } else {
+                          showNotification('Formato inválido (Use HH:MM)', 'error');
+                        }
+                      }}
+                      style={{
+                        background: '#1a1a24',
+                        border: '1px solid #333',
+                        color: 'var(--brand-neon)',
+                        padding: '4px 10px',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Agendar
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* CRIADOR DE CARDS (MAIS COMPACTO COM UPLOAD LOCAL) */}
               <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  🎨 Criador de Cards Customizados
+                  🎨 Criador de Cards
                 </h3>
                 
                 {/* Seleção de Templates */}
@@ -4114,9 +3772,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
 
                 {/* Upload de Imagem de Arquivo Local ou URL */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.78rem', color: '#aaa', fontWeight: 'bold' }}>
-                    Imagem do Card (Arquivo Local ou link)
-                  </label>
+                  <label style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 'bold' }}>Imagem (Arquivo/Link)</label>
                   <div style={{ display: 'flex', gap: '6px', flexDirection: 'column' }}>
                     <input
                       ref={fileInputRef}
@@ -4126,33 +3782,18 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                         const file = e.target.files?.[0];
                         if (file) {
                           const reader = new FileReader();
-                          reader.onloadend = () => {
-                            setCardImageUrl(reader.result);
-                          };
+                          reader.onloadend = () => setCardImageUrl(reader.result);
                           reader.readAsDataURL(file);
                         }
                       }}
-                      style={{
-                        fontSize: '0.75rem',
-                        color: '#aaa',
-                        cursor: 'pointer'
-                      }}
+                      style={{ fontSize: '0.75rem', color: '#aaa', cursor: 'pointer' }}
                     />
                     <input
                       type="text"
                       value={cardImageUrl.startsWith('data:') ? '' : cardImageUrl}
                       onChange={(e) => setCardImageUrl(e.target.value)}
-                      placeholder="Ou cole a URL da imagem aqui..."
-                      style={{
-                        width: '100%',
-                        background: '#0a0a0f',
-                        border: '1px solid #222',
-                        borderRadius: '4px',
-                        color: '#fff',
-                        padding: '6px 10px',
-                        fontSize: '0.78rem',
-                        outline: 'none'
-                      }}
+                      placeholder="Ou cole a URL..."
+                      style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 10px', fontSize: '0.75rem', outline: 'none' }}
                     />
                   </div>
                 </div>
@@ -4161,82 +3802,39 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                   <textarea
                     value={customMessage}
                     onChange={(e) => setCustomMessage(e.target.value)}
-                    placeholder="Legenda em Markdown (*negrito*, _itálico_)"
+                    placeholder="Legenda Markdown"
                     rows={4}
-                    style={{
-                      width: '100%',
-                      background: '#0a0a0f',
-                      border: '1px solid #222',
-                      borderRadius: '4px',
-                      color: '#fff',
-                      padding: '8px',
-                      fontSize: '0.8rem',
-                      fontFamily: 'monospace',
-                      resize: 'none',
-                      outline: 'none'
-                    }}
+                    style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '8px', fontSize: '0.75rem', fontFamily: 'monospace', resize: 'none', outline: 'none' }}
                   />
                 </div>
 
                 {/* Botão de Link Opcional */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid #222', paddingTop: '10px' }}>
-                  <label style={{ fontSize: '0.78rem', color: '#aaa', fontWeight: 'bold' }}>
-                    🔗 Botão de Link com a Mensagem (Opcional)
-                  </label>
+                  <label style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 'bold' }}>🔗 Botão Link (Op)</label>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <input
                       type="text"
-                      placeholder="Texto (Ex: 💎 Assinar VIP)"
+                      placeholder="Texto"
                       value={buttonText}
                       onChange={(e) => setButtonText(e.target.value)}
-                      style={{
-                        flex: 1,
-                        background: '#0a0a0f',
-                        border: '1px solid #222',
-                        borderRadius: '4px',
-                        color: '#fff',
-                        padding: '6px 10px',
-                        fontSize: '0.78rem',
-                        outline: 'none'
-                      }}
+                      style={{ flex: 1, background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 10px', fontSize: '0.75rem', outline: 'none' }}
                     />
                     <input
                       type="text"
-                      placeholder="Link (Ex: https://t.me/...)"
+                      placeholder="URL"
                       value={buttonUrl}
                       onChange={(e) => setButtonUrl(e.target.value)}
-                      style={{
-                        flex: 1.5,
-                        background: '#0a0a0f',
-                        border: '1px solid #222',
-                        borderRadius: '4px',
-                        color: '#fff',
-                        padding: '6px 10px',
-                        fontSize: '0.78rem',
-                        outline: 'none'
-                      }}
+                      style={{ flex: 1.5, background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 10px', fontSize: '0.75rem', outline: 'none' }}
                     />
                   </div>
                 </div>
 
                 {/* Seleção do Canal de Destino */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.78rem', color: '#aaa', fontWeight: 'bold' }}>
-                    Postar no Canal/Grupo:
-                  </label>
                   <select
                     value={broadcastChannel}
                     onChange={(e) => setBroadcastChannel(e.target.value)}
-                    style={{
-                      width: '100%',
-                      background: '#0a0a0f',
-                      border: '1px solid #222',
-                      borderRadius: '4px',
-                      color: '#fff',
-                      padding: '6px',
-                      fontSize: '0.78rem',
-                      cursor: 'pointer'
-                    }}
+                    style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px', fontSize: '0.75rem', cursor: 'pointer' }}
                   >
                     <option value="vip">Grupo VIP (Premium)</option>
                     <option value="free">Canal Livre (Geral)</option>
@@ -4247,32 +3845,197 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                 <button
                   onClick={handleSendCustomCard}
                   disabled={isVipSending || (!customMessage.trim() && !cardImageUrl)}
-                  style={{
-                    background: 'var(--brand-neon)',
-                    color: '#000',
-                    border: 'none',
-                    padding: '8px',
-                    borderRadius: '4px',
-                    fontWeight: 'bold',
-                    cursor: 'pointer',
-                    fontSize: '0.8rem',
-                    transition: 'all 0.2s'
-                  }}
+                  style={{ background: 'var(--brand-neon)', color: '#000', border: 'none', padding: '8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.75rem', transition: 'all 0.2s' }}
                 >
-                  Enviar para {broadcastChannel === 'vip' ? 'Grupo VIP' : broadcastChannel === 'free' ? 'Canal Livre' : 'Radar EV'}
+                  Enviar
                 </button>
               </div>
-
             </div>
 
-            {/* COLUNA 2: HISTÓRICO DE DESPACHO VIP */}
+            {/* COLUNA 2: PALPITES */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
+                <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #222', paddingBottom: '8px' }}>
+                  <Clock size={16} color="#00d2ff" />
+                  ⏱️ Robô de Palpites
+                </h3>
+
+                {/* LIGA / DESLIGA BOT PALPITES */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0a0a0f', padding: '8px 12px', borderRadius: '6px', border: '1px solid #1a1a24' }}>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>Ativar Palpites</div>
+                  <button
+                    onClick={() => {
+                      const newVal = !palpitesBotEnabled;
+                      setPalpitesBotEnabled(newVal);
+                      saveSettingDirectly('telegram_palpites_enabled', newVal, true);
+                    }}
+                    style={{
+                      width: '44px',
+                      height: '22px',
+                      borderRadius: '11px',
+                      background: palpitesBotEnabled ? '#00d2ff' : '#222',
+                      border: 'none',
+                      position: 'relative',
+                      cursor: 'pointer',
+                      transition: 'background 0.2s'
+                    }}
+                  >
+                    <div style={{
+                      width: '18px',
+                      height: '18px',
+                      borderRadius: '50%',
+                      background: palpitesBotEnabled ? '#000' : '#888',
+                      position: 'absolute',
+                      top: '2px',
+                      left: palpitesBotEnabled ? '24px' : '2px',
+                      transition: 'all 0.2s'
+                    }} />
+                  </button>
+                </div>
+
+                {/* HORARIO PROGRAMADOS PALPITES E SELEÇÃO LIGAS */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: '#0a0a0f', padding: '10px', borderRadius: '6px', border: '1px solid #1a1a24', flexGrow: 1 }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff' }}>Novo Agendamento:</div>
+                  <div style={{ display: 'flex', gap: '6px' }}>
+                    <input
+                      type="text"
+                      placeholder="HH:MM"
+                      value={palpitesHourInput}
+                      onChange={(e) => handleTimeChange(e, setPalpitesHourInput)}
+                      onBlur={(e) => handleTimeBlur(e.target.value, setPalpitesHourInput)}
+                      style={{
+                        flex: 1,
+                        background: '#050508',
+                        border: '1px solid #222',
+                        borderRadius: '4px',
+                        color: '#fff',
+                        padding: '4px 8px',
+                        fontSize: '0.75rem',
+                        outline: 'none'
+                      }}
+                    />
+                    <button
+                      onClick={() => {
+                        const val = palpitesHourInput.trim();
+                        if (!/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/.test(val)) {
+                          showNotification('Formato inválido (Use HH:MM)', 'error');
+                          return;
+                        }
+                        if (palpitesSelectedLeagues.length === 0) {
+                          showNotification('Selecione pelo menos uma liga para este horário', 'error');
+                          return;
+                        }
+                        // Evitar duplicados no mesmo horário
+                        if (palpitesSchedules.some(s => s.hour === val)) {
+                          showNotification('Já existe um agendamento para este horário', 'error');
+                          return;
+                        }
+                        
+                        const newSched = {
+                          id: Date.now().toString(),
+                          hour: val,
+                          leagues: [...palpitesSelectedLeagues]
+                        };
+                        
+                        const updated = [...palpitesSchedules, newSched].sort((a,b) => a.hour.localeCompare(b.hour));
+                        setPalpitesSchedules(updated);
+                        setPalpitesHourInput('');
+                        setPalpitesSelectedLeagues([]);
+                        saveSettingDirectly('telegram_palpites_schedules', updated);
+                      }}
+                      style={{
+                        background: '#1a1a24',
+                        border: '1px solid #333',
+                        color: '#00d2ff',
+                        padding: '4px 10px',
+                        borderRadius: '4px',
+                        fontSize: '0.75rem',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Agendar
+                    </button>
+                  </div>
+
+                  {/* SELEÇÃO DE LIGAS NO CRUADOR DE AGENDAMENTO */}
+                  <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: '4px' }}>Ligas do Horário:</div>
+                  <div style={{ 
+                    display: 'grid', 
+                    gridTemplateColumns: '1fr', 
+                    gap: '4px', 
+                    flexGrow: 1, 
+                    overflowY: 'auto', 
+                    border: '1px solid #222', 
+                    padding: '6px', 
+                    borderRadius: '4px', 
+                    background: '#050508' 
+                  }} className="custom-scrollbar">
+                    {ligasSaaS.map(liga => {
+                      const isSelected = palpitesSelectedLeagues.includes(String(liga.id));
+                      return (
+                        <label 
+                          key={liga.id} 
+                          style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: isSelected ? '#00d2ff' : '#666', cursor: 'pointer', userSelect: 'none' }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => {
+                              if (isSelected) {
+                                setPalpitesSelectedLeagues(palpitesSelectedLeagues.filter(id => id !== String(liga.id)));
+                              } else {
+                                setPalpitesSelectedLeagues([...palpitesSelectedLeagues, String(liga.id)]);
+                              }
+                            }}
+                            style={{ accentColor: '#00d2ff', cursor: 'pointer' }}
+                          />
+                          {liga.name}
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* COLUNA 3: HISTÓRICO ÚNICO E AGENDADOS */}
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '8px' }}>
-                  <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    📜 Histórico de Despacho VIP
-                  </h3>
-                  {dispatchHistory.length > 0 && (
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    <button
+                      onClick={() => setTelegramHistoryTab('agendados')}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: telegramHistoryTab === 'agendados' ? '#fff' : '#666',
+                        borderBottom: telegramHistoryTab === 'agendados' ? '2px solid var(--brand-neon)' : '2px solid transparent',
+                        paddingBottom: '4px',
+                        fontSize: '0.85rem',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Agendados
+                    </button>
+                    <button
+                      onClick={() => setTelegramHistoryTab('historico')}
+                      style={{
+                        background: 'transparent',
+                        border: 'none',
+                        color: telegramHistoryTab === 'historico' ? '#fff' : '#666',
+                        borderBottom: telegramHistoryTab === 'historico' ? '2px solid var(--brand-neon)' : '2px solid transparent',
+                        paddingBottom: '4px',
+                        fontSize: '0.85rem',
+                        fontWeight: 'bold',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Histórico
+                    </button>
+                  </div>
+                  {telegramHistoryTab === 'historico' && dispatchHistory.length > 0 && (
                     <button
                       onClick={() => {
                         setDispatchHistory([]);
@@ -4287,6 +4050,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                 </div>
 
                 <div 
+                  className="custom-scrollbar"
                   style={{
                     height: '150px',
                     flexGrow: 1,
@@ -4296,44 +4060,59 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                     gap: '6px'
                   }}
                 >
-                  {dispatchHistory.length === 0 ? (
-                    <div style={{ padding: '40px 0', textAlign: 'center', color: '#555', fontSize: '0.75rem' }}>
-                      Nenhum envio registrado recentemente.
-                    </div>
-                  ) : (
-                    dispatchHistory.map(item => (
-                      <div
-                        key={item.id}
-                        style={{
-                          background: '#0a0a0f',
-                          border: '1px solid #1a1a24',
-                          borderLeft: `4px solid ${item.status === 'success' ? 'var(--brand-neon)' : 'var(--alert-red)'}`,
-                          padding: '8px 10px',
-                          borderRadius: '4px',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '2px'
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem' }}>
-                          <span style={{ fontWeight: 'bold', color: item.status === 'success' ? 'var(--brand-neon)' : 'var(--alert-red)' }}>
-                            {item.type}
-                          </span>
-                          <span style={{ color: '#555', fontFamily: 'monospace' }}>
-                            {new Date(item.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '0.75rem', color: '#ccc', lineBreak: 'anywhere' }}>
-                          {item.message}
-                        </div>
+                  {telegramHistoryTab === 'agendados' ? (
+                    palpitesSchedules.length === 0 && botHours.length === 0 ? (
+                      <div style={{ padding: '40px 0', textAlign: 'center', color: '#555', fontSize: '0.75rem' }}>
+                        Nenhum agendamento cadastrado.
                       </div>
-                    ))
+                    ) : (
+                      <>
+                        {botHours.map((hr, idx) => (
+                          <div key={"ev-" + idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0a0a0f', border: '1px solid #222', padding: '6px 8px', borderRadius: '4px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxWidth: '85%' }}>
+                              <span style={{ fontSize: '0.78rem', color: 'var(--brand-neon)', fontFamily: 'monospace', fontWeight: 'bold' }}>
+                                ⏱️ {hr} <span style={{fontSize: '0.65rem', color: '#666', fontWeight: 'normal'}}>(Alerta EV)</span>
+                              </span>
+                              <span style={{ fontSize: '0.7rem', color: '#ccc', wordBreak: 'break-word' }}>Sinais VIP (+EV)</span>
+                            </div>
+                            <button onClick={() => { const newHours = botHours.filter(h => h !== hr); setBotHours(newHours); saveSettingDirectly('telegram_bot_hours', newHours); }} style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold', padding: '4px' }}>Excluir</button>
+                          </div>
+                        ))}
+                        {palpitesSchedules.map(sched => (
+                          <div key={sched.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0a0a0f', border: '1px solid #222', padding: '6px 8px', borderRadius: '4px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', maxWidth: '85%' }}>
+                              <span style={{ fontSize: '0.78rem', color: '#00d2ff', fontFamily: 'monospace', fontWeight: 'bold' }}>
+                                ⏱️ {sched.hour} <span style={{fontSize: '0.65rem', color: '#666', fontWeight: 'normal'}}>(Palpites)</span>
+                              </span>
+                              <span style={{ fontSize: '0.7rem', color: '#ccc', wordBreak: 'break-word' }}>{sched.leagues.map(id => ligasSaaS.find(l => String(l.id) === String(id))?.name || id).join(', ')}</span>
+                            </div>
+                            <button onClick={() => { const updated = palpitesSchedules.filter(s => s.id !== sched.id); setPalpitesSchedules(updated); saveSettingDirectly('telegram_palpites_schedules', updated); }} style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 'bold', padding: '4px' }}>Excluir</button>
+                          </div>
+                        ))}
+                      </>
+                    )
+                  ) : (
+                    dispatchHistory.length === 0 ? (
+                      <div style={{ padding: '40px 0', textAlign: 'center', color: '#555', fontSize: '0.75rem' }}>
+                        Nenhum envio registrado recentemente.
+                      </div>
+                    ) : (
+                      dispatchHistory.map(item => (
+                        <div key={item.id} style={{ background: '#0a0a0f', border: '1px solid #1a1a24', borderLeft: `4px solid ${item.status === 'success' ? 'var(--brand-neon)' : 'var(--alert-red)'}`, padding: '8px 10px', borderRadius: '4px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem' }}>
+                            <span style={{ fontWeight: 'bold', color: item.status === 'success' ? 'var(--brand-neon)' : 'var(--alert-red)' }}>{item.type}</span>
+                            <span style={{ color: '#555', fontFamily: 'monospace' }}>{new Date(item.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
+                          </div>
+                          <div style={{ fontSize: '0.75rem', color: '#ccc', lineBreak: 'anywhere' }}>{item.message}</div>
+                        </div>
+                      ))
+                    )
                   )}
                 </div>
               </div>
             </div>
 
-            {/* COLUNA 3: PRÉVIA DA MENSAGEM (TELEGRAM - FORMATO 9:16) */}
+            {/* COLUNA 4: PRÉVIA DA MENSAGEM (TELEGRAM - FORMATO 9:16) */}
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
               <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
                 <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>

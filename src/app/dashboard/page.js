@@ -205,6 +205,7 @@ export default function ResponsiveDashboard() {
 
     let currentBanca = initial;
     let loadedFromSupabase = false;
+    let pendingStakes = 0;
 
     if (supabase) {
       try {
@@ -217,12 +218,17 @@ export default function ResponsiveDashboard() {
         
         if (data) {
           data.forEach(t => {
-            const isGain = t.type === 'ganho' || t.type === 'alavancagem' || t.description === 'Alavancagem';
-            if (isGain) {
+            if (t.type === 'aporte') {
+              currentBanca += t.amount;
+            } else if (t.type === 'retirada') {
+              currentBanca -= t.amount;
+            } else if (t.type === 'ganho' || t.type === 'alavancagem' || t.description === 'Alavancagem') {
               const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;
               currentBanca += profit;
             } else if (t.type === 'perda') {
               currentBanca -= t.amount;
+            } else if (t.type === 'pendente') {
+              pendingStakes += t.amount;
             }
           });
           loadedFromSupabase = true;
@@ -238,12 +244,17 @@ export default function ResponsiveDashboard() {
         try {
           const txs = JSON.parse(savedTxs);
           txs.forEach(t => {
-            const isGain = t.type === 'ganho' || t.type === 'alavancagem' || t.description === 'Alavancagem';
-            if (isGain) {
+            if (t.type === 'aporte') {
+              currentBanca += t.amount;
+            } else if (t.type === 'retirada') {
+              currentBanca -= t.amount;
+            } else if (t.type === 'ganho' || t.type === 'alavancagem' || t.description === 'Alavancagem') {
               const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;
               currentBanca += profit;
             } else if (t.type === 'perda') {
               currentBanca -= t.amount;
+            } else if (t.type === 'pendente') {
+              pendingStakes += t.amount;
             }
           });
         } catch (e) {
@@ -251,9 +262,10 @@ export default function ResponsiveDashboard() {
         }
       }
     }
-    setBanca(currentBanca);
+    const finalBanca = currentBanca - pendingStakes;
+    setBanca(finalBanca);
     try {
-      localStorage.setItem(userCachedBancaKey, currentBanca.toString());
+      localStorage.setItem(userCachedBancaKey, finalBanca.toString());
     } catch (e) {}
   };
 

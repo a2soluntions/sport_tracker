@@ -95,6 +95,26 @@ export function AuthProvider({ children }) {
           console.log("[AuthContext] getSession iniciando...");
           const { data: { session }, error } = await supabase.auth.getSession();
           console.log("[AuthContext] getSession finalizado, error:", error, "user:", session?.user?.email);
+          if (error) {
+            console.warn("[AuthContext] Erro ao recuperar sessão do Supabase:", error.message);
+            if (error.message && (error.message.includes('Refresh Token') || error.message.includes('refresh_token') || error.status === 400)) {
+              console.log("[AuthContext] Invalid Refresh Token detectado. Limpando a sessão localmente...");
+              try {
+                await supabase.auth.signOut();
+              } catch (signOutErr) {
+                console.warn("[AuthContext] Erro ao executar signOut:", signOutErr);
+              }
+              // Forçar a limpeza das chaves do Supabase auth-token do localStorage
+              if (typeof window !== 'undefined') {
+                const keys = Object.keys(localStorage);
+                keys.forEach(k => {
+                  if (k.startsWith('sb-') && k.endsWith('-auth-token')) {
+                    localStorage.removeItem(k);
+                  }
+                });
+              }
+            }
+          }
           if (!error && session?.user) {
             sessionUser = session.user;
           }

@@ -722,29 +722,31 @@ export default function PalpitesPage() {
           if (!players || players.length === 0) return null;
 
           const gks = players.filter(p => p.position === 'Goalkeeper');
-          const attackers = players.filter(p => p.position === 'Attacker');
-          const midfielders = players.filter(p => p.position === 'Midfielder');
-
           const gk = gks.length > 0 ? gks[0].name : null;
 
-          const scorers = [];
-          if (attackers.length > 0) scorers.push(attackers[0].name);
-          if (attackers.length > 1) scorers.push(attackers[1].name);
-          if (midfielders.length > 0 && scorers.length < 3) scorers.push(midfielders[0].name);
+          const fieldPlayers = players.filter(p => p.position === 'Attacker' || p.position === 'Midfielder');
 
-          let idxAtt = 2;
-          let idxMid = 1;
-          while (scorers.length < 3) {
-            if (attackers.length > idxAtt) {
-              scorers.push(attackers[idxAtt].name);
-              idxAtt++;
-            } else if (midfielders.length > idxMid) {
-              scorers.push(midfielders[idxMid].name);
-              idxMid++;
-            } else {
-              break;
-            }
-          }
+          // Lista de palavras-chave para priorizar estrelas e artilheiros consagrados
+          const starPlayers = [
+            'messi', 'ronaldo', 'neymar', 'suárez', 'suarez', 'benzema', 'lewandowski', 'mbappé', 'mbappe', 'haaland', 
+            'vinícius', 'vinicius', 'bellingham', 'rodrygo', 'kane', 'salah', 'de bruyne', 'griezmann', 'lautaro', 
+            'álvarez', 'alvarez', 'di maría', 'di maria', 'dybala', 'hulk', 'pedro', 'gabigol', 'calleri', 'lucas moura', 
+            'tiquinho', 'yuri alberto', 'depay', 'memphis', 'braithwaite', 'borré', 'borre', 'lucero', 'bolasie', 
+            'pitta', 'vegetti', 'veiga', 'estêvão', 'estevao', 'de arrascaeta', 'arrascaeta', 'coutinho', 'payet'
+          ];
+
+          const getPlayerScore = (p) => {
+            const nameLower = p.name.toLowerCase();
+            const isStar = starPlayers.some(star => nameLower.includes(star));
+            if (isStar) return 100; // Estrelas ganham prioridade absoluta
+            if (p.position === 'Attacker') return 10; // Atacantes vêm depois
+            if (p.position === 'Midfielder') return 5; // Meio-campistas depois
+            return 0;
+          };
+
+          // Ordena decrescente pelo score e pega os 3 primeiros
+          const sortedField = [...fieldPlayers].sort((a, b) => getPlayerScore(b) - getPlayerScore(a));
+          const scorers = sortedField.slice(0, 3).map(p => p.name);
 
           return { gk, scorers };
         };

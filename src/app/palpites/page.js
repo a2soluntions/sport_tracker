@@ -2762,8 +2762,8 @@ export default function PalpitesPage() {
               style={{
                 width: '90%',
                 maxWidth: '820px',
+                height: '90vh',
                 maxHeight: '90vh',
-                overflowY: 'auto',
                 background: 'linear-gradient(135deg, #111115, #14141d)',
                 border: '1px solid #333',
                 borderTop: '4px solid var(--brand-neon)',
@@ -2773,7 +2773,8 @@ export default function PalpitesPage() {
                 gap: '16px',
                 boxShadow: '0 10px 40px rgba(0,0,0,0.8)',
                 position: 'relative',
-                animation: 'scaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)'
+                animation: 'scaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                overflow: 'hidden'
               }}
             >
               {/* Botão de Fechar Modal */}
@@ -2791,7 +2792,8 @@ export default function PalpitesPage() {
                   fontWeight: 'bold',
                   padding: '4px 8px',
                   borderRadius: '4px',
-                  transition: 'color 0.2s'
+                  transition: 'color 0.2s',
+                  zIndex: 10
                 }}
                 onMouseOver={(e) => e.target.style.color = '#fff'}
                 onMouseOut={(e) => e.target.style.color = '#aaa'}
@@ -2799,23 +2801,29 @@ export default function PalpitesPage() {
                 ✕
               </button>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
+              {/* Cabeçalho Fixo */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #222', paddingBottom: '12px', flexShrink: 0 }}>
                 <span style={{ fontSize: '1.5rem' }}>📊</span>
                 <div>
                   <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>
                     Radar de Estatísticas
                   </h3>
-                  <p style={{ fontSize: '0.8rem', color: '#888', margin: '2px 0 0 0', fontFamily: 'monospace' }}>
-                    {game.home} x {game.away} • Poisson Projections
-                  </p>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--brand-neon)' }}>{game.home}</span>
+                    <span style={{ fontSize: '0.75rem', color: '#666' }}>vs</span>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--brand-neon)' }}>{game.away}</span>
+                    <span style={{ fontSize: '0.75rem', color: '#444' }}>•</span>
+                    <span style={{ fontSize: '0.75rem', color: '#888', fontFamily: 'monospace' }}>Poisson Projections</span>
+                  </div>
                 </div>
               </div>
 
-              {/* Single Screen Content - Scrollable flow */}
+              {/* Corpo Rolável (Single Screen Content) */}
               {(() => {
                 const detailedProjections = getBuilderMarkets(game);
                 const opportunities = [];
                 detailedProjections.forEach(cat => {
+                  if (cat.category === 'Cartões') return; // Retirar cartões amarelos/vermelhos junto com os gols
                   cat.items.forEach(item => {
                     if (item.prob >= 0.60) {
                       opportunities.push(item);
@@ -2824,41 +2832,51 @@ export default function PalpitesPage() {
                 });
                 opportunities.sort((a, b) => b.prob - a.prob);
 
-                // Configurar dados de handicap separados por time
-                const getHandicapExplanation = (line) => {
-                  const lineVal = parseFloat(line);
-                  if (lineVal === 0.0) return { win: `Vitória`, void: `Empate`, loss: `Derrota` };
-                  if (lineVal === -0.5) return { win: `Vitória`, void: `Não há`, loss: `Empate ou Derrota` };
-                  if (lineVal === 0.5) return { win: `Vitória ou Empate`, void: `Não há`, loss: `Derrota` };
-                  if (lineVal === -1.0) return { win: `Vitória por 2+ gols`, void: `Vitória por 1 gol`, loss: `Empate ou Derrota` };
-                  if (lineVal === 1.0) return { win: `Vitória ou Empate`, void: `Derrota por 1 gol`, loss: `Derrota por 2+ gols` };
-                  if (lineVal === -1.5) return { win: `Vitória por 2+ gols`, void: `Não há`, loss: `Vitória por 1 gol, Empate ou Derrota` };
-                  if (lineVal === 1.5) return { win: `Vitória, Empate ou Derrota por 1 gol`, void: `Não há`, loss: `Derrota por 2+ gols` };
-                  return { win: '-', void: '-', loss: '-' };
+                // Helper para cálculo dinâmico de Handicaps até 2.0
+                const scoreMatrix = game.stats.scoreMatrix;
+                const calculateAH = (isHome, line) => {
+                  if (scoreMatrix) {
+                    return calculateDynamicHandicapProb(scoreMatrix, isHome, line);
+                  }
+                  // Fallbacks
+                  if (line === 0.0) return isHome ? game.stats.probCasaAH00 : game.stats.probForaAH00;
+                  if (line === -0.5) return isHome ? game.stats.probHome : game.stats.probAway;
+                  if (line === 0.5) return isHome ? (game.stats.probHome + game.stats.probDraw) : (game.stats.probAway + game.stats.probDraw);
+                  if (line === -1.0) return isHome ? game.stats.probCasaAH10 : game.stats.probForaAH10;
+                  if (line === 1.0) return isHome ? game.stats.probCasaAH10Pos : game.stats.probForaAH10Pos;
+                  if (line === -1.5) return isHome ? game.stats.probCasaAH15 : game.stats.probForaAH15;
+                  if (line === 1.5) return isHome ? game.stats.probAH15Pos_home : game.stats.probAH15Pos_away;
+                  if (line === -2.0) return isHome ? (game.stats.probCasaAH15 * 0.7) : (game.stats.probForaAH15 * 0.7);
+                  if (line === 2.0) return isHome ? (game.stats.probAH15Pos_home + 0.05) : (game.stats.probAH15Pos_away + 0.05);
+                  return 0.5;
                 };
 
                 const homeHandicaps = [
-                  { label: `AH 0.0`, prob: game.stats.probCasaAH00, line: 0.0 },
-                  { label: `AH -0.5`, prob: game.stats.probHome, line: -0.5 },
-                  { label: `AH +0.5`, prob: game.stats.probHome + game.stats.probDraw, line: 0.5 },
-                  { label: `AH -1.0`, prob: game.stats.probCasaAH10, line: -1.0 },
-                  { label: `AH +1.0`, prob: game.stats.probCasaAH10Pos, line: 1.0 },
-                  { label: `AH -1.5`, prob: game.stats.probCasaAH15, line: -1.5 },
-                  { label: `AH +1.5`, prob: game.stats.probAH15Pos_home, line: 1.5 }
+                  { label: `AH 0.0`, prob: calculateAH(true, 0.0) },
+                  { label: `AH -0.5`, prob: calculateAH(true, -0.5) },
+                  { label: `AH +0.5`, prob: calculateAH(true, 0.5) },
+                  { label: `AH -1.0`, prob: calculateAH(true, -1.0) },
+                  { label: `AH +1.0`, prob: calculateAH(true, 1.0) },
+                  { label: `AH -1.5`, prob: calculateAH(true, -1.5) },
+                  { label: `AH +1.5`, prob: calculateAH(true, 1.5) },
+                  { label: `AH -2.0`, prob: calculateAH(true, -2.0) },
+                  { label: `AH +2.0`, prob: calculateAH(true, 2.0) }
                 ];
 
                 const awayHandicaps = [
-                  { label: `AH 0.0`, prob: game.stats.probForaAH00, line: 0.0 },
-                  { label: `AH -0.5`, prob: game.stats.probAway, line: -0.5 },
-                  { label: `AH +0.5`, prob: game.stats.probAway + game.stats.probDraw, line: 0.5 },
-                  { label: `AH -1.0`, prob: game.stats.probForaAH10, line: -1.0 },
-                  { label: `AH +1.0`, prob: game.stats.probForaAH10Pos, line: 1.0 },
-                  { label: `AH -1.5`, prob: game.stats.probForaAH15, line: -1.5 },
-                  { label: `AH +1.5`, prob: game.stats.probAH15Pos_away, line: 1.5 }
+                  { label: `AH 0.0`, prob: calculateAH(false, 0.0) },
+                  { label: `AH -0.5`, prob: calculateAH(false, -0.5) },
+                  { label: `AH +0.5`, prob: calculateAH(false, 0.5) },
+                  { label: `AH -1.0`, prob: calculateAH(false, -1.0) },
+                  { label: `AH +1.0`, prob: calculateAH(false, 1.0) },
+                  { label: `AH -1.5`, prob: calculateAH(false, -1.5) },
+                  { label: `AH +1.5`, prob: calculateAH(false, 1.5) },
+                  { label: `AH -2.0`, prob: calculateAH(false, -2.0) },
+                  { label: `AH +2.0`, prob: calculateAH(false, 2.0) }
                 ];
 
                 return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingRight: '4px' }}>
+                  <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '24px', paddingRight: '6px' }}>
                     
                     {/* 1. Entrada Recomendada */}
                     <div style={{ 
@@ -2869,7 +2887,8 @@ export default function PalpitesPage() {
                       border: '1px solid rgba(204, 255, 0, 0.15)',
                       borderRadius: '8px',
                       padding: '10px 14px',
-                      fontSize: '0.85rem'
+                      fontSize: '0.85rem',
+                      flexShrink: 0
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold', fontSize: '1rem' }}>🎯 Entrada Recomendada:</span>
@@ -2891,9 +2910,8 @@ export default function PalpitesPage() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                         {/* Mandante */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.8rem' }}>
-                          <div style={{ borderBottom: '1px solid #222', paddingBottom: '4px', fontWeight: 'bold', color: '#fff', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                            <img src={game.homeLogo || `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`} alt={game.home} style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
-                            <span>{game.home}</span>
+                          <div style={{ borderBottom: '1px solid #222', paddingBottom: '4px', fontWeight: 'bold', color: '#fff' }}>
+                            Casa (Mandante)
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
                             <span>Vitória (Poisson):</span>
@@ -2907,9 +2925,8 @@ export default function PalpitesPage() {
 
                         {/* Visitante */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.8rem' }}>
-                          <div style={{ borderBottom: '1px solid #222', paddingBottom: '4px', fontWeight: 'bold', color: '#fff', display: 'flex', gap: '6px', alignItems: 'center' }}>
-                            <img src={game.awayLogo || `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`} alt={game.away} style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
-                            <span>{game.away}</span>
+                          <div style={{ borderBottom: '1px solid #222', paddingBottom: '4px', fontWeight: 'bold', color: '#fff' }}>
+                            Fora (Visitante)
                           </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
                             <span>Vitória (Poisson):</span>
@@ -2924,9 +2941,9 @@ export default function PalpitesPage() {
 
                       {/* Oportunidades Identificadas */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '14px' }}>
-                        <span style={{ fontSize: '0.78rem', color: '#888', fontWeight: 'bold' }}>🎯 Oportunidades de Alta Probabilidade (&gt; 60%):</span>
+                        <span style={{ fontSize: '0.78rem', color: '#888', fontWeight: 'bold' }}>🎯 Oportunidades de Gols & Resultado (Máx. 10):</span>
                         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                          {opportunities.slice(0, 8).map((item, idx) => {
+                          {opportunities.slice(0, 10).map((item, idx) => {
                             const pct = (item.prob * 100).toFixed(0);
                             return (
                               <div key={idx} style={{ 
@@ -2951,7 +2968,7 @@ export default function PalpitesPage() {
                       </div>
                     </div>
 
-                    {/* 3. PROJEÇÕES DE HANDICAP ASIÁTICO (SEPARADO TIME 1 E TIME 2) */}
+                    {/* 3. PROJEÇÕES DE HANDICAP ASIÁTICO (ATÉ 2.0) */}
                     <div>
                       <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px' }}>
                         ⚖️ Projeções de Handicap Asiático (Time 1 vs Time 2)
@@ -2959,10 +2976,10 @@ export default function PalpitesPage() {
                       
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                         
-                        {/* Handicap Casa (Time 1) */}
+                        {/* Handicap Casa */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           <span style={{ fontSize: '0.78rem', color: '#fff', fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #222', paddingBottom: '2px' }}>
-                            {game.home}
+                            Casa
                           </span>
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', textAlign: 'left' }}>
                             <thead>
@@ -2988,10 +3005,10 @@ export default function PalpitesPage() {
                           </table>
                         </div>
 
-                        {/* Handicap Fora (Time 2) */}
+                        {/* Handicap Fora */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                           <span style={{ fontSize: '0.78rem', color: '#fff', fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #222', paddingBottom: '2px' }}>
-                            {game.away}
+                            Fora
                           </span>
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', textAlign: 'left' }}>
                             <thead>
@@ -3020,20 +3037,19 @@ export default function PalpitesPage() {
                       </div>
                     </div>
 
-                    {/* 4. PROJEÇÕES DE ESCANTEIOS E CARTÕES (SEPARADO TIME 1 E TIME 2) */}
+                    {/* 4. PROJEÇÃO DE ESCANTEIOS */}
                     <div>
                       <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
-                        <span>📐 Projeção de Cantos & Cartões</span>
+                        <span>📐 Projeção de Escanteios (Cantos)</span>
                         <span style={{ fontSize: '0.75rem', color: '#aaa' }}>
-                          Total Cantos: <strong style={{ color: 'var(--brand-neon)' }}>{corn.projected}</strong> | Cartões: <strong style={{ color: '#ffd700' }}>~{cards.totalYellow} 🟨</strong> <strong style={{ color: '#ff3333' }}>{cards.totalRed} 🟥</strong>
+                          Total Confronto: <strong style={{ color: 'var(--brand-neon)' }}>{corn.projected} Cantos</strong>
                         </span>
                       </div>
                       
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                        
-                        {/* Mandante (Time 1) */}
+                        {/* Mandante */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem' }}>
-                          <span style={{ color: '#fff', fontWeight: 'bold', borderBottom: '1px solid #222', paddingBottom: '2px' }}>{game.home}</span>
+                          <span style={{ color: '#fff', fontWeight: 'bold', borderBottom: '1px solid #222', paddingBottom: '2px' }}>Casa</span>
                           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa' }}>
                             <span>Cantos Feitos:</span>
                             <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.home.feitos}</span>
@@ -3042,18 +3058,11 @@ export default function PalpitesPage() {
                             <span>Cantos Sofridos:</span>
                             <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.home.sofridos}</span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', alignItems: 'center' }}>
-                            <span>Cartões Recebidos:</span>
-                            <div style={{ display: 'flex', gap: '6px' }}>
-                              <span style={{ background: '#ffd700', color: '#000', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '0.7rem' }}>{cards.home.yellow} 🟨</span>
-                              <span style={{ background: '#ff3333', color: '#fff', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '0.7rem' }}>{cards.home.red} 🟥</span>
-                            </div>
-                          </div>
                         </div>
 
-                        {/* Visitante (Time 2) */}
+                        {/* Visitante */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem' }}>
-                          <span style={{ color: '#fff', fontWeight: 'bold', borderBottom: '1px solid #222', paddingBottom: '2px' }}>{game.away}</span>
+                          <span style={{ color: '#fff', fontWeight: 'bold', borderBottom: '1px solid #222', paddingBottom: '2px' }}>Fora</span>
                           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa' }}>
                             <span>Cantos Feitos:</span>
                             <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.away.feitos}</span>
@@ -3062,33 +3071,59 @@ export default function PalpitesPage() {
                             <span>Cantos Sofridos:</span>
                             <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.away.sofridos}</span>
                           </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 5. PROJEÇÃO DE CARTÕES (SEPARADO COMPLETAMENTE) */}
+                    <div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>🎴 Estimativa de Cartões</span>
+                        <span style={{ fontSize: '0.75rem', color: '#aaa' }}>
+                          Total Projetado: <strong style={{ color: '#ffd700' }}>~{cards.totalYellow} 🟨</strong> <strong style={{ color: '#ff3333' }}>{cards.totalRed} 🟥</strong>
+                        </span>
+                      </div>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                        {/* Mandante */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem' }}>
+                          <span style={{ color: '#fff', fontWeight: 'bold', borderBottom: '1px solid #222', paddingBottom: '2px' }}>Casa</span>
                           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', alignItems: 'center' }}>
-                            <span>Cartões Recebidos:</span>
+                            <span>Média de Cartões:</span>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <span style={{ background: '#ffd700', color: '#000', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '0.7rem' }}>{cards.home.yellow} 🟨</span>
+                              <span style={{ background: '#ff3333', color: '#fff', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '0.7rem' }}>{cards.home.red} 🟥</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Visitante */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem' }}>
+                          <span style={{ color: '#fff', fontWeight: 'bold', borderBottom: '1px solid #222', paddingBottom: '2px' }}>Fora</span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', alignItems: 'center' }}>
+                            <span>Média de Cartões:</span>
                             <div style={{ display: 'flex', gap: '6px' }}>
                               <span style={{ background: '#ffd700', color: '#000', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '0.7rem' }}>{cards.away.yellow} 🟨</span>
                               <span style={{ background: '#ff3333', color: '#fff', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '0.7rem' }}>{cards.away.red} 🟥</span>
                             </div>
                           </div>
                         </div>
-
                       </div>
                     </div>
 
-                    {/* 5. FORMA RECENTE E CONFRONTOS H2H */}
+                    {/* 6. FORMA RECENTE E CONFRONTOS H2H */}
                     <div>
                       <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px' }}>
                         ⚔️ Forma Recente & H2H (Histórico do Confronto)
                       </div>
                       
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                        
                         {/* Forma Recente */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem' }}>
                           <span style={{ color: '#fff', fontWeight: 'bold', borderBottom: '1px solid #222', paddingBottom: '2px' }}>Últimos 5 Resultados</span>
-                          
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '2px' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ color: '#aaa' }}>{game.home}:</span>
+                              <span style={{ color: '#aaa' }}>Casa:</span>
                               <div style={{ display: 'flex', gap: '4px' }}>
                                 {formHome.map((f, idx) => (
                                   <span key={idx} title={`${f.result} contra ${f.opponent} (${f.score})`} style={{ 
@@ -3099,7 +3134,7 @@ export default function PalpitesPage() {
                               </div>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              <span style={{ color: '#aaa' }}>{game.away}:</span>
+                              <span style={{ color: '#aaa' }}>Fora:</span>
                               <div style={{ display: 'flex', gap: '4px' }}>
                                 {formAway.map((f, idx) => (
                                   <span key={idx} title={`${f.result} contra ${f.opponent} (${f.score})`} style={{ 
@@ -3118,7 +3153,6 @@ export default function PalpitesPage() {
                             <span>Confronto Direto (H2H)</span>
                             <span style={{ fontSize: '0.7rem', color: '#aaa' }}>{h2h.summary.homeWins} V | {h2h.summary.draws} E | {h2h.summary.awayWins} V</span>
                           </div>
-                          
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '90px', overflowY: 'auto', paddingRight: '2px' }}>
                             {h2h.matches.slice(0, 3).map((m, idx) => (
                               <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#ccc' }}>
@@ -3131,7 +3165,6 @@ export default function PalpitesPage() {
                             ))}
                           </div>
                         </div>
-
                       </div>
                     </div>
 
@@ -3140,18 +3173,18 @@ export default function PalpitesPage() {
               })()}
               
               {/* Botão de Fechar no Rodapé */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px', borderTop: '1px solid #222', paddingTop: '12px', flexShrink: 0 }}>
                 <button 
                   onClick={() => setOpenStatsId(null)}
                   style={{
                     background: 'var(--brand-neon)',
                     border: 'none',
                     color: '#000',
-                    padding: '10px 24px',
-                    borderRadius: '8px',
+                    padding: '8px 20px',
+                    borderRadius: '6px',
                     cursor: 'pointer',
                     fontWeight: 'bold',
-                    fontSize: '0.9rem',
+                    fontSize: '0.85rem',
                     boxShadow: '0 4px 15px rgba(204, 255, 0, 0.2)'
                   }}
                 >

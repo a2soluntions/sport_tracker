@@ -2855,7 +2855,7 @@ export default function PalpitesPage() {
 
               {/* Tab Content */}
               {activeStatsTab === 'geral' && (() => {
-                const detailedProjections = getMatchDetailedProjections(game);
+                const detailedProjections = getBuilderMarkets(game);
                 const opportunities = [];
                 detailedProjections.forEach(cat => {
                   cat.items.forEach(item => {

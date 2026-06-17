@@ -2727,7 +2727,7 @@ export default function PalpitesPage() {
         </>
 
       {/* POPUP DE ESTATÍSTICAS (MODAL) */}
-      {openStatsId && (() => {
+{openStatsId && (() => {
         const game = games.find(g => g.id === openStatsId);
         if (!game) return null;
         
@@ -2738,6 +2738,151 @@ export default function PalpitesPage() {
         const formAway = getTeamForm(game.away, game.awayPosition || 11);
         const probOver05HT = (1 - Math.exp(-0.45 * (game.homeXG + game.awayXG))) * 100;
         
+        const getTeamPlayersAndGoalkeeper = (teamName) => {
+          const norm = teamName.toLowerCase();
+          if (norm.includes('palmeiras')) {
+            return {
+              goalkeeper: { name: 'Weverton', savesAvg: 3.1, saveRate: '76%' },
+              scorers: [
+                { name: 'Flaco López', prob: 0.38, odd: 2.60 },
+                { name: 'Raphael Veiga', prob: 0.35, odd: 2.85 },
+                { name: 'Estêvão', prob: 0.32, odd: 3.10 }
+              ]
+            };
+          }
+          if (norm.includes('flamengo')) {
+            return {
+              goalkeeper: { name: 'Rossi', savesAvg: 2.8, saveRate: '78%' },
+              scorers: [
+                { name: 'Pedro', prob: 0.45, odd: 2.20 },
+                { name: 'Gabigol', prob: 0.35, odd: 2.85 },
+                { name: 'Arrascaeta', prob: 0.28, odd: 3.50 }
+              ]
+            };
+          }
+          if (norm.includes('são paulo') || norm.includes('sao paulo')) {
+            return {
+              goalkeeper: { name: 'Rafael', savesAvg: 3.3, saveRate: '75%' },
+              scorers: [
+                { name: 'Jonathan Calleri', prob: 0.38, odd: 2.60 },
+                { name: 'Lucas Moura', prob: 0.30, odd: 3.30 },
+                { name: 'Luciano', prob: 0.28, odd: 3.50 }
+              ]
+            };
+          }
+          if (norm.includes('botafogo')) {
+            return {
+              goalkeeper: { name: 'John Victor', savesAvg: 3.2, saveRate: '77%' },
+              scorers: [
+                { name: 'Tiquinho Soares', prob: 0.36, odd: 2.75 },
+                { name: 'Luiz Henrique', prob: 0.32, odd: 3.10 },
+                { name: 'Júnior Santos', prob: 0.30, odd: 3.30 }
+              ]
+            };
+          }
+          if (norm.includes('atlético') || norm.includes('atletico') || norm.includes('mineiro')) {
+            return {
+              goalkeeper: { name: 'Everson', savesAvg: 3.4, saveRate: '74%' },
+              scorers: [
+                { name: 'Hulk', prob: 0.40, odd: 2.50 },
+                { name: 'Paulinho', prob: 0.35, odd: 2.85 },
+                { name: 'Gustavo Scarpa', prob: 0.22, odd: 4.50 }
+              ]
+            };
+          }
+          if (norm.includes('vasco')) {
+            return {
+              goalkeeper: { name: 'Léo Jardim', savesAvg: 4.2, saveRate: '73%' },
+              scorers: [
+                { name: 'Pablo Vegetti', prob: 0.42, odd: 2.38 },
+                { name: 'Philippe Coutinho', prob: 0.24, odd: 4.10 },
+                { name: 'David', prob: 0.20, odd: 5.00 }
+              ]
+            };
+          }
+          if (norm.includes('fluminense')) {
+            return {
+              goalkeeper: { name: 'Fábio', savesAvg: 3.8, saveRate: '72%' },
+              scorers: [
+                { name: 'Germán Cano', prob: 0.38, odd: 2.60 },
+                { name: 'Jhon Arias', prob: 0.28, odd: 3.50 },
+                { name: 'Ganso', prob: 0.18, odd: 5.50 }
+              ]
+            };
+          }
+          if (norm.includes('corinthians')) {
+            return {
+              goalkeeper: { name: 'Hugo Souza', savesAvg: 3.6, saveRate: '73%' },
+              scorers: [
+                { name: 'Yuri Alberto', prob: 0.36, odd: 2.75 },
+                { name: 'Memphis Depay', prob: 0.34, odd: 2.90 },
+                { name: 'Rodrigo Garro', prob: 0.22, odd: 4.50 }
+              ]
+            };
+          }
+          if (norm.includes('gremio') || norm.includes('grêmio')) {
+            return {
+              goalkeeper: { name: 'Marchesín', savesAvg: 3.3, saveRate: '74%' },
+              scorers: [
+                { name: 'Braithwaite', prob: 0.35, odd: 2.85 },
+                { name: 'Cristaldo', prob: 0.26, odd: 3.80 },
+                { name: 'Pavón', prob: 0.22, odd: 4.50 }
+              ]
+            };
+          }
+          if (norm.includes('internacional')) {
+            return {
+              goalkeeper: { name: 'Rochet', savesAvg: 3.0, saveRate: '78%' },
+              scorers: [
+                { name: 'Rafael Borré', prob: 0.38, odd: 2.60 },
+                { name: 'Enner Valencia', prob: 0.34, odd: 2.95 },
+                { name: 'Alan Patrick', prob: 0.26, odd: 3.80 }
+              ]
+            };
+          }
+          if (norm.includes('bahia')) {
+            return {
+              goalkeeper: { name: 'Marcos Felipe', savesAvg: 3.2, saveRate: '74%' },
+              scorers: [
+                { name: 'Everaldo', prob: 0.34, odd: 2.90 },
+                { name: 'Thaciano', prob: 0.28, odd: 3.50 },
+                { name: 'Cauly', prob: 0.22, odd: 4.50 }
+              ]
+            };
+          }
+          if (norm.includes('fortaleza')) {
+            return {
+              goalkeeper: { name: 'João Ricardo', savesAvg: 3.5, saveRate: '76%' },
+              scorers: [
+                { name: 'Juan Lucero', prob: 0.40, odd: 2.50 },
+                { name: 'Yago Pikachu', prob: 0.26, odd: 3.80 },
+                { name: 'Moisés', prob: 0.24, odd: 4.10 }
+              ]
+            };
+          }
+          if (norm.includes('cruzeiro')) {
+            return {
+              goalkeeper: { name: 'Cássio', savesAvg: 3.4, saveRate: '75%' },
+              scorers: [
+                { name: 'Kaio Jorge', prob: 0.32, odd: 3.10 },
+                { name: 'Matheus Pereira', prob: 0.26, odd: 3.80 },
+                { name: 'Lautaro Díaz', prob: 0.28, odd: 3.50 }
+              ]
+            };
+          }
+          return {
+            goalkeeper: { name: 'Goleiro Titular', savesAvg: 3.2, saveRate: '74%' },
+            scorers: [
+              { name: 'Principal Artilheiro', prob: 0.32, odd: 3.10 },
+              { name: 'Ponta Ofensivo', prob: 0.24, odd: 4.10 },
+              { name: 'Meia de Infiltração', prob: 0.18, odd: 5.50 }
+            ]
+          };
+        };
+
+        const homeSquad = getTeamPlayersAndGoalkeeper(game.home);
+        const awaySquad = getTeamPlayersAndGoalkeeper(game.away);
+
         return (
           <div 
             onClick={() => setOpenStatsId(null)}
@@ -2770,7 +2915,7 @@ export default function PalpitesPage() {
                 padding: '24px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '16px',
+                gap: '12px',
                 boxShadow: '0 10px 40px rgba(0,0,0,0.8)',
                 position: 'relative',
                 animation: 'scaleUp 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
@@ -2802,28 +2947,77 @@ export default function PalpitesPage() {
               </button>
 
               {/* Cabeçalho Fixo */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderBottom: '1px solid #222', paddingBottom: '12px', flexShrink: 0 }}>
-                <span style={{ fontSize: '1.5rem' }}>📊</span>
-                <div>
-                  <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>
-                    Radar de Estatísticas
-                  </h3>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--brand-neon)' }}>{game.home}</span>
-                    <span style={{ fontSize: '0.75rem', color: '#666' }}>vs</span>
-                    <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--brand-neon)' }}>{game.away}</span>
-                    <span style={{ fontSize: '0.75rem', color: '#444' }}>•</span>
-                    <span style={{ fontSize: '0.75rem', color: '#888', fontFamily: 'monospace' }}>Poisson Projections</span>
+              <div style={{ display: 'flex', flexDirection: 'column', borderBottom: '1px solid #222', paddingBottom: '8px', flexShrink: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ fontSize: '1.5rem' }}>📊</span>
+                  <div>
+                    <h3 style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>
+                      Radar de Estatísticas
+                    </h3>
+                    <p style={{ fontSize: '0.78rem', color: '#888', margin: '2px 0 0 0', fontFamily: 'monospace' }}>
+                      Poisson & Historical Performance Projections
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sub-cabeçalho de times em cima de suas respectivas colunas */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px', marginTop: '12px', paddingTop: '8px', borderTop: '1px dashed #333' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <img 
+                      src={game.homeLogo || `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`} 
+                      alt={game.home} 
+                      style={{ width: '22px', height: '22px', objectFit: 'contain' }}
+                    />
+                    <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--brand-neon)' }}>
+                      {game.home} (Casa)
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <img 
+                      src={game.awayLogo || `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`} 
+                      alt={game.away} 
+                      style={{ width: '22px', height: '22px', objectFit: 'contain' }}
+                    />
+                    <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: 'var(--brand-neon)' }}>
+                      {game.away} (Fora)
+                    </span>
                   </div>
                 </div>
               </div>
 
-              {/* Corpo Rolável (Single Screen Content) */}
+              {/* 1. Entrada Recomendada (Também Fixo no Topo) */}
+              <div style={{ 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'space-between',
+                background: 'rgba(204, 255, 0, 0.04)',
+                border: '1px solid rgba(204, 255, 0, 0.15)',
+                borderRadius: '8px',
+                padding: '10px 14px',
+                fontSize: '0.85rem',
+                flexShrink: 0
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold', fontSize: '0.95rem' }}>🎯 Entrada Recomendada:</span>
+                  <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '0.9rem' }}>{game.stats.bestTip.selection}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <span style={{ color: '#aaa' }}>Confiança: <strong style={{ color: '#4CAF50' }}>{(game.stats.bestTip.prob * 100).toFixed(0)}%</strong></span>
+                  <span style={{ background: 'var(--brand-neon)', color: '#000', padding: '3px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.78rem' }}>
+                    @{ (1 / game.stats.bestTip.prob).toFixed(2) }
+                  </span>
+                </div>
+              </div>
+
+              {/* Corpo Rolável (Rolagem começa aqui) */}
               {(() => {
                 const detailedProjections = getBuilderMarkets(game);
+                
+                // Filtrar somente Oportunidades de Gols & Resultado Final (FT), excluindo cantos/cartões
                 const opportunities = [];
                 detailedProjections.forEach(cat => {
-                  if (cat.category === 'Cartões') return; // Retirar cartões amarelos/vermelhos junto com os gols
+                  if (cat.category.includes('Cartões') || cat.category.includes('Escanteios')) return;
                   cat.items.forEach(item => {
                     if (item.prob >= 0.60) {
                       opportunities.push(item);
@@ -2878,41 +3072,14 @@ export default function PalpitesPage() {
                 return (
                   <div style={{ overflowY: 'auto', flex: 1, display: 'flex', flexDirection: 'column', gap: '24px', paddingRight: '6px' }}>
                     
-                    {/* 1. Entrada Recomendada */}
-                    <div style={{ 
-                      display: 'flex', 
-                      alignItems: 'center', 
-                      justifyContent: 'space-between',
-                      background: 'rgba(204, 255, 0, 0.04)',
-                      border: '1px solid rgba(204, 255, 0, 0.15)',
-                      borderRadius: '8px',
-                      padding: '10px 14px',
-                      fontSize: '0.85rem',
-                      flexShrink: 0
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold', fontSize: '1rem' }}>🎯 Entrada Recomendada:</span>
-                        <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '0.95rem' }}>{game.stats.bestTip.selection}</span>
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ color: '#aaa' }}>Confiança: <strong style={{ color: '#4CAF50' }}>{(game.stats.bestTip.prob * 100).toFixed(0)}%</strong></span>
-                        <span style={{ background: 'var(--brand-neon)', color: '#000', padding: '4px 10px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.8rem' }}>
-                          @{ (1 / game.stats.bestTip.prob).toFixed(2) }
-                        </span>
-                      </div>
-                    </div>
-
                     {/* 2. PROBABILIDADES DE RESULTADO E GOLS */}
                     <div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px' }}>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px' }}>
                         📈 Probabilidades de Resultado & Gols (Poisson)
                       </div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                         {/* Mandante */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.8rem' }}>
-                          <div style={{ borderBottom: '1px solid #222', paddingBottom: '4px', fontWeight: 'bold', color: '#fff' }}>
-                            Casa (Mandante)
-                          </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
                             <span>Vitória (Poisson):</span>
                             <span style={{ fontWeight: 'bold', color: game.stats.probHome >= 0.4 ? 'var(--brand-neon)' : '#fff' }}>{(game.stats.probHome * 100).toFixed(0)}%</span>
@@ -2925,9 +3092,6 @@ export default function PalpitesPage() {
 
                         {/* Visitante */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.8rem' }}>
-                          <div style={{ borderBottom: '1px solid #222', paddingBottom: '4px', fontWeight: 'bold', color: '#fff' }}>
-                            Fora (Visitante)
-                          </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
                             <span>Vitória (Poisson):</span>
                             <span style={{ fontWeight: 'bold', color: game.stats.probAway >= 0.4 ? 'var(--brand-neon)' : '#fff' }}>{(game.stats.probAway * 100).toFixed(0)}%</span>
@@ -2938,49 +3102,18 @@ export default function PalpitesPage() {
                           </div>
                         </div>
                       </div>
-
-                      {/* Oportunidades Identificadas */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '14px' }}>
-                        <span style={{ fontSize: '0.78rem', color: '#888', fontWeight: 'bold' }}>🎯 Oportunidades de Gols & Resultado (Máx. 10):</span>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                          {opportunities.slice(0, 10).map((item, idx) => {
-                            const pct = (item.prob * 100).toFixed(0);
-                            return (
-                              <div key={idx} style={{ 
-                                display: 'flex', 
-                                justifyContent: 'space-between', 
-                                alignItems: 'center', 
-                                padding: '4px 8px', 
-                                background: 'rgba(255, 255, 255, 0.01)', 
-                                border: '1px solid #222', 
-                                borderRadius: '4px',
-                                fontSize: '0.74rem' 
-                              }}>
-                                <span style={{ color: '#ccc' }}>{item.label}</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                  <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>{pct}%</span>
-                                  <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>@{item.odd.toFixed(2)}</span>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
                     </div>
 
                     {/* 3. PROJEÇÕES DE HANDICAP ASIÁTICO (ATÉ 2.0) */}
                     <div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px' }}>
-                        ⚖️ Projeções de Handicap Asiático (Time 1 vs Time 2)
+                      <div style={{ fontSize: '0.88rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px' }}>
+                        ⚖️ Projeções de Handicap Asiático
                       </div>
                       
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                         
                         {/* Handicap Casa */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <span style={{ fontSize: '0.78rem', color: '#fff', fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #222', paddingBottom: '2px' }}>
-                            Casa
-                          </span>
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', textAlign: 'left' }}>
                             <thead>
                               <tr style={{ color: '#888', borderBottom: '1px solid #222' }}>
@@ -3007,9 +3140,6 @@ export default function PalpitesPage() {
 
                         {/* Handicap Fora */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                          <span style={{ fontSize: '0.78rem', color: '#fff', fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #222', paddingBottom: '2px' }}>
-                            Fora
-                          </span>
                           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', textAlign: 'left' }}>
                             <thead>
                               <tr style={{ color: '#888', borderBottom: '1px solid #222' }}>
@@ -3039,7 +3169,7 @@ export default function PalpitesPage() {
 
                     {/* 4. PROJEÇÃO DE ESCANTEIOS */}
                     <div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
                         <span>📐 Projeção de Escanteios (Cantos)</span>
                         <span style={{ fontSize: '0.75rem', color: '#aaa' }}>
                           Total Confronto: <strong style={{ color: 'var(--brand-neon)' }}>{corn.projected} Cantos</strong>
@@ -3049,12 +3179,11 @@ export default function PalpitesPage() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                         {/* Mandante */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem' }}>
-                          <span style={{ color: '#fff', fontWeight: 'bold', borderBottom: '1px solid #222', paddingBottom: '2px' }}>Casa</span>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', borderBottom: '1px solid #1a1a24', paddingBottom: '4px' }}>
                             <span>Cantos Feitos:</span>
                             <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.home.feitos}</span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', borderBottom: '1px solid #1a1a24', paddingBottom: '4px' }}>
                             <span>Cantos Sofridos:</span>
                             <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.home.sofridos}</span>
                           </div>
@@ -3062,12 +3191,11 @@ export default function PalpitesPage() {
 
                         {/* Visitante */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem' }}>
-                          <span style={{ color: '#fff', fontWeight: 'bold', borderBottom: '1px solid #222', paddingBottom: '2px' }}>Fora</span>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', borderBottom: '1px solid #1a1a24', paddingBottom: '4px' }}>
                             <span>Cantos Feitos:</span>
                             <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.away.feitos}</span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', borderBottom: '1px solid #1a1a24', paddingBottom: '4px' }}>
                             <span>Cantos Sofridos:</span>
                             <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.away.sofridos}</span>
                           </div>
@@ -3075,9 +3203,9 @@ export default function PalpitesPage() {
                       </div>
                     </div>
 
-                    {/* 5. PROJEÇÃO DE CARTÕES (SEPARADO COMPLETAMENTE) */}
+                    {/* 5. PROJEÇÃO DE CARTÕES */}
                     <div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
                         <span>🎴 Estimativa de Cartões</span>
                         <span style={{ fontSize: '0.75rem', color: '#aaa' }}>
                           Total Projetado: <strong style={{ color: '#ffd700' }}>~{cards.totalYellow} 🟨</strong> <strong style={{ color: '#ff3333' }}>{cards.totalRed} 🟥</strong>
@@ -3087,8 +3215,7 @@ export default function PalpitesPage() {
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
                         {/* Mandante */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem' }}>
-                          <span style={{ color: '#fff', fontWeight: 'bold', borderBottom: '1px solid #222', paddingBottom: '2px' }}>Casa</span>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', alignItems: 'center', borderBottom: '1px solid #1a1a24', paddingBottom: '4px' }}>
                             <span>Média de Cartões:</span>
                             <div style={{ display: 'flex', gap: '6px' }}>
                               <span style={{ background: '#ffd700', color: '#000', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '0.7rem' }}>{cards.home.yellow} 🟨</span>
@@ -3099,8 +3226,7 @@ export default function PalpitesPage() {
 
                         {/* Visitante */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem' }}>
-                          <span style={{ color: '#fff', fontWeight: 'bold', borderBottom: '1px solid #222', paddingBottom: '2px' }}>Fora</span>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', alignItems: 'center', borderBottom: '1px solid #1a1a24', paddingBottom: '4px' }}>
                             <span>Média de Cartões:</span>
                             <div style={{ display: 'flex', gap: '6px' }}>
                               <span style={{ background: '#ffd700', color: '#000', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '0.7rem' }}>{cards.away.yellow} 🟨</span>
@@ -3111,9 +3237,87 @@ export default function PalpitesPage() {
                       </div>
                     </div>
 
-                    {/* 6. FORMA RECENTE E CONFRONTOS H2H */}
+                    {/* 6. PROJEÇÃO DE DEFESAS DOS GOLEIROS */}
                     <div>
-                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px' }}>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px' }}>
+                        🥅 Projeção de Defesas dos Goleiros
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                        {/* Mandante */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.78rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', borderBottom: '1px solid #1a1a24', paddingBottom: '4px' }}>
+                            <span>Goleiro:</span>
+                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{homeSquad.goalkeeper.name}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', borderBottom: '1px solid #1a1a24', paddingBottom: '4px' }}>
+                            <span>Taxa de Defesas:</span>
+                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{homeSquad.goalkeeper.saveRate}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', borderBottom: '1px solid #1a1a24', paddingBottom: '4px' }}>
+                            <span>Defesas Projetadas:</span>
+                            <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>
+                              {(homeSquad.goalkeeper.savesAvg * (game.awayXG / 1.25)).toFixed(1)} defesas
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Visitante */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.78rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', borderBottom: '1px solid #1a1a24', paddingBottom: '4px' }}>
+                            <span>Goleiro:</span>
+                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{awaySquad.goalkeeper.name}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', borderBottom: '1px solid #1a1a24', paddingBottom: '4px' }}>
+                            <span>Taxa de Defesas:</span>
+                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{awaySquad.goalkeeper.saveRate}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', borderBottom: '1px solid #1a1a24', paddingBottom: '4px' }}>
+                            <span>Defesas Projetadas:</span>
+                            <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>
+                              {(awaySquad.goalkeeper.savesAvg * (game.homeXG / 1.25)).toFixed(1)} defesas
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 7. PROJEÇÃO DE MARCADORES DE GOLS */}
+                    <div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px' }}>
+                        ⚽ Marcadores de Gols Projetados (Qualquer Momento)
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                        {/* Mandante */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {homeSquad.scorers.map((item, idx) => (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: '#ccc', borderBottom: '1px solid #1a1a24', paddingBottom: '4px' }}>
+                              <span>{item.name}</span>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>{(item.prob * 100).toFixed(0)}%</span>
+                                <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>@{item.odd.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        {/* Visitante */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {awaySquad.scorers.map((item, idx) => (
+                            <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.76rem', color: '#ccc', borderBottom: '1px solid #1a1a24', paddingBottom: '4px' }}>
+                              <span>{item.name}</span>
+                              <div style={{ display: 'flex', gap: '8px' }}>
+                                <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>{(item.prob * 100).toFixed(0)}%</span>
+                                <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>@{item.odd.toFixed(2)}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 8. FORMA RECENTE E CONFRONTOS H2H */}
+                    <div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px' }}>
                         ⚔️ Forma Recente & H2H (Histórico do Confronto)
                       </div>
                       
@@ -3165,6 +3369,49 @@ export default function PalpitesPage() {
                             ))}
                           </div>
                         </div>
+                      </div>
+                    </div>
+
+                    {/* 9. OPORTUNIDADES IDENTIFICADAS (MOVIDAS PARA O FINAL DA PÁGINA) */}
+                    <div>
+                      <div style={{ fontSize: '0.88rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px' }}>
+                        🎯 Oportunidades de Gols & Resultado Recomendadas (Mais de 60% Confiança)
+                      </div>
+                      <div style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        gap: '6px'
+                      }}>
+                        {opportunities.length === 0 ? (
+                          <div style={{ fontSize: '0.75rem', color: '#666', fontStyle: 'italic' }}>Nenhuma oportunidade de alta probabilidade identificada para esta partida.</div>
+                        ) : (
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                            {opportunities.slice(0, 10).map((item, idx) => {
+                              const pct = (item.prob * 100).toFixed(0);
+                              return (
+                                <div 
+                                  key={idx} 
+                                  style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    justifyContent: 'space-between',
+                                    fontSize: '0.74rem',
+                                    padding: '6px 8px',
+                                    background: 'rgba(255, 255, 255, 0.02)',
+                                    border: '1px solid #222',
+                                    borderRadius: '6px'
+                                  }}
+                                >
+                                  <span style={{ color: '#fff', fontWeight: '500' }}>{item.label}</span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                    <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>{pct}%</span>
+                                    <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>@{item.odd.toFixed(2)}</span>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
                     </div>
 

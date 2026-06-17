@@ -683,6 +683,94 @@ export default function PalpitesPage() {
   const [openRadarGameId, setOpenRadarGameId] = useState(null);
   const [activeStatsTab, setActiveStatsTab] = useState('geral');
 
+  const [squadsCache, setSquadsCache] = useState({});
+  const [loadingSquads, setLoadingSquads] = useState({});
+
+  useEffect(() => {
+    if (!openStatsId) return;
+    const game = games.find(g => g.id === openStatsId);
+    if (!game) return;
+
+    const gameId = game.id;
+    if (squadsCache[gameId] || loadingSquads[gameId]) return;
+
+    const fetchSquads = async () => {
+      setLoadingSquads(prev => ({ ...prev, [gameId]: true }));
+      try {
+        const homeId = game.homeTeamId;
+        const awayId = game.awayTeamId;
+
+        if (!homeId || !awayId) {
+          throw new Error('Team IDs not available for live fetch');
+        }
+
+        const [homeRes, awayRes] = await Promise.all([
+          fetch(`/api/football/squads?teamId=${homeId}`),
+          fetch(`/api/football/squads?teamId=${awayId}`)
+        ]);
+
+        if (!homeRes.ok || !awayRes.ok) {
+          throw new Error('Failed to fetch one of the squads');
+        }
+
+        const [homeData, awayData] = await Promise.all([
+          homeRes.json(),
+          awayRes.json()
+        ]);
+
+        const parseSquad = (players) => {
+          if (!players || players.length === 0) return null;
+
+          const gks = players.filter(p => p.position === 'Goalkeeper');
+          const attackers = players.filter(p => p.position === 'Attacker');
+          const midfielders = players.filter(p => p.position === 'Midfielder');
+
+          const gk = gks.length > 0 ? gks[0].name : null;
+
+          const scorers = [];
+          if (attackers.length > 0) scorers.push(attackers[0].name);
+          if (attackers.length > 1) scorers.push(attackers[1].name);
+          if (midfielders.length > 0 && scorers.length < 3) scorers.push(midfielders[0].name);
+
+          let idxAtt = 2;
+          let idxMid = 1;
+          while (scorers.length < 3) {
+            if (attackers.length > idxAtt) {
+              scorers.push(attackers[idxAtt].name);
+              idxAtt++;
+            } else if (midfielders.length > idxMid) {
+              scorers.push(midfielders[idxMid].name);
+              idxMid++;
+            } else {
+              break;
+            }
+          }
+
+          return { gk, scorers };
+        };
+
+        const homeParsed = parseSquad(homeData.players);
+        const awayParsed = parseSquad(awayData.players);
+
+        if (homeParsed || awayParsed) {
+          setSquadsCache(prev => ({
+            ...prev,
+            [gameId]: {
+              home: homeParsed,
+              away: awayParsed
+            }
+          }));
+        }
+      } catch (err) {
+        console.warn('[SquadsFetch] Erro ao buscar escalações reais do API-Sports:', err);
+      } finally {
+        setLoadingSquads(prev => ({ ...prev, [gameId]: false }));
+      }
+    };
+
+    fetchSquads();
+  }, [openStatsId, games]);
+
 
 
   // Carregar Valor Inicial e Risco do LocalStorage
@@ -2738,7 +2826,24 @@ export default function PalpitesPage() {
         const formAway = getTeamForm(game.away, game.awayPosition || 11);
         const probOver05HT = (1 - Math.exp(-0.45 * (game.homeXG + game.awayXG))) * 100;
         
-        const getTeamPlayersAndGoalkeeper = (teamName) => {
+        const getTeamPlayersAndGoalkeeper = (teamName, isHome) => {
+          const cachedGameSquad = squadsCache[game.id];
+          if (cachedGameSquad) {
+            const squad = isHome ? cachedGameSquad.home : cachedGameSquad.away;
+            if (squad) {
+              const gkName = squad.gk || (isHome ? 'Goleiro' : 'Goleiro');
+              const baseScorers = squad.scorers && squad.scorers.length > 0 ? squad.scorers : ['Atacante 1', 'Atacante 2', 'Meio-Campo'];
+              return {
+                goalkeeper: { name: gkName + ' (Goleiro)', savesAvg: 3.2, saveRate: '75%' },
+                scorers: [
+                  { name: baseScorers[0] || 'Atacante 1', prob: 0.35, odd: 2.85 },
+                  { name: baseScorers[1] || 'Atacante 2', prob: 0.28, odd: 3.50 },
+                  { name: baseScorers[2] || 'Meio-Campo', prob: 0.22, odd: 4.50 }
+                ]
+              };
+            }
+          }
+
           const norm = teamName.toLowerCase();
           
           if (norm.includes('palmeiras')) {
@@ -3032,8 +3137,8 @@ export default function PalpitesPage() {
           };
         };
 
-        const homeSquad = getTeamPlayersAndGoalkeeper(game.home);
-        const awaySquad = getTeamPlayersAndGoalkeeper(game.away);
+        const homeSquad = getTeamPlayersAndGoalkeeper(game.home, true);
+        const awaySquad = getTeamPlayersAndGoalkeeper(game.away, false);
 
         return (
           <div 

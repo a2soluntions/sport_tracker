@@ -2854,79 +2854,223 @@ export default function PalpitesPage() {
               </div>
 
               {/* Tab Content */}
-              {activeStatsTab === 'geral' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'fadeIn 0.25s ease-out' }}>
-                  {/* Destaque do Palpite */}
-                  <div style={{ background: '#1c1c24', borderRadius: '12px', border: '1px solid #333', padding: '16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div>
-                      <div style={{ fontSize: '0.75rem', color: '#888', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: 'bold' }}>Entrada Sugerida</div>
-                      <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--brand-neon)', marginTop: '4px' }}>{game.stats.bestTip.selection}</div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                      <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: '0.75rem', color: '#888' }}>Confiança</div>
-                        <div style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fff' }}>{(game.stats.bestTip.prob * 100).toFixed(1)}%</div>
-                      </div>
-                      <div style={{ background: 'var(--brand-neon)', color: '#000', padding: '6px 12px', borderRadius: '6px', fontWeight: 'bold', fontSize: '1rem' }}>
-                        @{ (1 / game.stats.bestTip.prob).toFixed(2) }
-                      </div>
-                    </div>
-                  </div>
+              {activeStatsTab === 'geral' && (() => {
+                const detailedProjections = getMatchDetailedProjections(game);
+                const opportunities = [];
+                detailedProjections.forEach(cat => {
+                  cat.items.forEach(item => {
+                    if (item.prob >= 0.60) {
+                      opportunities.push(item);
+                    }
+                  });
+                });
+                opportunities.sort((a, b) => b.prob - a.prob);
 
-                  {/* Probabilidade de Gols */}
-                  <div style={{ background: '#1c1c24', borderRadius: '12px', border: '1px solid #333', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
-                      ⚽ Matriz Probabilística de Gols (Poisson)
-                    </div>
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.25s ease-out' }}>
                     
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {/* Over 0.5 HT */}
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
-                          <span>Over 0.5 Gols no HT (1º Tempo)</span>
-                          <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>{probOver05HT.toFixed(1)}%</span>
-                        </div>
-                        <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ background: 'var(--brand-neon)', width: `${probOver05HT}%`, height: '100%' }}></div>
-                        </div>
+                    {/* Linha Fina da Entrada Sugerida */}
+                    <div style={{ 
+                      display: 'flex', 
+                      alignItems: 'center', 
+                      justifyContent: 'space-between',
+                      borderBottom: '1px dashed #333',
+                      paddingBottom: '12px',
+                      fontSize: '0.85rem'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>🎯 Entrada Recomendada:</span>
+                        <span style={{ color: '#fff', fontWeight: 'bold' }}>{game.stats.bestTip.selection}</span>
                       </div>
-
-                      {/* Over 1.5 FT */}
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
-                          <span>Over 1.5 Gols no FT (Jogo Todo)</span>
-                          <span style={{ color: '#00ffa0', fontWeight: 'bold' }}>{(game.stats.probOver15 * 100).toFixed(1)}%</span>
-                        </div>
-                        <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ background: '#00ffa0', width: `${game.stats.probOver15 * 100}%`, height: '100%' }}></div>
-                        </div>
-                      </div>
-
-                      {/* Over 2.5 FT */}
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
-                          <span>Over 2.5 Gols no FT (Jogo Todo)</span>
-                          <span style={{ color: '#00d2ff', fontWeight: 'bold' }}>{(game.stats.probOver25 * 100).toFixed(1)}%</span>
-                        </div>
-                        <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ background: '#00d2ff', width: `${game.stats.probOver25 * 100}%`, height: '100%' }}></div>
-                        </div>
-                      </div>
-
-                      {/* Ambos Marcam */}
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
-                          <span>Ambas Equipes Marcam (BTTS)</span>
-                          <span style={{ color: '#b339ff', fontWeight: 'bold' }}>{(game.stats.probBtts * 100).toFixed(1)}%</span>
-                        </div>
-                        <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ background: '#b339ff', width: `${game.stats.probBtts * 100}%`, height: '100%' }}></div>
-                        </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <span style={{ color: '#888' }}>Confiança: <strong style={{ color: '#4CAF50' }}>{(game.stats.bestTip.prob * 100).toFixed(0)}%</strong></span>
+                        <span style={{ background: 'var(--brand-neon)', color: '#000', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.78rem' }}>
+                          @{ (1 / game.stats.bestTip.prob).toFixed(2) }
+                        </span>
                       </div>
                     </div>
+
+                    {/* Comparativo em Duas Colunas (Time 1 vs Time 2) */}
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                      
+                      {/* Coluna Time 1 (Mandante) */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ borderBottom: '1px solid #333', paddingBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <img 
+                            src={game.homeLogo || `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`} 
+                            alt={game.home} 
+                            style={{ width: '22px', height: '22px', objectFit: 'contain' }}
+                          />
+                          <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#fff' }}>{game.home} (Casa)</span>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.8rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
+                            <span>Vitória (Poisson):</span>
+                            <span style={{ fontWeight: 'bold', color: game.stats.probHome >= 0.4 ? 'var(--brand-neon)' : '#fff' }}>{(game.stats.probHome * 100).toFixed(0)}%</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
+                            <span>xG Projetado:</span>
+                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{game.homeXG.toFixed(1)} Gols</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
+                            <span>Cantos Feitos / Sofridos:</span>
+                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.home.feitos} / {corn.home.sofridos}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
+                            <span>Cartões (Amarelos / Vermelhos):</span>
+                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{cards.home.yellow} / {cards.home.red}</span>
+                          </div>
+                          
+                          {/* Forma Recente */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                            <span style={{ color: '#888', fontSize: '0.75rem' }}>Últimos Resultados:</span>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              {formHome.map((f, idx) => (
+                                <span 
+                                  key={idx} 
+                                  title={`${f.result} contra ${f.opponent} (${f.score})`}
+                                  style={{ 
+                                    background: f.result === 'V' ? '#4CAF50' : f.result === 'D' ? '#ff4d4d' : '#555', 
+                                    color: '#fff', 
+                                    fontSize: '0.65rem', 
+                                    fontWeight: 'bold', 
+                                    padding: '2px 6px', 
+                                    borderRadius: '3px',
+                                    cursor: 'help'
+                                  }}
+                                >
+                                  {f.result}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Coluna Time 2 (Visitante) */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                        <div style={{ borderBottom: '1px solid #333', paddingBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <img 
+                            src={game.awayLogo || `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`} 
+                            alt={game.away} 
+                            style={{ width: '22px', height: '22px', objectFit: 'contain' }}
+                          />
+                          <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#fff' }}>{game.away} (Fora)</span>
+                        </div>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.8rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
+                            <span>Vitória (Poisson):</span>
+                            <span style={{ fontWeight: 'bold', color: game.stats.probAway >= 0.4 ? 'var(--brand-neon)' : '#fff' }}>{(game.stats.probAway * 100).toFixed(0)}%</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
+                            <span>xG Projetado:</span>
+                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{game.awayXG.toFixed(1)} Gols</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
+                            <span>Cantos Feitos / Sofridos:</span>
+                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.away.feitos} / {corn.away.sofridos}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
+                            <span>Cartões (Amarelos / Vermelhos):</span>
+                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{cards.away.yellow} / {cards.away.red}</span>
+                          </div>
+                          
+                          {/* Forma Recente */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
+                            <span style={{ color: '#888', fontSize: '0.75rem' }}>Últimos Resultados:</span>
+                            <div style={{ display: 'flex', gap: '4px' }}>
+                              {formAway.map((f, idx) => (
+                                <span 
+                                  key={idx} 
+                                  title={`${f.result} contra ${f.opponent} (${f.score})`}
+                                  style={{ 
+                                    background: f.result === 'V' ? '#4CAF50' : f.result === 'D' ? '#ff4d4d' : '#555', 
+                                    color: '#fff', 
+                                    fontSize: '0.65rem', 
+                                    fontWeight: 'bold', 
+                                    padding: '2px 6px', 
+                                    borderRadius: '3px',
+                                    cursor: 'help'
+                                  }}
+                                >
+                                  {f.result}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+
+                    {/* Seção de Oportunidades Filtradas */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
+                      <div style={{ 
+                        fontSize: '0.85rem', 
+                        fontWeight: 'bold', 
+                        color: '#fff', 
+                        borderBottom: '1px solid #333', 
+                        paddingBottom: '6px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '6px'
+                      }}>
+                        <span>🎯 Oportunidades Identificadas (Probabilidade &gt; 60%)</span>
+                      </div>
+
+                      <div style={{ 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        gap: '6px',
+                        maxHeight: '180px',
+                        overflowY: 'auto',
+                        paddingRight: '6px'
+                      }}>
+                        {opportunities.length === 0 ? (
+                          <div style={{ fontSize: '0.75rem', color: '#666', fontStyle: 'italic' }}>Nenhuma oportunidade de alta probabilidade identificada.</div>
+                        ) : (
+                          opportunities.map((item, idx) => {
+                            const pct = (item.prob * 100).toFixed(0);
+                            return (
+                              <div 
+                                key={idx} 
+                                style={{ 
+                                  display: 'flex', 
+                                  alignItems: 'center', 
+                                  justifyContent: 'space-between',
+                                  fontSize: '0.78rem',
+                                  padding: '4px 8px',
+                                  background: 'rgba(255, 255, 255, 0.02)',
+                                  border: '1px solid #222',
+                                  borderRadius: '6px',
+                                  transition: 'background 0.2s'
+                                }}
+                                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
+                                onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)'}
+                              >
+                                <span style={{ color: '#fff', fontWeight: '500' }}>{item.label}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                  {/* Barra de Progresso Mini */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                    <div style={{ background: '#222', width: '60px', height: '4px', borderRadius: '2px', overflow: 'hidden' }}>
+                                      <div style={{ background: '#4CAF50', width: `${pct}%`, height: '100%' }}></div>
+                                    </div>
+                                    <span style={{ color: '#4CAF50', fontWeight: 'bold', width: '36px', textAlign: 'right' }}>{pct}%</span>
+                                  </div>
+                                  <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold', fontFamily: 'monospace' }}>@{item.odd.toFixed(2)}</span>
+                                </div>
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+
                   </div>
-                </div>
-              )}
+                );
+              })()}
 
               {activeStatsTab === 'handicap' && (() => {
                 const getHandicapExplanation = (line) => {
@@ -2996,7 +3140,7 @@ export default function PalpitesPage() {
 
                 return (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', animation: 'fadeIn 0.25s ease-out' }}>
-                    <div style={{ background: '#1c1c24', borderRadius: '12px', border: '1px solid #333', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                       <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
                         ⚖️ Tabela de Projeções e Guia de Resultados de Handicap Asiático
                       </div>
@@ -3041,9 +3185,9 @@ export default function PalpitesPage() {
               })()}
 
               {activeStatsTab === 'escanteios' && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '16px', animation: 'fadeIn 0.25s ease-out' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px', animation: 'fadeIn 0.25s ease-out' }}>
                   {/* Escanteios */}
-                  <div style={{ background: '#1c1c24', borderRadius: '12px', border: '1px solid #333', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderRight: '1px solid #222', paddingRight: '16px' }}>
                     <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
                       <span>📐 Média de Escanteios (Cantos)</span>
                       <span style={{ color: 'var(--brand-neon)' }}>Partida: {corn.projected}</span>
@@ -3075,7 +3219,7 @@ export default function PalpitesPage() {
                   </div>
 
                   {/* Cartões */}
-                  <div style={{ background: '#1c1c24', borderRadius: '12px', border: '1px solid #333', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingLeft: '8px' }}>
                     <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
                       <span>🎴 Estimativa de Cartões</span>
                       <span style={{ color: '#ffd700' }}>Partida: ~{cards.totalYellow} 🟨 | {cards.totalRed} 🟥</span>
@@ -3117,7 +3261,7 @@ export default function PalpitesPage() {
               {activeStatsTab === 'confrontos' && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'fadeIn 0.25s ease-out' }}>
                   {/* Forma Recente */}
-                  <div style={{ background: '#1c1c24', borderRadius: '12px', border: '1px solid #333', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderBottom: '1px solid #222', paddingBottom: '16px' }}>
                     <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
                       🔥 Forma Recente (Últimos 5 Jogos no Brasileirão)
                     </div>
@@ -3182,7 +3326,7 @@ export default function PalpitesPage() {
                   </div>
 
                   {/* Confronto Direto H2H */}
-                  <div style={{ background: '#1c1c24', borderRadius: '12px', border: '1px solid #333', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
                     <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
                       <span>⚔️ Confrontos Diretos (H2H)</span>
                       <span style={{ fontSize: '0.8rem', color: '#aaa' }}>

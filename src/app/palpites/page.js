@@ -2951,25 +2951,26 @@ export default function PalpitesPage() {
           };
 
           const hashVal = hashString(teamName);
-          const goalkeepersList = ['Matheus', 'Lucas', 'Gabriel', 'Marcos', 'Thiago', 'Felipe', 'Bruno', 'Rodrigo', 'Diego', 'Douglas'];
-          const scorersList = [
-            ['Lucas Silva', 'Eduardo', 'Gabriel Jesus'],
-            ['Rodrigo Souza', 'Thiago Santos', 'Marcelo'],
-            ['Bruno Henrique', 'Felipe Azevedo', 'Roberto'],
-            ['Gustavo', 'Diego Oliveira', 'Arthur'],
-            ['Rafael Augusto', 'Daniel Carvalho', 'Alexandre'],
-            ['Leonardo', 'Ronaldo Fenômeno', 'William']
-          ];
+          const firstNames = ['Lucas', 'Gabriel', 'Mateus', 'Felipe', 'Rodrigo', 'Bruno', 'Thiago', 'Diego', 'Rafael', 'Gustavo', 'Eduardo', 'Vinícius', 'Marcos', 'Arthur', 'Léo', 'Henrique'];
+          const lastNames = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Rodrigues', 'Almeida', 'Nascimento', 'Costa', 'Pereira', 'Gomes', 'Martins', 'Araújo', 'Ribeiro', 'Barbosa'];
 
-          const gkName = goalkeepersList[hashVal % goalkeepersList.length] + ' Silva';
-          const teamScorers = scorersList[hashVal % scorersList.length];
+          const getPlayerName = (index) => {
+            const firstIdx = (hashVal + index * 7) % firstNames.length;
+            const lastIdx = (hashVal + index * 13) % lastNames.length;
+            return `${firstNames[firstIdx]} ${lastNames[lastIdx]}`;
+          };
+
+          const gkName = getPlayerName(0);
+          const scorer1 = getPlayerName(1);
+          const scorer2 = getPlayerName(2);
+          const scorer3 = getPlayerName(3);
 
           return {
-            goalkeeper: { name: gkName, savesAvg: 3.2, saveRate: '74%' },
+            goalkeeper: { name: gkName + ' (Goleiro)', savesAvg: 3.2, saveRate: '74%' },
             scorers: [
-              { name: teamScorers[0], prob: 0.32, odd: 3.10 },
-              { name: teamScorers[1], prob: 0.24, odd: 4.10 },
-              { name: teamScorers[2], prob: 0.18, odd: 5.50 }
+              { name: scorer1, prob: 0.32, odd: 3.10 },
+              { name: scorer2, prob: 0.24, odd: 4.10 },
+              { name: scorer3, prob: 0.18, odd: 5.50 }
             ]
           };
         };

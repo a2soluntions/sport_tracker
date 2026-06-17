@@ -2761,7 +2761,7 @@ export default function PalpitesPage() {
               onClick={(e) => e.stopPropagation()}
               style={{
                 width: '90%',
-                maxWidth: activeStatsTab === 'handicap' ? '820px' : '650px',
+                maxWidth: '820px',
                 maxHeight: '90vh',
                 overflowY: 'auto',
                 background: 'linear-gradient(135deg, #111115, #14141d)',
@@ -2811,50 +2811,8 @@ export default function PalpitesPage() {
                 </div>
               </div>
 
-              {/* Tab Navigation */}
-              <div style={{
-                display: 'flex',
-                gap: '4px',
-                borderBottom: '1px solid #222',
-                paddingBottom: '2px',
-                marginTop: '4px',
-                width: '100%',
-                justifyContent: 'space-between'
-              }}>
-                {[
-                  { id: 'geral', label: 'Probabilidades', icon: '📈' },
-                  { id: 'handicap', label: 'Handicap Asiático', icon: '⚖️' },
-                  { id: 'escanteios', label: 'Cantos & Cartões', icon: '📐' },
-                  { id: 'confrontos', label: 'Forma & H2H', icon: '⚔️' }
-                ].map(t => (
-                  <button
-                    key={t.id}
-                    onClick={() => setActiveStatsTab(t.id)}
-                    style={{
-                      background: 'transparent',
-                      border: 'none',
-                      borderBottom: activeStatsTab === t.id ? '2px solid var(--brand-neon)' : '2px solid transparent',
-                      color: activeStatsTab === t.id ? 'var(--brand-neon)' : '#888',
-                      padding: '8px 12px',
-                      fontSize: '0.85rem',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      gap: '6px',
-                      flex: 1
-                    }}
-                  >
-                    <span style={{ fontSize: '1.1rem' }}>{t.icon}</span>
-                    <span className="mobile-hide">{t.label}</span>
-                  </button>
-                ))}
-              </div>
-
-              {/* Tab Content */}
-              {activeStatsTab === 'geral' && (() => {
+              {/* Single Screen Content - Scrollable flow */}
+              {(() => {
                 const detailedProjections = getBuilderMarkets(game);
                 const opportunities = [];
                 detailedProjections.forEach(cat => {
@@ -2866,45 +2824,77 @@ export default function PalpitesPage() {
                 });
                 opportunities.sort((a, b) => b.prob - a.prob);
 
+                // Configurar dados de handicap separados por time
+                const getHandicapExplanation = (line) => {
+                  const lineVal = parseFloat(line);
+                  if (lineVal === 0.0) return { win: `Vitória`, void: `Empate`, loss: `Derrota` };
+                  if (lineVal === -0.5) return { win: `Vitória`, void: `Não há`, loss: `Empate ou Derrota` };
+                  if (lineVal === 0.5) return { win: `Vitória ou Empate`, void: `Não há`, loss: `Derrota` };
+                  if (lineVal === -1.0) return { win: `Vitória por 2+ gols`, void: `Vitória por 1 gol`, loss: `Empate ou Derrota` };
+                  if (lineVal === 1.0) return { win: `Vitória ou Empate`, void: `Derrota por 1 gol`, loss: `Derrota por 2+ gols` };
+                  if (lineVal === -1.5) return { win: `Vitória por 2+ gols`, void: `Não há`, loss: `Vitória por 1 gol, Empate ou Derrota` };
+                  if (lineVal === 1.5) return { win: `Vitória, Empate ou Derrota por 1 gol`, void: `Não há`, loss: `Derrota por 2+ gols` };
+                  return { win: '-', void: '-', loss: '-' };
+                };
+
+                const homeHandicaps = [
+                  { label: `AH 0.0`, prob: game.stats.probCasaAH00, line: 0.0 },
+                  { label: `AH -0.5`, prob: game.stats.probHome, line: -0.5 },
+                  { label: `AH +0.5`, prob: game.stats.probHome + game.stats.probDraw, line: 0.5 },
+                  { label: `AH -1.0`, prob: game.stats.probCasaAH10, line: -1.0 },
+                  { label: `AH +1.0`, prob: game.stats.probCasaAH10Pos, line: 1.0 },
+                  { label: `AH -1.5`, prob: game.stats.probCasaAH15, line: -1.5 },
+                  { label: `AH +1.5`, prob: game.stats.probAH15Pos_home, line: 1.5 }
+                ];
+
+                const awayHandicaps = [
+                  { label: `AH 0.0`, prob: game.stats.probForaAH00, line: 0.0 },
+                  { label: `AH -0.5`, prob: game.stats.probAway, line: -0.5 },
+                  { label: `AH +0.5`, prob: game.stats.probAway + game.stats.probDraw, line: 0.5 },
+                  { label: `AH -1.0`, prob: game.stats.probForaAH10, line: -1.0 },
+                  { label: `AH +1.0`, prob: game.stats.probForaAH10Pos, line: 1.0 },
+                  { label: `AH -1.5`, prob: game.stats.probForaAH15, line: -1.5 },
+                  { label: `AH +1.5`, prob: game.stats.probAH15Pos_away, line: 1.5 }
+                ];
+
                 return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', animation: 'fadeIn 0.25s ease-out' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', paddingRight: '4px' }}>
                     
-                    {/* Linha Fina da Entrada Sugerida */}
+                    {/* 1. Entrada Recomendada */}
                     <div style={{ 
                       display: 'flex', 
                       alignItems: 'center', 
                       justifyContent: 'space-between',
-                      borderBottom: '1px dashed #333',
-                      paddingBottom: '12px',
+                      background: 'rgba(204, 255, 0, 0.04)',
+                      border: '1px solid rgba(204, 255, 0, 0.15)',
+                      borderRadius: '8px',
+                      padding: '10px 14px',
                       fontSize: '0.85rem'
                     }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>🎯 Entrada Recomendada:</span>
-                        <span style={{ color: '#fff', fontWeight: 'bold' }}>{game.stats.bestTip.selection}</span>
+                        <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold', fontSize: '1rem' }}>🎯 Entrada Recomendada:</span>
+                        <span style={{ color: '#fff', fontWeight: 'bold', fontSize: '0.95rem' }}>{game.stats.bestTip.selection}</span>
                       </div>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <span style={{ color: '#888' }}>Confiança: <strong style={{ color: '#4CAF50' }}>{(game.stats.bestTip.prob * 100).toFixed(0)}%</strong></span>
-                        <span style={{ background: 'var(--brand-neon)', color: '#000', padding: '2px 8px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.78rem' }}>
+                        <span style={{ color: '#aaa' }}>Confiança: <strong style={{ color: '#4CAF50' }}>{(game.stats.bestTip.prob * 100).toFixed(0)}%</strong></span>
+                        <span style={{ background: 'var(--brand-neon)', color: '#000', padding: '4px 10px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.8rem' }}>
                           @{ (1 / game.stats.bestTip.prob).toFixed(2) }
                         </span>
                       </div>
                     </div>
 
-                    {/* Comparativo em Duas Colunas (Time 1 vs Time 2) */}
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                      
-                      {/* Coluna Time 1 (Mandante) */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <div style={{ borderBottom: '1px solid #333', paddingBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <img 
-                            src={game.homeLogo || `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`} 
-                            alt={game.home} 
-                            style={{ width: '22px', height: '22px', objectFit: 'contain' }}
-                          />
-                          <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#fff' }}>{game.home} (Casa)</span>
-                        </div>
-
+                    {/* 2. PROBABILIDADES DE RESULTADO E GOLS */}
+                    <div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px' }}>
+                        📈 Probabilidades de Resultado & Gols (Poisson)
+                      </div>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                        {/* Mandante */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.8rem' }}>
+                          <div style={{ borderBottom: '1px solid #222', paddingBottom: '4px', fontWeight: 'bold', color: '#fff', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <img src={game.homeLogo || `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`} alt={game.home} style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
+                            <span>{game.home}</span>
+                          </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
                             <span>Vitória (Poisson):</span>
                             <span style={{ fontWeight: 'bold', color: game.stats.probHome >= 0.4 ? 'var(--brand-neon)' : '#fff' }}>{(game.stats.probHome * 100).toFixed(0)}%</span>
@@ -2913,53 +2903,14 @@ export default function PalpitesPage() {
                             <span>xG Projetado:</span>
                             <span style={{ fontWeight: 'bold', color: '#fff' }}>{game.homeXG.toFixed(1)} Gols</span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
-                            <span>Cantos Feitos / Sofridos:</span>
-                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.home.feitos} / {corn.home.sofridos}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
-                            <span>Cartões (Amarelos / Vermelhos):</span>
-                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{cards.home.yellow} / {cards.home.red}</span>
-                          </div>
-                          
-                          {/* Forma Recente */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
-                            <span style={{ color: '#888', fontSize: '0.75rem' }}>Últimos Resultados:</span>
-                            <div style={{ display: 'flex', gap: '4px' }}>
-                              {formHome.map((f, idx) => (
-                                <span 
-                                  key={idx} 
-                                  title={`${f.result} contra ${f.opponent} (${f.score})`}
-                                  style={{ 
-                                    background: f.result === 'V' ? '#4CAF50' : f.result === 'D' ? '#ff4d4d' : '#555', 
-                                    color: '#fff', 
-                                    fontSize: '0.65rem', 
-                                    fontWeight: 'bold', 
-                                    padding: '2px 6px', 
-                                    borderRadius: '3px',
-                                    cursor: 'help'
-                                  }}
-                                >
-                                  {f.result}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Coluna Time 2 (Visitante) */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                        <div style={{ borderBottom: '1px solid #333', paddingBottom: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <img 
-                            src={game.awayLogo || `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`} 
-                            alt={game.away} 
-                            style={{ width: '22px', height: '22px', objectFit: 'contain' }}
-                          />
-                          <span style={{ fontWeight: 'bold', fontSize: '0.9rem', color: '#fff' }}>{game.away} (Fora)</span>
                         </div>
 
+                        {/* Visitante */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.8rem' }}>
+                          <div style={{ borderBottom: '1px solid #222', paddingBottom: '4px', fontWeight: 'bold', color: '#fff', display: 'flex', gap: '6px', alignItems: 'center' }}>
+                            <img src={game.awayLogo || `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`} alt={game.away} style={{ width: '18px', height: '18px', objectFit: 'contain' }} />
+                            <span>{game.away}</span>
+                          </div>
                           <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
                             <span>Vitória (Poisson):</span>
                             <span style={{ fontWeight: 'bold', color: game.stats.probAway >= 0.4 ? 'var(--brand-neon)' : '#fff' }}>{(game.stats.probAway * 100).toFixed(0)}%</span>
@@ -2968,407 +2919,225 @@ export default function PalpitesPage() {
                             <span>xG Projetado:</span>
                             <span style={{ fontWeight: 'bold', color: '#fff' }}>{game.awayXG.toFixed(1)} Gols</span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
-                            <span>Cantos Feitos / Sofridos:</span>
-                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.away.feitos} / {corn.away.sofridos}</span>
-                          </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', paddingBottom: '4px', borderBottom: '1px solid #1a1a24' }}>
-                            <span>Cartões (Amarelos / Vermelhos):</span>
-                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{cards.away.yellow} / {cards.away.red}</span>
-                          </div>
-                          
-                          {/* Forma Recente */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px' }}>
-                            <span style={{ color: '#888', fontSize: '0.75rem' }}>Últimos Resultados:</span>
-                            <div style={{ display: 'flex', gap: '4px' }}>
-                              {formAway.map((f, idx) => (
-                                <span 
-                                  key={idx} 
-                                  title={`${f.result} contra ${f.opponent} (${f.score})`}
-                                  style={{ 
-                                    background: f.result === 'V' ? '#4CAF50' : f.result === 'D' ? '#ff4d4d' : '#555', 
-                                    color: '#fff', 
-                                    fontSize: '0.65rem', 
-                                    fontWeight: 'bold', 
-                                    padding: '2px 6px', 
-                                    borderRadius: '3px',
-                                    cursor: 'help'
-                                  }}
-                                >
-                                  {f.result}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
                         </div>
                       </div>
 
-                    </div>
-
-                    {/* Seção de Oportunidades Filtradas */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px' }}>
-                      <div style={{ 
-                        fontSize: '0.85rem', 
-                        fontWeight: 'bold', 
-                        color: '#fff', 
-                        borderBottom: '1px solid #333', 
-                        paddingBottom: '6px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px'
-                      }}>
-                        <span>🎯 Oportunidades Identificadas (Probabilidade &gt; 60%)</span>
-                      </div>
-
-                      <div style={{ 
-                        display: 'flex', 
-                        flexDirection: 'column', 
-                        gap: '6px',
-                        maxHeight: '180px',
-                        overflowY: 'auto',
-                        paddingRight: '6px'
-                      }}>
-                        {opportunities.length === 0 ? (
-                          <div style={{ fontSize: '0.75rem', color: '#666', fontStyle: 'italic' }}>Nenhuma oportunidade de alta probabilidade identificada.</div>
-                        ) : (
-                          opportunities.map((item, idx) => {
+                      {/* Oportunidades Identificadas */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '14px' }}>
+                        <span style={{ fontSize: '0.78rem', color: '#888', fontWeight: 'bold' }}>🎯 Oportunidades de Alta Probabilidade (&gt; 60%):</span>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                          {opportunities.slice(0, 8).map((item, idx) => {
                             const pct = (item.prob * 100).toFixed(0);
                             return (
-                              <div 
-                                key={idx} 
-                                style={{ 
-                                  display: 'flex', 
-                                  alignItems: 'center', 
-                                  justifyContent: 'space-between',
-                                  fontSize: '0.78rem',
-                                  padding: '4px 8px',
-                                  background: 'rgba(255, 255, 255, 0.02)',
-                                  border: '1px solid #222',
-                                  borderRadius: '6px',
-                                  transition: 'background 0.2s'
-                                }}
-                                onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'}
-                                onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.02)'}
-                              >
-                                <span style={{ color: '#fff', fontWeight: '500' }}>{item.label}</span>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                  {/* Barra de Progresso Mini */}
-                                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                                    <div style={{ background: '#222', width: '60px', height: '4px', borderRadius: '2px', overflow: 'hidden' }}>
-                                      <div style={{ background: '#4CAF50', width: `${pct}%`, height: '100%' }}></div>
-                                    </div>
-                                    <span style={{ color: '#4CAF50', fontWeight: 'bold', width: '36px', textAlign: 'right' }}>{pct}%</span>
-                                  </div>
-                                  <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold', fontFamily: 'monospace' }}>@{item.odd.toFixed(2)}</span>
+                              <div key={idx} style={{ 
+                                display: 'flex', 
+                                justifyContent: 'space-between', 
+                                alignItems: 'center', 
+                                padding: '4px 8px', 
+                                background: 'rgba(255, 255, 255, 0.01)', 
+                                border: '1px solid #222', 
+                                borderRadius: '4px',
+                                fontSize: '0.74rem' 
+                              }}>
+                                <span style={{ color: '#ccc' }}>{item.label}</span>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                  <span style={{ color: '#4CAF50', fontWeight: 'bold' }}>{pct}%</span>
+                                  <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>@{item.odd.toFixed(2)}</span>
                                 </div>
                               </div>
                             );
-                          })
-                        )}
+                          })}
+                        </div>
                       </div>
                     </div>
 
-                  </div>
-                );
-              })()}
-
-              {activeStatsTab === 'handicap' && (() => {
-                const getHandicapExplanation = (line) => {
-                  const lineVal = parseFloat(line);
-                  if (lineVal === 0.0) {
-                    return {
-                      win: `Vitória`,
-                      void: `Empate`,
-                      loss: `Derrota`
-                    };
-                  } else if (lineVal === -0.5) {
-                    return {
-                      win: `Vitória`,
-                      void: `Não há`,
-                      loss: `Empate ou Derrota`
-                    };
-                  } else if (lineVal === 0.5) {
-                    return {
-                      win: `Vitória ou Empate`,
-                      void: `Não há`,
-                      loss: `Derrota`
-                    };
-                  } else if (lineVal === -1.0) {
-                    return {
-                      win: `Vitória por 2+ gols`,
-                      void: `Vitória por 1 gol`,
-                      loss: `Empate ou Derrota`
-                    };
-                  } else if (lineVal === 1.0) {
-                    return {
-                      win: `Vitória ou Empate`,
-                      void: `Derrota por 1 gol`,
-                      loss: `Derrota por 2+ gols`
-                    };
-                  } else if (lineVal === -1.5) {
-                    return {
-                      win: `Vitória por 2+ gols`,
-                      void: `Não há`,
-                      loss: `Vitória por 1 gol, Empate ou Derrota`
-                    };
-                  } else if (lineVal === 1.5) {
-                    return {
-                      win: `Vitória, Empate ou Derrota por 1 gol`,
-                      void: `Não há`,
-                      loss: `Derrota por 2+ gols`
-                    };
-                  }
-                  return { win: '-', void: '-', loss: '-' };
-                };
-
-                const linesData = [
-                  { label: `${game.home} AH 0.0`, prob: game.stats.probCasaAH00, name: `Casa AH 0.0`, line: 0.0, team: game.home, opp: game.away },
-                  { label: `${game.away} AH 0.0`, prob: game.stats.probForaAH00, name: `Fora AH 0.0`, line: 0.0, team: game.away, opp: game.home },
-                  { label: `${game.home} AH -0.5`, prob: game.stats.probHome, name: `Casa AH -0.5`, line: -0.5, team: game.home, opp: game.away },
-                  { label: `${game.away} AH -0.5`, prob: game.stats.probAway, name: `Fora AH -0.5`, line: -0.5, team: game.away, opp: game.home },
-                  { label: `${game.home} AH +0.5`, prob: game.stats.probHome + game.stats.probDraw, name: `Casa AH +0.5`, line: 0.5, team: game.home, opp: game.away },
-                  { label: `${game.away} AH +0.5`, prob: game.stats.probAway + game.stats.probDraw, name: `Fora AH +0.5`, line: 0.5, team: game.away, opp: game.home },
-                  { label: `${game.home} AH -1.0`, prob: game.stats.probCasaAH10, name: `Casa AH -1.0`, line: -1.0, team: game.home, opp: game.away },
-                  { label: `${game.away} AH -1.0`, prob: game.stats.probForaAH10, name: `Fora AH -1.0`, line: -1.0, team: game.away, opp: game.home },
-                  { label: `${game.home} AH +1.0`, prob: game.stats.probCasaAH10Pos, name: `Casa AH +1.0`, line: 1.0, team: game.home, opp: game.away },
-                  { label: `${game.away} AH +1.0`, prob: game.stats.probForaAH10Pos, name: `Fora AH +1.0`, line: 1.0, team: game.away, opp: game.home },
-                  { label: `${game.home} AH -1.5`, prob: game.stats.probCasaAH15, name: `Casa AH -1.5`, line: -1.5, team: game.home, opp: game.away },
-                  { label: `${game.away} AH -1.5`, prob: game.stats.probForaAH15, name: `Fora AH -1.5`, line: -1.5, team: game.away, opp: game.home },
-                  { label: `${game.home} AH +1.5`, prob: game.stats.probAH15Pos_home, name: `Casa AH +1.5`, line: 1.5, team: game.home, opp: game.away },
-                  { label: `${game.away} AH +1.5`, prob: game.stats.probAH15Pos_away, name: `Fora AH +1.5`, line: 1.5, team: game.away, opp: game.home }
-                ];
-
-                return (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', animation: 'fadeIn 0.25s ease-out' }}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
-                        ⚖️ Tabela de Projeções e Guia de Resultados de Handicap Asiático
+                    {/* 3. PROJEÇÕES DE HANDICAP ASIÁTICO (SEPARADO TIME 1 E TIME 2) */}
+                    <div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px' }}>
+                        ⚖️ Projeções de Handicap Asiático (Time 1 vs Time 2)
                       </div>
                       
-                      <div style={{ overflowX: 'auto', maxHeight: activeStatsTab === 'handicap' ? 'none' : '380px', overflowY: 'auto', paddingRight: '4px' }}>
-                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', textAlign: 'left', minWidth: '680px', tableLayout: 'fixed' }}>
-                          <thead>
-                            <tr style={{ borderBottom: '1px solid #333', color: '#888' }}>
-                              <th style={{ padding: '8px 10px', width: '22%' }}>Opção</th>
-                              <th style={{ padding: '8px 10px', width: '12%' }}>Probabilidade</th>
-                              <th style={{ padding: '8px 10px', width: '12%' }}>Odd Justa</th>
-                              <th style={{ padding: '8px 10px', width: '18%', color: '#4CAF50' }}>Vence (Win)</th>
-                              <th style={{ padding: '8px 10px', width: '18%', color: '#ff9800' }}>Reembolso (Void)</th>
-                              <th style={{ padding: '8px 10px', width: '18%', color: '#ff4d4d' }}>Perde (Loss)</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {linesData.map((item, idx) => {
-                              const calculatedOdd = item.prob > 0 ? (1 / item.prob) : 99.0;
-                              const cappedOdd = Math.min(99.0, calculatedOdd);
-                              const fairOdd = cappedOdd.toFixed(2);
-                              const pct = (item.prob * 100).toFixed(1);
-                              const rules = getHandicapExplanation(item.line);
-                              
-                              return (
-                                <tr key={idx} style={{ borderBottom: '1px solid #222', background: idx % 2 === 0 ? 'rgba(255, 255, 255, 0.01)' : 'transparent' }}>
-                                  <td style={{ padding: '10px', fontWeight: 'bold', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.label}</td>
-                                  <td style={{ padding: '10px', color: '#4CAF50', fontWeight: 'bold' }}>{pct}%</td>
-                                  <td style={{ padding: '10px', color: 'var(--brand-neon)', fontWeight: 'bold' }}>@{fairOdd}</td>
-                                  <td style={{ padding: '10px', color: '#aaa', fontSize: '0.74rem', lineHeight: '1.3' }}>{rules.win}</td>
-                                  <td style={{ padding: '10px', color: '#ff9800', opacity: rules.void.includes('Não') ? 0.35 : 1, fontSize: '0.74rem', lineHeight: '1.3' }}>{rules.void}</td>
-                                  <td style={{ padding: '10px', color: '#ff4d4d', fontSize: '0.74rem', lineHeight: '1.3' }}>{rules.loss}</td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                        
+                        {/* Handicap Casa (Time 1) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.78rem', color: '#fff', fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #222', paddingBottom: '2px' }}>
+                            {game.home}
+                          </span>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', textAlign: 'left' }}>
+                            <thead>
+                              <tr style={{ color: '#888', borderBottom: '1px solid #222' }}>
+                                <th style={{ padding: '4px' }}>Linha</th>
+                                <th style={{ padding: '4px' }}>Probabilidade</th>
+                                <th style={{ padding: '4px', textAlign: 'right' }}>Odd Justa</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {homeHandicaps.map((item, idx) => {
+                                const odd = item.prob > 0 ? (1 / item.prob) : 99.0;
+                                const fairOdd = Math.min(99.0, odd).toFixed(2);
+                                return (
+                                  <tr key={idx} style={{ borderBottom: '1px solid #1a1a24' }}>
+                                    <td style={{ padding: '6px 4px', fontWeight: 'bold', color: '#fff' }}>{item.label}</td>
+                                    <td style={{ padding: '6px 4px', color: '#4CAF50', fontWeight: 'bold' }}>{(item.prob * 100).toFixed(0)}%</td>
+                                    <td style={{ padding: '6px 4px', color: 'var(--brand-neon)', fontWeight: 'bold', textAlign: 'right' }}>@{fairOdd}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
+                        {/* Handicap Fora (Time 2) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <span style={{ fontSize: '0.78rem', color: '#fff', fontWeight: 'bold', marginBottom: '4px', borderBottom: '1px solid #222', paddingBottom: '2px' }}>
+                            {game.away}
+                          </span>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.74rem', textAlign: 'left' }}>
+                            <thead>
+                              <tr style={{ color: '#888', borderBottom: '1px solid #222' }}>
+                                <th style={{ padding: '4px' }}>Linha</th>
+                                <th style={{ padding: '4px' }}>Probabilidade</th>
+                                <th style={{ padding: '4px', textAlign: 'right' }}>Odd Justa</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {awayHandicaps.map((item, idx) => {
+                                const odd = item.prob > 0 ? (1 / item.prob) : 99.0;
+                                const fairOdd = Math.min(99.0, odd).toFixed(2);
+                                return (
+                                  <tr key={idx} style={{ borderBottom: '1px solid #1a1a24' }}>
+                                    <td style={{ padding: '6px 4px', fontWeight: 'bold', color: '#fff' }}>{item.label}</td>
+                                    <td style={{ padding: '6px 4px', color: '#4CAF50', fontWeight: 'bold' }}>{(item.prob * 100).toFixed(0)}%</td>
+                                    <td style={{ padding: '6px 4px', color: 'var(--brand-neon)', fontWeight: 'bold', textAlign: 'right' }}>@{fairOdd}</td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+
                       </div>
                     </div>
+
+                    {/* 4. PROJEÇÕES DE ESCANTEIOS E CARTÕES (SEPARADO TIME 1 E TIME 2) */}
+                    <div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px', display: 'flex', justifyContent: 'space-between' }}>
+                        <span>📐 Projeção de Cantos & Cartões</span>
+                        <span style={{ fontSize: '0.75rem', color: '#aaa' }}>
+                          Total Cantos: <strong style={{ color: 'var(--brand-neon)' }}>{corn.projected}</strong> | Cartões: <strong style={{ color: '#ffd700' }}>~{cards.totalYellow} 🟨</strong> <strong style={{ color: '#ff3333' }}>{cards.totalRed} 🟥</strong>
+                        </span>
+                      </div>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                        
+                        {/* Mandante (Time 1) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem' }}>
+                          <span style={{ color: '#fff', fontWeight: 'bold', borderBottom: '1px solid #222', paddingBottom: '2px' }}>{game.home}</span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa' }}>
+                            <span>Cantos Feitos:</span>
+                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.home.feitos}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa' }}>
+                            <span>Cantos Sofridos:</span>
+                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.home.sofridos}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', alignItems: 'center' }}>
+                            <span>Cartões Recebidos:</span>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <span style={{ background: '#ffd700', color: '#000', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '0.7rem' }}>{cards.home.yellow} 🟨</span>
+                              <span style={{ background: '#ff3333', color: '#fff', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '0.7rem' }}>{cards.home.red} 🟥</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Visitante (Time 2) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem' }}>
+                          <span style={{ color: '#fff', fontWeight: 'bold', borderBottom: '1px solid #222', paddingBottom: '2px' }}>{game.away}</span>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa' }}>
+                            <span>Cantos Feitos:</span>
+                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.away.feitos}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa' }}>
+                            <span>Cantos Sofridos:</span>
+                            <span style={{ fontWeight: 'bold', color: '#fff' }}>{corn.away.sofridos}</span>
+                          </div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', color: '#aaa', alignItems: 'center' }}>
+                            <span>Cartões Recebidos:</span>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <span style={{ background: '#ffd700', color: '#000', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '0.7rem' }}>{cards.away.yellow} 🟨</span>
+                              <span style={{ background: '#ff3333', color: '#fff', padding: '1px 4px', borderRadius: '3px', fontWeight: 'bold', fontSize: '0.7rem' }}>{cards.away.red} 🟥</span>
+                            </div>
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+
+                    {/* 5. FORMA RECENTE E CONFRONTOS H2H */}
+                    <div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid #333', paddingBottom: '6px', marginBottom: '12px' }}>
+                        ⚔️ Forma Recente & H2H (Histórico do Confronto)
+                      </div>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                        
+                        {/* Forma Recente */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '0.78rem' }}>
+                          <span style={{ color: '#fff', fontWeight: 'bold', borderBottom: '1px solid #222', paddingBottom: '2px' }}>Últimos 5 Resultados</span>
+                          
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '2px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ color: '#aaa' }}>{game.home}:</span>
+                              <div style={{ display: 'flex', gap: '4px' }}>
+                                {formHome.map((f, idx) => (
+                                  <span key={idx} title={`${f.result} contra ${f.opponent} (${f.score})`} style={{ 
+                                    background: f.result === 'V' ? '#4CAF50' : f.result === 'D' ? '#ff4d4d' : '#555', 
+                                    color: '#fff', fontSize: '0.65rem', fontWeight: 'bold', padding: '1px 5px', borderRadius: '3px', cursor: 'help'
+                                  }}>{f.result}</span>
+                                ))}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                              <span style={{ color: '#aaa' }}>{game.away}:</span>
+                              <div style={{ display: 'flex', gap: '4px' }}>
+                                {formAway.map((f, idx) => (
+                                  <span key={idx} title={`${f.result} contra ${f.opponent} (${f.score})`} style={{ 
+                                    background: f.result === 'V' ? '#4CAF50' : f.result === 'D' ? '#ff4d4d' : '#555', 
+                                    color: '#fff', fontSize: '0.65rem', fontWeight: 'bold', padding: '1px 5px', borderRadius: '3px', cursor: 'help'
+                                  }}>{f.result}</span>
+                                ))}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Confrontos Diretos H2H */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.78rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '2px', color: '#fff', fontWeight: 'bold' }}>
+                            <span>Confronto Direto (H2H)</span>
+                            <span style={{ fontSize: '0.7rem', color: '#aaa' }}>{h2h.summary.homeWins} V | {h2h.summary.draws} E | {h2h.summary.awayWins} V</span>
+                          </div>
+                          
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', maxHeight: '90px', overflowY: 'auto', paddingRight: '2px' }}>
+                            {h2h.matches.slice(0, 3).map((m, idx) => (
+                              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: '#ccc' }}>
+                                <span style={{ color: '#888' }}>Série A • {m.year}</span>
+                                <span>{m.score}</span>
+                                <span style={{ color: m.winner === 'Empate' ? '#888' : m.winner === game.home ? '#4CAF50' : '#ff4d4d', fontWeight: 'bold' }}>
+                                  {m.winner === 'Empate' ? 'E' : m.winner === game.home ? 'Casa' : 'Fora'}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                      </div>
+                    </div>
+
                   </div>
                 );
               })()}
-
-              {activeStatsTab === 'escanteios' && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '20px', animation: 'fadeIn 0.25s ease-out' }}>
-                  {/* Escanteios */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderRight: '1px solid #222', paddingRight: '16px' }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>📐 Média de Escanteios (Cantos)</span>
-                      <span style={{ color: 'var(--brand-neon)' }}>Partida: {corn.projected}</span>
-                    </div>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {/* Casa */}
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
-                          <span>{game.home} (Casa)</span>
-                          <span>Feitos: <strong>{corn.home.feitos}</strong> | Sofridos: <strong>{corn.home.sofridos}</strong></span>
-                        </div>
-                        <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ background: '#00d2ff', width: `${(corn.home.feitos / 12) * 100}%`, height: '100%' }}></div>
-                        </div>
-                      </div>
-
-                      {/* Fora */}
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px' }}>
-                          <span>{game.away} (Fora)</span>
-                          <span>Feitos: <strong>{corn.away.feitos}</strong> | Sofridos: <strong>{corn.away.sofridos}</strong></span>
-                        </div>
-                        <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden' }}>
-                          <div style={{ background: '#ff9800', width: `${(corn.away.feitos / 12) * 100}%`, height: '100%' }}></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Cartões */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', paddingLeft: '8px' }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>🎴 Estimativa de Cartões</span>
-                      <span style={{ color: '#ffd700' }}>Partida: ~{cards.totalYellow} 🟨 | {cards.totalRed} 🟥</span>
-                    </div>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {/* Casa */}
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px', alignItems: 'center' }}>
-                          <span>{game.home}</span>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <span style={{ background: '#ffd700', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>{cards.home.yellow} 🟨</span>
-                            <span style={{ background: '#ff3333', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>{cards.home.red} 🟥</span>
-                          </div>
-                        </div>
-                        <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden', marginTop: '6px' }}>
-                          <div style={{ background: '#ffd700', width: `${(cards.home.yellow / 6) * 100}%`, height: '100%' }}></div>
-                        </div>
-                      </div>
-
-                      {/* Fora */}
-                      <div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#aaa', marginBottom: '4px', alignItems: 'center' }}>
-                          <span>{game.away}</span>
-                          <div style={{ display: 'flex', gap: '8px' }}>
-                            <span style={{ background: '#ffd700', color: '#000', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>{cards.away.yellow} 🟨</span>
-                            <span style={{ background: '#ff3333', color: '#fff', padding: '2px 6px', borderRadius: '4px', fontWeight: 'bold', fontSize: '0.75rem' }}>{cards.away.red} 🟥</span>
-                          </div>
-                        </div>
-                        <div style={{ background: '#111', height: '6px', borderRadius: '3px', overflow: 'hidden', marginTop: '6px' }}>
-                          <div style={{ background: '#ffd700', width: `${(cards.away.yellow / 6) * 100}%`, height: '100%' }}></div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {activeStatsTab === 'confrontos' && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', animation: 'fadeIn 0.25s ease-out' }}>
-                  {/* Forma Recente */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', borderBottom: '1px solid #222', paddingBottom: '16px' }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px' }}>
-                      🔥 Forma Recente (Últimos 5 Jogos no Brasileirão)
-                    </div>
-                    
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                      {/* Casa */}
-                      <div>
-                        <div style={{ fontSize: '0.8rem', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>{game.home}</div>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          {formHome.map((f, idx) => (
-                            <div 
-                              key={idx} 
-                              title={`${f.result === 'V' ? 'Vitória' : f.result === 'D' ? 'Derrota' : 'Empate'} contra o ${f.opponent} (${f.score})`}
-                              style={{ 
-                                background: f.result === 'V' ? '#4CAF50' : f.result === 'D' ? '#ff4d4d' : '#555', 
-                                color: '#fff', 
-                                width: '28px', 
-                                height: '28px', 
-                                borderRadius: '6px', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center', 
-                                fontWeight: 'bold', 
-                                fontSize: '0.8rem',
-                                cursor: 'help'
-                              }}
-                            >
-                              {f.result}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Fora */}
-                      <div>
-                        <div style={{ fontSize: '0.8rem', color: '#fff', fontWeight: 'bold', marginBottom: '6px' }}>{game.away}</div>
-                        <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
-                          {formAway.map((f, idx) => (
-                            <div 
-                              key={idx} 
-                              title={`${f.result === 'V' ? 'Vitória' : f.result === 'D' ? 'Derrota' : 'Empate'} contra o ${f.opponent} (${f.score})`}
-                              style={{ 
-                                background: f.result === 'V' ? '#4CAF50' : f.result === 'D' ? '#ff4d4d' : '#555', 
-                                color: '#fff', 
-                                width: '28px', 
-                                height: '28px', 
-                                borderRadius: '6px', 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center', 
-                                fontWeight: 'bold', 
-                                fontSize: '0.8rem',
-                                cursor: 'help'
-                              }}
-                            >
-                              {f.result}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Confronto Direto H2H */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '8px' }}>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #333', paddingBottom: '8px', display: 'flex', justifyContent: 'space-between' }}>
-                      <span>⚔️ Confrontos Diretos (H2H)</span>
-                      <span style={{ fontSize: '0.8rem', color: '#aaa' }}>
-                        <strong style={{color: '#4CAF50'}}>{h2h.summary.homeWins} V</strong> | <strong style={{color: '#888'}}>{h2h.summary.draws} E</strong> | <strong style={{color: '#ff4d4d'}}>{h2h.summary.awayWins} V</strong>
-                      </span>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {h2h.matches.map((m, idx) => (
-                        <div 
-                          key={idx} 
-                          style={{ 
-                            display: 'flex', 
-                            justifyContent: 'space-between', 
-                            alignItems: 'center', 
-                            fontSize: '0.8rem', 
-                            color: '#ccc',
-                            background: '#111',
-                            padding: '8px 12px',
-                            borderRadius: '6px',
-                            border: '1px solid #222'
-                          }}
-                        >
-                          <span style={{ color: '#888' }}>Série A • {m.year}</span>
-                          <span style={{ fontWeight: 'bold' }}>
-                            {m.venue === game.home ? <strong>{game.home}</strong> : game.home}
-                            <span style={{ color: 'var(--brand-neon)', margin: '0 8px' }}>{m.score}</span>
-                            {m.venue === game.away ? <strong>{game.away}</strong> : game.away}
-                          </span>
-                          <span style={{ 
-                            color: m.winner === 'Empate' ? '#888' : m.winner === game.home ? '#4CAF50' : '#ff4d4d',
-                            fontWeight: 'bold',
-                            fontSize: '0.75rem'
-                          }}>
-                            {m.winner === 'Empate' ? 'Empate' : m.winner === game.home ? 'Vitória Casa' : 'Vitória Fora'}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
               
               {/* Botão de Fechar no Rodapé */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '12px' }}>

@@ -2950,10 +2950,67 @@ export default function PalpitesPage() {
             return Math.abs(hash);
           };
 
-          const hashVal = hashString(teamName);
-          const firstNames = ['Lucas', 'Gabriel', 'Mateus', 'Felipe', 'Rodrigo', 'Bruno', 'Thiago', 'Diego', 'Rafael', 'Gustavo', 'Eduardo', 'Vinícius', 'Marcos', 'Arthur', 'Léo', 'Henrique'];
-          const lastNames = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Rodrigues', 'Almeida', 'Nascimento', 'Costa', 'Pereira', 'Gomes', 'Martins', 'Araújo', 'Ribeiro', 'Barbosa'];
+          const detectNationality = (name) => {
+            const norm = name.toLowerCase();
+            // Padrões de times da Argélia e países árabes/francófonos
+            if (
+              norm.startsWith('al ') || norm.startsWith('el ') || 
+              norm.includes('belouizdad') || norm.includes('mouloudia') || norm.includes('constantine') ||
+              norm.includes('setif') || norm.includes('kabylie') || norm.includes('alger') ||
+              norm.includes('oran') || norm.includes('saoura') || norm.includes('chlef') ||
+              norm.includes('khenchela') || norm.includes('magra') || norm.includes('souf') ||
+              norm.includes('ben aknoun') || norm.includes('paradou') || norm.includes('usm ') ||
+              norm.includes('mca ') || norm.includes('crb ') || norm.includes('jsa ') ||
+              norm.includes('ess ') || norm.includes('aso ') || norm.includes('csc ') ||
+              norm.includes('js kabylie') || norm.includes('mc alger') || norm.includes('cr belouizdad') ||
+              norm.includes('usm alger') || norm.includes('es sétif') || norm.includes('cs constantine') ||
+              norm.includes('js saoura') || norm.includes('mc oran')
+            ) {
+              return 'algerian';
+            }
+            // Padrões de times da Argentina e países hispânicos
+            if (
+              norm.includes('boca') || norm.includes('river') || norm.includes('racing') ||
+              norm.includes('independiente') || norm.includes('san lorenzo') || norm.includes('estudiantes') ||
+              norm.includes('velez') || norm.includes('lanus') || norm.includes('talleres') ||
+              norm.includes('colon') || norm.includes('rosario') || norm.includes('newell') ||
+              norm.includes('huracan') || norm.includes('banfield') || norm.includes('gimnasia') ||
+              norm.includes('belgrano') || norm.includes('tucuman') || norm.includes('platense') ||
+              norm.includes('defensa') || norm.includes('tigre') || norm.includes('sarmiento') ||
+              norm.includes('barracas') || norm.includes('instituto') || norm.includes('riestra') ||
+              norm.includes('godoy') || norm.includes('argentinos') || norm.includes('juniors') ||
+              norm.includes('ind. rivadavia')
+            ) {
+              return 'argentine';
+            }
+            // Caso contenha termos comuns em espanhol mas não brasileiros
+            if (
+              norm.includes('deportivo') || norm.includes('atlético') || norm.includes('atletico') ||
+              norm.includes('club atlético') || norm.includes('social y deportivo')
+            ) {
+              const brKeywords = ['goiás', 'goias', 'paranaense', 'mineiro', 'fluminense', 'paulista', 'carioca', 'bahia', 'fortaleza', 'ceará', 'ceara'];
+              const isBr = brKeywords.some(kw => norm.includes(kw));
+              if (!isBr) return 'argentine';
+            }
+            return 'brazilian';
+          };
 
+          const nation = detectNationality(teamName);
+          let firstNames = [];
+          let lastNames = [];
+
+          if (nation === 'algerian') {
+            firstNames = ['Yassine', 'Youcef', 'Sofiane', 'Amine', 'Riyad', 'Zakaria', 'Abdelkader', 'Karim', 'Slimane', 'Hichem', 'Oussama', 'Rami', 'Mehdi', 'Farid', 'Ishak', 'Houssem'];
+            lastNames = ['Belaïli', 'Bounedjah', 'Mahrez', 'Slimani', 'Feghouli', 'Chaïbi', 'Atal', 'Aouar', 'Benzia', 'Gouiri', 'Bensebaini', 'Mandi', 'Hassan', 'Saidi', 'Khelifi', 'Brahimi', 'Saad'];
+          } else if (nation === 'argentine') {
+            firstNames = ['Santiago', 'Mateo', 'Lautaro', 'Enzo', 'Franco', 'Nicolas', 'Rodrigo', 'Gonzalo', 'Lucas', 'Federico', 'Bautista', 'Facundo', 'Tomas', 'Valentin', 'Julian', 'Sebastian'];
+            lastNames = ['Fernandez', 'Rodriguez', 'Gonzalez', 'Garcia', 'Lopez', 'Martinez', 'Perez', 'Gomez', 'Sanchez', 'Diaz', 'Romero', 'Alvarez', 'Torres', 'Ruiz', 'Gimenez', 'Medina'];
+          } else {
+            firstNames = ['Lucas', 'Gabriel', 'Mateus', 'Felipe', 'Rodrigo', 'Bruno', 'Thiago', 'Diego', 'Rafael', 'Gustavo', 'Eduardo', 'Vinícius', 'Marcos', 'Arthur', 'Léo', 'Henrique'];
+            lastNames = ['Silva', 'Santos', 'Oliveira', 'Souza', 'Rodrigues', 'Almeida', 'Nascimento', 'Costa', 'Pereira', 'Gomes', 'Martins', 'Araújo', 'Ribeiro', 'Barbosa'];
+          }
+
+          const hashVal = hashString(teamName);
           const getPlayerName = (index) => {
             const firstIdx = (hashVal + index * 7) % firstNames.length;
             const lastIdx = (hashVal + index * 13) % lastNames.length;

@@ -520,60 +520,160 @@ const CardInsights = ({ game }) => {
   
   const insights = useMemo(() => generateTeamInsights(game, formHome, formAway), [game, formHome, formAway]);
   const [index, setIndex] = useState(0);
+  const [fade, setFade] = useState(true);
+
+  // Carrossel com transição suave e ciclo automático de 4.5s
+  useEffect(() => {
+    if (insights.length <= 1) return;
+    const interval = setInterval(() => {
+      setFade(false);
+      setTimeout(() => {
+        setIndex((prev) => (prev + 1) % insights.length);
+        setFade(true);
+      }, 200);
+    }, 4500);
+    return () => clearInterval(interval);
+  }, [insights.length]);
 
   if (insights.length === 0) return null;
 
-  const nextInsight = (e) => {
+  const handlePrev = (e) => {
     e.stopPropagation();
-    setIndex((prev) => (prev + 1) % insights.length);
+    setFade(false);
+    setTimeout(() => {
+      setIndex((prev) => (prev - 1 + insights.length) % insights.length);
+      setFade(true);
+    }, 200);
+  };
+
+  const handleNext = (e) => {
+    e.stopPropagation();
+    setFade(false);
+    setTimeout(() => {
+      setIndex((prev) => (prev + 1) % insights.length);
+      setFade(true);
+    }, 200);
+  };
+
+  const handleDotClick = (e, idx) => {
+    e.stopPropagation();
+    if (idx === index) return;
+    setFade(false);
+    setTimeout(() => {
+      setIndex(idx);
+      setFade(true);
+    }, 200);
   };
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      background: 'rgba(255,255,255,0.03)',
-      border: '1px solid rgba(255,255,255,0.06)',
-      borderRadius: '6px',
-      padding: '4px 8px',
-      fontSize: '0.72rem',
-      color: '#aaa',
-      width: '100%',
-      minHeight: '26px',
-      marginTop: '6px',
-      boxSizing: 'border-box'
-    }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
-        <span style={{ fontSize: '0.78rem', flexShrink: 0 }}>💡</span>
-        <span style={{ 
-          overflow: 'hidden', 
-          textOverflow: 'ellipsis', 
-          whiteSpace: 'nowrap',
-          flex: 1
-        }} title={insights[index]}>
-          {insights[index]}
-        </span>
+    <div 
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        background: 'rgba(255,255,255,0.02)',
+        border: '1px solid rgba(255,255,255,0.05)',
+        borderRadius: '8px',
+        padding: '6px 8px 4px 8px',
+        width: '100%',
+        marginTop: '6px',
+        boxSizing: 'border-box',
+        position: 'relative'
+      }}
+    >
+      {/* Linha principal: Seta Esquerda, Conteúdo de Texto, Seta Direita */}
+      <div style={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between', gap: '4px' }}>
+        {insights.length > 1 && (
+          <button 
+            onClick={handlePrev}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#888',
+              cursor: 'pointer',
+              fontSize: '0.85rem',
+              padding: '0 4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'color 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.color = 'var(--brand-neon)'}
+            onMouseOut={(e) => e.target.style.color = '#888'}
+            title="Insight anterior"
+          >
+            ‹
+          </button>
+        )}
+        
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '6px', 
+          minWidth: 0, 
+          flex: 1,
+          justifyContent: 'center',
+          textAlign: 'center',
+          transition: 'opacity 0.2s ease-in-out',
+          opacity: fade ? 1 : 0
+        }}>
+          <span style={{ fontSize: '0.75rem', flexShrink: 0 }}>💡</span>
+          <span style={{ 
+            overflow: 'hidden', 
+            textOverflow: 'ellipsis', 
+            whiteSpace: 'nowrap',
+            fontSize: '0.68rem',
+            fontWeight: '500',
+            color: '#ddd',
+            flex: 1
+          }} title={insights[index]}>
+            {insights[index]}
+          </span>
+        </div>
+
+        {insights.length > 1 && (
+          <button 
+            onClick={handleNext}
+            style={{
+              background: 'transparent',
+              border: 'none',
+              color: '#888',
+              cursor: 'pointer',
+              fontSize: '0.85rem',
+              padding: '0 4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'color 0.2s'
+            }}
+            onMouseOver={(e) => e.target.style.color = 'var(--brand-neon)'}
+            onMouseOut={(e) => e.target.style.color = '#888'}
+            title="Próximo insight"
+          >
+            ›
+          </button>
+        )}
       </div>
+
+      {/* Dots Indicadores do Carrossel */}
       {insights.length > 1 && (
-        <button 
-          onClick={nextInsight}
-          style={{
-            background: 'transparent',
-            border: 'none',
-            color: 'var(--brand-neon)',
-            cursor: 'pointer',
-            fontSize: '0.8rem',
-            padding: '0 4px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginLeft: '4px'
-          }}
-          title="Próxima informação"
-        >
-          ➔
-        </button>
+        <div style={{ display: 'flex', gap: '4px', marginTop: '4px', justifyContent: 'center' }}>
+          {insights.map((_, idx) => (
+            <div 
+              key={idx}
+              onClick={(e) => handleDotClick(e, idx)}
+              style={{
+                width: '4px',
+                height: '4px',
+                borderRadius: '50%',
+                background: idx === index ? 'var(--brand-neon)' : '#555',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease'
+              }}
+              title={`Ir para o slide ${idx + 1}`}
+            ></div>
+          ))}
+        </div>
       )}
     </div>
   );

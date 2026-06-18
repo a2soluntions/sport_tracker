@@ -2217,118 +2217,154 @@ export default function PalpitesPage() {
                       </div>
 
                       {/* Radar Campo Solo (Campo fica sozinha) */}
-                      {game.isLive && (
-                        <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '4px' }}>
-                          {(() => {
-                            const radar = getLiveMatchRadar(game);
-                            if (!radar) return null;
-                            let glowLeft = '50%';
-                            let glowColor = 'rgba(204, 255, 0, 0.4)';
-                            if (radar.zone === 'away_box') {
-                              glowLeft = '80%';
-                              glowColor = 'rgba(255, 68, 68, 0.5)';
-                            } else if (radar.zone === 'home_box') {
-                              glowLeft = '20%';
-                              glowColor = 'rgba(0, 210, 255, 0.5)';
-                            }
-                            return (
-                              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
-                                <div 
-                                  onClick={() => setOpenRadarGameId(game.id)}
-                                  style={{ 
-                                    position: 'relative', 
-                                    width: '90px', 
-                                    height: '50px', 
-                                    background: '#0d1a0d', 
-                                    border: '1px solid rgba(255, 255, 255, 0.12)', 
-                                    borderRadius: '4px', 
-                                    overflow: 'hidden',
-                                    boxShadow: 'inset 0 0 8px rgba(0,0,0,0.6)',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.2s ease-in-out',
-                                  }}
-                                  className="hover-scale-field"
-                                  title="Clique para abrir o Radar em tempo real ampliado 🔍"
-                                >
-                                  <div style={{ position: 'absolute', top: 0, left: '50%', width: '1px', height: '100%', background: 'rgba(255, 255, 255, 0.15)' }}></div>
-                                  <div style={{ position: 'absolute', top: '50%', left: '50%', width: '16px', height: '16px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
-                                  <div style={{ position: 'absolute', top: '10px', left: 0, width: '10px', height: '30px', border: '1px solid rgba(255, 255, 255, 0.15)', borderLeft: 'none' }}></div>
-                                  <div style={{ position: 'absolute', top: '10px', right: 0, width: '10px', height: '30px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRight: 'none' }}></div>
-                                  <div style={{
-                                    position: 'absolute',
-                                    top: '50%',
-                                    left: glowLeft,
-                                    width: '28px',
-                                    height: '28px',
-                                    background: `radial-gradient(circle, ${glowColor} 0%, rgba(0,0,0,0) 70%)`,
-                                    borderRadius: '50%',
-                                    transform: 'translate(-50%, -50%)',
-                                    pointerEvents: 'none'
-                                  }}></div>
-                                </div>
-                                <div style={{ display: 'flex', height: '3px', background: '#14141c', width: '90px', position: 'relative', borderRadius: '1.5px', overflow: 'hidden' }}>
-                                  <div style={{ width: `${radar.homePressure}%`, background: 'linear-gradient(90deg, #ff5e00, #ff0055)', height: '100%' }}></div>
-                                  <div style={{ width: `${radar.awayPressure}%`, background: 'linear-gradient(90deg, #00bfff, #00ffaa)', height: '100%' }}></div>
-                                </div>
+                      {/* Radar Campo Solo (Campo fica sozinha) */}
+                      {(() => {
+                        const radar = game.isLive ? getLiveMatchRadar(game) : null;
+                        if (!radar) return null;
+                        
+                        let glowLeft = '50%';
+                        let glowColor = 'rgba(204, 255, 0, 0.4)';
+                        if (radar.zone === 'away_box') {
+                          glowLeft = '80%';
+                          glowColor = 'rgba(255, 68, 68, 0.5)';
+                        } else if (radar.zone === 'home_box') {
+                          glowLeft = '20%';
+                          glowColor = 'rgba(0, 210, 255, 0.5)';
+                        }
+                        
+                        return (
+                          <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '4px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', flexShrink: 0 }}>
+                              <div 
+                                onClick={() => setOpenRadarGameId(game.id)}
+                                style={{ 
+                                  position: 'relative', 
+                                  width: '90px', 
+                                  height: '50px', 
+                                  background: '#0d1a0d', 
+                                  border: '1px solid rgba(255, 255, 255, 0.12)', 
+                                  borderRadius: '4px', 
+                                  overflow: 'hidden',
+                                  boxShadow: 'inset 0 0 8px rgba(0,0,0,0.6)',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.2s ease-in-out',
+                                }}
+                                className="hover-scale-field"
+                                title="Clique para abrir o Radar em tempo real ampliado 🔍"
+                              >
+                                <div style={{ position: 'absolute', top: 0, left: '50%', width: '1px', height: '100%', background: 'rgba(255, 255, 255, 0.15)' }}></div>
+                                <div style={{ position: 'absolute', top: '50%', left: '50%', width: '16px', height: '16px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
+                                <div style={{ position: 'absolute', top: '10px', left: 0, width: '10px', height: '30px', border: '1px solid rgba(255, 255, 255, 0.15)', borderLeft: 'none' }}></div>
+                                <div style={{ position: 'absolute', top: '10px', right: 0, width: '10px', height: '30px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRight: 'none' }}></div>
+                                <div style={{
+                                  position: 'absolute',
+                                  top: '50%',
+                                  left: glowLeft,
+                                  width: '28px',
+                                  height: '28px',
+                                  background: `radial-gradient(circle, ${glowColor} 0%, rgba(0,0,0,0) 70%)`,
+                                  borderRadius: '50%',
+                                  transform: 'translate(-50%, -50%)',
+                                  pointerEvents: 'none'
+                                }}></div>
                               </div>
-                            );
-                          })()}
-                        </div>
-                      )}
+                              <div style={{ display: 'flex', height: '3px', background: '#14141c', width: '90px', position: 'relative', borderRadius: '1.5px', overflow: 'hidden' }}>
+                                <div style={{ width: `${radar.homePressure}%`, background: 'linear-gradient(90deg, #ff5e00, #ff0055)', height: '100%' }}></div>
+                                <div style={{ width: `${radar.awayPressure}%`, background: 'linear-gradient(90deg, #00bfff, #00ffaa)', height: '100%' }}></div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
 
                       {/* Placar horizontal com nomes do lado do placar e mais perto da margem */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', width: '100%', justifyContent: 'flex-start' }}>
-                        {/* Home Team */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end', minWidth: 0 }}>
-                          <span className="team-name" title={game.home} style={{ fontSize: '0.8rem', maxWidth: '75px', textAlign: 'right' }}>
-                            {game.home}
-                          </span>
-                          <img 
-                            src={game.homeLogo || `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`} 
-                            alt={game.home} 
-                            style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0 }}
-                            onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`; }} 
-                          />
-                        </div>
+                      {(() => {
+                        const radar = game.isLive ? getLiveMatchRadar(game) : null;
+                        return (
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', width: '100%', justifyContent: 'flex-start' }}>
+                            {/* Home Team */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end', minWidth: 0 }}>
+                              {radar && radar.zone === 'away_box' && (
+                                <span 
+                                  style={{ 
+                                    color: '#ff4400', 
+                                    animation: 'blinkFlame 1s infinite ease-in-out', 
+                                    marginRight: '2px', 
+                                    fontSize: '0.85rem',
+                                    fontWeight: 'bold',
+                                    display: 'inline-block'
+                                  }}
+                                  title="Pressionando no ataque - Perto do Gol! 🔥"
+                                >
+                                  🔥
+                                </span>
+                              )}
+                              <span className="team-name" title={game.home} style={{ fontSize: '0.8rem', maxWidth: '75px', textAlign: 'right' }}>
+                                {game.home}
+                              </span>
+                              <img 
+                                src={game.homeLogo || `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`} 
+                                alt={game.home} 
+                                style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0 }}
+                                onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`; }} 
+                              />
+                            </div>
 
-                        {/* Placar */}
-                        <div style={{ 
-                          display: 'flex', 
-                          alignItems: 'center', 
-                          gap: '4px', 
-                          color: (game.isLive || game.isFinished) ? '#4CAF50' : '#555', 
-                          fontSize: '0.95rem', 
-                          fontWeight: 'bold',
-                          background: (game.isLive || game.isFinished) ? '#1a1a1a' : 'transparent',
-                          padding: (game.isLive || game.isFinished) ? '2px 6px' : '0',
-                          borderRadius: '4px',
-                          border: (game.isLive || game.isFinished) ? '1px solid #222' : 'none',
-                          flexShrink: 0
-                        }}>
-                          {(game.isLive || game.isFinished) ? (
-                            <>
-                              <span style={{ color: '#fff' }}>{game.goalsHome}</span>
-                              <span style={{ fontSize: '0.75rem', color: '#555' }}>x</span>
-                              <span style={{ color: '#fff' }}>{game.goalsAway}</span>
-                            </>
-                          ) : (
-                            <span>X</span>
-                          )}
-                        </div>
+                            {/* Placar */}
+                            <div style={{ 
+                              display: 'flex', 
+                              alignItems: 'center', 
+                              gap: '4px', 
+                              color: (game.isLive || game.isFinished) ? '#4CAF50' : '#555', 
+                              fontSize: '0.95rem', 
+                              fontWeight: 'bold',
+                              background: (game.isLive || game.isFinished) ? '#1a1a1a' : 'transparent',
+                              padding: (game.isLive || game.isFinished) ? '2px 6px' : '0',
+                              borderRadius: '4px',
+                              border: (game.isLive || game.isFinished) ? '1px solid #222' : 'none',
+                              flexShrink: 0
+                            }}>
+                              {(game.isLive || game.isFinished) ? (
+                                <>
+                                  <span style={{ color: '#fff' }}>{game.goalsHome}</span>
+                                  <span style={{ fontSize: '0.75rem', color: '#555' }}>x</span>
+                                  <span style={{ color: '#fff' }}>{game.goalsAway}</span>
+                                </>
+                              ) : (
+                                <span>X</span>
+                              )}
+                            </div>
 
-                        {/* Away Team */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-start', minWidth: 0 }}>
-                          <img 
-                            src={game.awayLogo || `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`} 
-                            alt={game.away} 
-                            style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0 }}
-                            onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`; }} 
-                          />
-                          <span className="team-name" title={game.away} style={{ fontSize: '0.8rem', maxWidth: '75px', textAlign: 'left' }}>
-                            {game.away}
-                          </span>
-                        </div>
-                      </div>
+                            {/* Away Team */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-start', minWidth: 0 }}>
+                              <img 
+                                src={game.awayLogo || `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`} 
+                                alt={game.away} 
+                                style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0 }}
+                                onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`; }} 
+                              />
+                              <span className="team-name" title={game.away} style={{ fontSize: '0.8rem', maxWidth: '75px', textAlign: 'left' }}>
+                                {game.away}
+                              </span>
+                              {radar && radar.zone === 'home_box' && (
+                                <span 
+                                  style={{ 
+                                    color: '#ff4400', 
+                                    animation: 'blinkFlame 1s infinite ease-in-out', 
+                                    marginLeft: '2px', 
+                                    fontSize: '0.85rem',
+                                    fontWeight: 'bold',
+                                    display: 'inline-block'
+                                  }}
+                                  title="Pressionando no ataque - Perto do Gol! 🔥"
+                                >
+                                  🔥
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
                     {/* Coluna 2: Projeções - Gols */}
@@ -5051,6 +5087,16 @@ export default function PalpitesPage() {
           0% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.6; }
           50% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.9; }
           100% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.6; }
+        }
+        @keyframes pulse {
+          0% { opacity: 0.6; }
+          50% { opacity: 1; }
+          100% { opacity: 0.6; }
+        }
+        @keyframes blinkFlame {
+          0% { transform: scale(1); opacity: 0.75; filter: drop-shadow(0 0 1px #ff3c00); }
+          50% { transform: scale(1.25); opacity: 1; filter: drop-shadow(0 0 5px #ffcc00); }
+          100% { transform: scale(1); opacity: 0.75; filter: drop-shadow(0 0 1px #ff3c00); }
         }
       `}</style>
     </div>

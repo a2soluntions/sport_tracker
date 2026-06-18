@@ -2645,8 +2645,76 @@ export default function PalpitesPage() {
                         );
                       })()}
                       
-                      {/* Insights e Tendências de desempenho */}
-                      <CardInsights game={game} />
+                      {/* Comparativo de Odds Simplificado abaixo do placar */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', width: '100%', marginTop: '6px' }}>
+                        {bmOdds.map(bm => {
+                          const fairOdd = Number(fairOddVal);
+                          const isEV = bm.odd > fairOdd;
+                          return (
+                            <div 
+                              key={bm.name} 
+                              onClick={() => {
+                                if (isFollowed(game)) return;
+                                setActiveFollowId(game.id);
+                                setFollowOdd(bm.odd.toFixed(2));
+                                setFollowAmount('50');
+                                showToast(`Selecionou ${bm.name} (@${bm.odd.toFixed(2)}) para registrar na Banca!`, 'success');
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                background: bm.isBest ? 'rgba(204, 255, 0, 0.08)' : 'rgba(255,255,255,0.02)',
+                                border: bm.isBest ? '1px solid var(--brand-neon)' : '1px solid #222',
+                                padding: '3px 6px',
+                                borderRadius: '4px',
+                                fontSize: '0.7rem',
+                                cursor: isFollowed(game) ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.2s',
+                              }}
+                            >
+                              {getBookmakerLogo(bm.name)}
+                              <span style={{ fontWeight: 'bold', color: bm.isBest ? 'var(--brand-neon)' : '#ccc' }}>
+                                @{bm.odd.toFixed(2)}
+                              </span>
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Minhas Apostas abaixo do placar */}
+                      {gameBets.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px', width: '100%', borderTop: '1px dashed #222', paddingTop: '6px' }}>
+                          <div style={{ fontSize: '0.62rem', color: 'var(--brand-neon)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.3px' }}>🎯 Minhas Apostas</div>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                            {gameBets.slice(0, 2).map(bet => {
+                              const isWin = bet.type === 'ganho';
+                              const isLoss = bet.type === 'perda';
+                              const isRefund = bet.odd === 1.0 && bet.description && bet.description.includes('[DEVOLVIDA]');
+                              let statusColor = '#ff9800';
+                              if (isRefund) statusColor = '#2196f3';
+                              else if (isWin) statusColor = '#4CAF50';
+                              else if (isLoss) statusColor = '#f44336';
+                              
+                              let selectionText = bet.description;
+                              const matchSel = bet.description.match(/\((.*?)\)/);
+                              if (matchSel && matchSel[1]) selectionText = matchSel[1];
+
+                              return (
+                                <div key={bet.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.65rem', background: 'rgba(0,0,0,0.2)', padding: '2px 4px', borderRadius: '4px', border: '1px solid #222' }}>
+                                  <span style={{ fontWeight: 'bold', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70px' }} title={selectionText}>
+                                    {selectionText}
+                                  </span>
+                                  <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>R${bet.amount}</span>
+                                  <span style={{ color: statusColor, fontWeight: 'bold', fontSize: '0.55rem' }}>
+                                    {isRefund ? 'DEV' : isWin ? 'WIN' : isLoss ? 'RED' : 'PEND'}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {/* Coluna 2: Projeções - Gols */}
@@ -2958,93 +3026,12 @@ export default function PalpitesPage() {
                           )}
                         </button>
                       </div>
-
-                      {/* Minhas Apostas */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '4px', borderTop: '1px solid #222', paddingTop: '6px' }}>
-                        <div style={{ fontSize: '0.62rem', color: 'var(--brand-neon)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.3px' }}>🎯 Minhas Apostas</div>
-                        {gameBets.length === 0 ? (
-                          <div style={{ fontSize: '0.7rem', color: '#555', fontStyle: 'italic' }}>Nenhuma aposta</div>
-                        ) : (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            {gameBets.slice(0, 2).map(bet => {
-                              const isWin = bet.type === 'ganho';
-                              const isLoss = bet.type === 'perda';
-                              const isRefund = bet.odd === 1.0 && bet.description && bet.description.includes('[DEVOLVIDA]');
-                              let statusColor = '#ff9800';
-                              if (isRefund) statusColor = '#2196f3';
-                              else if (isWin) statusColor = '#4CAF50';
-                              else if (isLoss) statusColor = '#f44336';
-                              
-                              let selectionText = bet.description;
-                              const matchSel = bet.description.match(/\((.*?)\)/);
-                              if (matchSel && matchSel[1]) selectionText = matchSel[1];
-
-                              return (
-                                <div key={bet.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.65rem', background: 'rgba(0,0,0,0.2)', padding: '2px 4px', borderRadius: '4px', border: '1px solid #222' }}>
-                                  <span style={{ fontWeight: 'bold', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '50px' }} title={selectionText}>
-                                    {selectionText}
-                                  </span>
-                                  <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>R${bet.amount}</span>
-                                  <span style={{ color: statusColor, fontWeight: 'bold', fontSize: '0.55rem' }}>
-                                    {isRefund ? 'DEV' : isWin ? 'WIN' : isLoss ? 'RED' : 'PEND'}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                            {gameBets.length > 2 && (
-                              <div style={{ fontSize: '0.6rem', color: '#888', textAlign: 'right' }}>+{gameBets.length - 2} mais</div>
-                            )}
-                          </div>
-                        )}
-                      </div>
                     </div>
                   </div>
 
-                  {/* COMPARATIVO DE ODDS E CASAS DE APOSTAS SIMPLIFICADO */}
-                  <div className="bookmakers-row">
-                    <span style={{ fontSize: '0.72rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.3px', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      <span>⚖️</span> Casas:
-                    </span>
-                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', alignItems: 'center' }}>
-                      {bmOdds.map(bm => {
-                        const fairOdd = Number(fairOddVal);
-                        const isEV = bm.odd > fairOdd;
-                        return (
-                          <div 
-                            key={bm.name} 
-                            onClick={() => {
-                              if (isFollowed(game)) return;
-                              setActiveFollowId(game.id);
-                              setFollowOdd(bm.odd.toFixed(2));
-                              setFollowAmount('50');
-                              showToast(`Selecionou ${bm.name} (@${bm.odd.toFixed(2)}) para registrar na Banca!`, 'success');
-                            }}
-                            style={{
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: '4px',
-                              background: bm.isBest ? 'rgba(204, 255, 0, 0.08)' : 'rgba(255,255,255,0.02)',
-                              border: bm.isBest ? '1px solid var(--brand-neon)' : '1px solid #222',
-                              padding: '3px 8px',
-                              borderRadius: '4px',
-                              fontSize: '0.78rem',
-                              cursor: isFollowed(game) ? 'not-allowed' : 'pointer',
-                              transition: 'all 0.2s',
-                            }}
-                          >
-                            {getBookmakerLogo(bm.name)}
-                            <span style={{ fontWeight: 'bold', color: bm.isBest ? 'var(--brand-neon)' : '#ccc' }}>
-                              @{bm.odd.toFixed(2)}
-                            </span>
-                            {isEV && (
-                              <span style={{ fontSize: '0.6rem', color: '#00ffa0', fontWeight: 'bold' }}>
-                                +EV
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
+                  {/* INSIGHTS E TENDÊNCIAS DINÂMICAS CARROSSEL */}
+                  <div className="bookmakers-row" style={{ padding: '6px 12px', background: '#0e0e12', display: 'flex', alignItems: 'center', justifyContent: 'center', minHeight: '38px', boxSizing: 'border-box' }}>
+                    <CardInsights game={game} />
                   </div>
 
                   {/* Painel Inline para Entrada Rapida na Banca */}

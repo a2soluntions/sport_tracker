@@ -440,6 +440,145 @@ const getLiveMatchRadar = (game) => {
   };
 };
 
+const generateTeamInsights = (game, formHome, formAway) => {
+  const insights = [];
+
+  const getStreak = (formList, resultType) => {
+    let count = 0;
+    for (let i = 0; i < formList.length; i++) {
+      if (formList[i].result === resultType) {
+        count++;
+      } else {
+        break;
+      }
+    }
+    return count;
+  };
+
+  const homeWinsStreak = getStreak(formHome, 'V');
+  const homeLossesStreak = getStreak(formHome, 'D');
+  const awayWinsStreak = getStreak(formAway, 'V');
+  const awayLossesStreak = getStreak(formAway, 'D');
+
+  if (homeWinsStreak >= 2) {
+    insights.push(`A Colômbia vem de ${homeWinsStreak} vitórias consecutivas.` === `A Colômbia vem de ${homeWinsStreak} vitórias consecutivas.` && game.home === 'Colombia' ? `A Colômbia vem de ${homeWinsStreak} vitórias consecutivas.` : `O ${game.home} vem de ${homeWinsStreak} vitórias consecutivas.`);
+  } else if (homeLossesStreak >= 2) {
+    insights.push(game.home === 'Uzbequistão' || game.home === 'Uzbekistan' ? `O Uzbequistão vem de ${homeLossesStreak} derrotas consecutivas.` : `O ${game.home} vem de ${homeLossesStreak} derrotas consecutivas.`);
+  }
+
+  if (awayWinsStreak >= 2) {
+    insights.push(game.away === 'Colombia' || game.away === 'Colômbia' ? `A Colômbia vem de ${awayWinsStreak} vitórias consecutivas.` : `O ${game.away} vem de ${awayWinsStreak} vitórias consecutivas.`);
+  } else if (awayLossesStreak >= 2) {
+    insights.push(game.away === 'Uzbequistão' || game.away === 'Uzbekistan' ? `O Uzbequistão vem de ${awayLossesStreak} derrotas consecutivas.` : `O ${game.away} vem de ${awayLossesStreak} derrotas consecutivas.`);
+  }
+
+  const homeLast = formHome[0]?.result;
+  const awayLast = formAway[0]?.result;
+
+  if (homeLast === 'V' && awayLast === 'D') {
+    insights.push((game.home === 'Colômbia' || game.home === 'Colombia') && (game.away === 'Uzbequistão' || game.away === 'Uzbekistan') 
+      ? `A Colômbia venceu sua última partida, enquanto o Uzbequistão perdeu a sua.` 
+      : `${game.home} venceu sua última partida, enquanto o ${game.away} perdeu a sua.`);
+  } else if (homeLast === 'D' && awayLast === 'V') {
+    insights.push((game.away === 'Colômbia' || game.away === 'Colombia') && (game.home === 'Uzbequistão' || game.home === 'Uzbekistan') 
+      ? `A Colômbia venceu sua última partida, enquanto o Uzbequistão perdeu a sua.` 
+      : `${game.away} venceu sua última partida, enquanto o ${game.home} perdeu a sua.`);
+  } else if (homeLast === 'E' && awayLast === 'E') {
+    insights.push(`Ambas as equipes empataram em suas últimas partidas.`);
+  }
+
+  const homeUnbeaten = !formHome.some(f => f.result === 'D');
+  const awayUnbeaten = !formAway.some(f => f.result === 'D');
+
+  if (homeUnbeaten) {
+    insights.push(`${game.home} está invicto há 5 jogos.`);
+  }
+  if (awayUnbeaten) {
+    insights.push(`${game.away} está invicto há 5 jogos.`);
+  }
+
+  const homeNoWin = !formHome.some(f => f.result === 'V');
+  const awayNoWin = !formAway.some(f => f.result === 'V');
+
+  if (homeNoWin) {
+    insights.push(`${game.home} não vence há 5 partidas.`);
+  }
+  if (awayNoWin) {
+    insights.push(`${game.away} não vence há 5 partidas.`);
+  }
+
+  if (insights.length === 0) {
+    insights.push(`Expectativa de confronto equilibrado.`);
+  }
+
+  return insights;
+};
+
+const CardInsights = ({ game }) => {
+  const formHome = useMemo(() => getTeamForm(game.home, game.homePosition || 10), [game.home, game.homePosition]);
+  const formAway = useMemo(() => getTeamForm(game.away, game.awayPosition || 11), [game.away, game.awayPosition]);
+  
+  const insights = useMemo(() => generateTeamInsights(game, formHome, formAway), [game, formHome, formAway]);
+  const [index, setIndex] = useState(0);
+
+  if (insights.length === 0) return null;
+
+  const nextInsight = (e) => {
+    e.stopPropagation();
+    setIndex((prev) => (prev + 1) % insights.length);
+  };
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      background: 'rgba(255,255,255,0.03)',
+      border: '1px solid rgba(255,255,255,0.06)',
+      borderRadius: '6px',
+      padding: '4px 8px',
+      fontSize: '0.72rem',
+      color: '#aaa',
+      width: '100%',
+      minHeight: '26px',
+      marginTop: '6px',
+      boxSizing: 'border-box'
+    }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0, flex: 1 }}>
+        <span style={{ fontSize: '0.78rem', flexShrink: 0 }}>💡</span>
+        <span style={{ 
+          overflow: 'hidden', 
+          textOverflow: 'ellipsis', 
+          whiteSpace: 'nowrap',
+          flex: 1
+        }} title={insights[index]}>
+          {insights[index]}
+        </span>
+      </div>
+      {insights.length > 1 && (
+        <button 
+          onClick={nextInsight}
+          style={{
+            background: 'transparent',
+            border: 'none',
+            color: 'var(--brand-neon)',
+            cursor: 'pointer',
+            fontSize: '0.8rem',
+            padding: '0 4px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            marginLeft: '4px'
+          }}
+          title="Próxima informação"
+        >
+          ➔
+        </button>
+      )}
+    </div>
+  );
+};
+
 const getBookmakerLogo = (name) => {
   switch (name) {
     case 'Bet365':
@@ -2365,6 +2504,9 @@ export default function PalpitesPage() {
                           </div>
                         );
                       })()}
+                      
+                      {/* Insights e Tendências de desempenho */}
+                      <CardInsights game={game} />
                     </div>
 
                     {/* Coluna 2: Projeções - Gols */}
@@ -3987,6 +4129,33 @@ export default function PalpitesPage() {
                     {radar.zone === 'midfield' && 'Jogo travado no meio de campo. Tendência de pouca atividade em gols no momento.'}
                   </span>
                 </div>
+
+                {/* Insights de Forma e Histórico */}
+                {(() => {
+                  const fHome = getTeamForm(game.home, game.homePosition || 10);
+                  const fAway = getTeamForm(game.away, game.awayPosition || 11);
+                  const list = generateTeamInsights(game, fHome, fAway);
+                  return (
+                    <div style={{ 
+                      borderTop: '1px dashed #333', 
+                      paddingTop: '10px', 
+                      marginTop: '4px', 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '6px' 
+                    }}>
+                      <div style={{ fontSize: '0.78rem', color: '#aaa', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <span>📊</span> insights dos times:
+                      </div>
+                      {list.map((ins, idx) => (
+                        <div key={idx} style={{ fontSize: '0.75rem', color: '#ccc', display: 'flex', alignItems: 'flex-start', gap: '6px', lineHeight: '1.3' }}>
+                          <span style={{ color: 'var(--brand-neon)', flexShrink: 0 }}>•</span>
+                          <span>{ins}</span>
+                        </div>
+                      ))}
+                    </div>
+                  );
+                })()}
               </div>
 
               {/* Botão de Fechar no Rodapé */}

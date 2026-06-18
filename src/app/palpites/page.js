@@ -2560,16 +2560,16 @@ export default function PalpitesPage() {
                       {(() => {
                         const radar = game.isLive ? getLiveMatchRadar(game) : null;
                         return (
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginTop: '4px', width: '100%', justifyContent: 'flex-start' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px', width: '100%', justifyContent: 'space-between' }}>
                             {/* Home Team */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end', minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-end', minWidth: 0, flex: 1 }}>
                               {radar && radar.zone === 'away_box' && (
                                 <span 
                                   style={{ 
                                     color: '#ff4400', 
                                     animation: 'blinkFlame 1s infinite ease-in-out', 
                                     marginRight: '2px', 
-                                    fontSize: '0.85rem',
+                                    fontSize: '0.8rem',
                                     fontWeight: 'bold',
                                     display: 'inline-block'
                                   }}
@@ -2578,13 +2578,13 @@ export default function PalpitesPage() {
                                   🔥
                                 </span>
                               )}
-                              <span className="team-name" title={game.home} style={{ fontSize: '0.8rem', maxWidth: '75px', textAlign: 'right' }}>
+                              <span className="team-name" title={game.home} style={{ fontSize: '0.72rem', maxWidth: '60px', textAlign: 'right' }}>
                                 {game.home}
                               </span>
                               <img 
                                 src={game.homeLogo || `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`} 
                                 alt={game.home} 
-                                style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0 }}
+                                style={{ width: '16px', height: '16px', objectFit: 'contain', flexShrink: 0 }}
                                 onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`; }} 
                               />
                             </div>
@@ -2593,12 +2593,12 @@ export default function PalpitesPage() {
                             <div style={{ 
                               display: 'flex', 
                               alignItems: 'center', 
-                              gap: '4px', 
+                              gap: '3px', 
                               color: (game.isLive || game.isFinished) ? '#4CAF50' : '#555', 
-                              fontSize: '0.95rem', 
+                              fontSize: '0.9rem', 
                               fontWeight: 'bold',
                               background: (game.isLive || game.isFinished) ? '#1a1a1a' : 'transparent',
-                              padding: (game.isLive || game.isFinished) ? '2px 6px' : '0',
+                              padding: (game.isLive || game.isFinished) ? '2px 5px' : '0',
                               borderRadius: '4px',
                               border: (game.isLive || game.isFinished) ? '1px solid #222' : 'none',
                               flexShrink: 0
@@ -2606,7 +2606,7 @@ export default function PalpitesPage() {
                               {(game.isLive || game.isFinished) ? (
                                 <>
                                   <span style={{ color: '#fff' }}>{game.goalsHome}</span>
-                                  <span style={{ fontSize: '0.75rem', color: '#555' }}>x</span>
+                                  <span style={{ fontSize: '0.7rem', color: '#555' }}>x</span>
                                   <span style={{ color: '#fff' }}>{game.goalsAway}</span>
                                 </>
                               ) : (
@@ -2615,79 +2615,157 @@ export default function PalpitesPage() {
                             </div>
 
                             {/* Away Team */}
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-start', minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', justifyContent: 'flex-start', minWidth: 0, flex: 1 }}>
                               <img 
                                 src={game.awayLogo || `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`} 
                                 alt={game.away} 
-                                style={{ width: '20px', height: '20px', objectFit: 'contain', flexShrink: 0 }}
+                                style={{ width: '16px', height: '16px', objectFit: 'contain', flexShrink: 0 }}
                                 onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`; }} 
                               />
-                              <span className="team-name" title={game.away} style={{ fontSize: '0.8rem', maxWidth: '75px', textAlign: 'left' }}>
+                              <span className="team-name" title={game.away} style={{ fontSize: '0.72rem', maxWidth: '60px', textAlign: 'left' }}>
                                 {game.away}
                               </span>
                               {radar && radar.zone === 'home_box' && (
-                                <span 
-                                  style={{ 
-                                    color: '#ff4400', 
-                                    animation: 'blinkFlame 1s infinite ease-in-out', 
-                                    marginLeft: '2px', 
-                                    fontSize: '0.85rem',
-                                    fontWeight: 'bold',
-                                    display: 'inline-block'
-                                  }}
-                                  title="Pressionando no ataque - Perto do Gol! 🔥"
-                                >
-                                  🔥
-                                </span>
+                                <span style={{ color: '#ff4400', animation: 'blinkFlame 1s infinite ease-in-out', fontSize: '0.8rem', fontWeight: 'bold' }}>🔥</span>
                               )}
                             </div>
                           </div>
                         );
                       })()}
-                      
-                      {/* Comparativo de Odds Simplificado abaixo do placar */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', width: '100%', marginTop: '6px' }}>
-                        {bmOdds.map(bm => {
-                          const fairOdd = Number(fairOddVal);
-                          const isEV = bm.odd > fairOdd;
-                          return (
-                            <div 
-                              key={bm.name} 
-                              onClick={() => {
-                                if (isFollowed(game)) return;
-                                setActiveFollowId(game.id);
-                                setFollowOdd(bm.odd.toFixed(2));
-                                setFollowAmount('50');
-                                showToast(`Selecionou ${bm.name} (@${bm.odd.toFixed(2)}) para registrar na Banca!`, 'success');
-                              }}
-                              style={{
+
+                      {/* Informações ao Vivo (Escanteios, Cartões e Narrativa) se for Ao Vivo */}
+                      {game.isLive && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', width: '100%', marginTop: '3px' }}>
+                          {(() => {
+                            const stats = liveStats[game.id] || getSimulatedLiveStats(game);
+                            if (!stats) return null;
+                            return (
+                              <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                gap: '4px',
+                                background: 'rgba(0,0,0,0.2)',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                border: '1px dashed rgba(204, 255, 0, 0.15)',
+                                width: '100%',
+                                boxSizing: 'border-box'
+                              }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.62rem', color: '#fff' }} title="Escanteios (Cantos)">
+                                  <span style={{ fontSize: '0.68rem' }}>📐</span>
+                                  <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>{stats.home.corners}-{stats.away.corners}</span>
+                                  <span style={{ fontSize: '0.55rem', color: '#888' }}>({stats.home.corners + stats.away.corners})</span>
+                                </div>
+                                <div style={{ width: '1px', height: '8px', background: '#333' }}></div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.62rem', color: '#fff' }} title="Cartoes Amarelos">
+                                  <span style={{ display: 'inline-block', width: '5px', height: '7px', background: '#ffd600', borderRadius: '1px' }}></span>
+                                  <span style={{ fontWeight: 'bold' }}>{stats.home.yellowCards}-{stats.away.yellowCards}</span>
+                                </div>
+                                {(stats.home.redCards > 0 || stats.away.redCards > 0) && (
+                                  <>
+                                    <div style={{ width: '1px', height: '8px', background: '#333' }}></div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.62rem', color: '#fff' }} title="Cartoes Vermelhos">
+                                      <span style={{ display: 'inline-block', width: '5px', height: '7px', background: '#ff1744', borderRadius: '1px' }}></span>
+                                      <span style={{ fontWeight: 'bold', color: '#ff1744' }}>{stats.home.redCards}-{stats.away.redCards}</span>
+                                    </div>
+                                  </>
+                                )}
+                              </div>
+                            );
+                          })()}
+
+                          {/* Status Narrado do Radar */}
+                          {(() => {
+                            const radar = getLiveMatchRadar(game);
+                            if (!radar) return null;
+                            return (
+                              <div style={{
+                                background: 'rgba(255, 68, 68, 0.02)',
+                                border: '1px solid rgba(255, 68, 68, 0.1)',
+                                borderRadius: '4px',
+                                padding: '2px 4px',
+                                fontSize: '0.62rem', 
+                                color: '#bbb', 
+                                fontStyle: 'italic',
                                 display: 'flex',
                                 alignItems: 'center',
-                                justifyContent: 'space-between',
-                                background: bm.isBest ? 'rgba(204, 255, 0, 0.08)' : 'rgba(255,255,255,0.02)',
-                                border: bm.isBest ? '1px solid var(--brand-neon)' : '1px solid #222',
-                                padding: '3px 6px',
-                                borderRadius: '4px',
-                                fontSize: '0.7rem',
-                                cursor: isFollowed(game) ? 'not-allowed' : 'pointer',
-                                transition: 'all 0.2s',
-                              }}
-                            >
-                              {getBookmakerLogo(bm.name)}
-                              <span style={{ fontWeight: 'bold', color: bm.isBest ? 'var(--brand-neon)' : '#ccc' }}>
-                                @{bm.odd.toFixed(2)}
-                              </span>
-                            </div>
-                          );
-                        })}
+                                gap: '3px',
+                                width: '100%',
+                                boxSizing: 'border-box'
+                              }}>
+                                <span style={{ display: 'inline-block', width: '3px', height: '3px', borderRadius: '50%', background: '#ff4444', animation: 'pulse 1.2s infinite', flexShrink: 0 }}></span>
+                                <span style={{ color: '#ff4444', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.58rem' }}>Live:</span>
+                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{radar.statusText}</span>
+                              </div>
+                            );
+                          })()}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Coluna 2: Projeções - Gols e Cartões */}
+                    <div className="projections-column" style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
+                      {/* Mercado de Gols */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ fontSize: '0.68rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.3px' }}>⚽ Mercado de Gols</div>
+                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#aaa' }}>xG:</span>
+                          <span style={{ fontWeight: 'bold' }}>{game.homeXG.toFixed(1)} v {game.awayXG.toFixed(1)}</span>
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#aaa' }}>Ambos Marcam:</span>
+                          <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>{(game.stats.probBtts * 100).toFixed(0)}%</span>
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#aaa' }}>Mais de 2.5:</span>
+                          <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>{(game.stats.probOver25 * 100).toFixed(0)}%</span>
+                        </div>
                       </div>
 
-                      {/* Minhas Apostas abaixo do placar */}
-                      {gameBets.length > 0 && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginTop: '6px', width: '100%', borderTop: '1px dashed #222', paddingTop: '6px' }}>
+                      {/* Projecao de Cartoes */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px dashed #222', paddingTop: '6px' }}>
+                        <div style={{ fontSize: '0.68rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.3px' }}>🟨 Projecao de Cartoes</div>
+                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#aaa' }}>Total Amarelos:</span>
+                          <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>{cardsStatsObj.totalYellow}</span>
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#aaa' }}>Casa (A/V):</span>
+                          <span style={{ fontWeight: 'bold' }}>{cardsStatsObj.home.yellow}/{cardsStatsObj.home.red.toFixed(1)}</span>
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#aaa' }}>Fora (A/V):</span>
+                          <span style={{ fontWeight: 'bold' }}>{cardsStatsObj.away.yellow}/{cardsStatsObj.away.red.toFixed(1)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Coluna 3: Projeções - Cantos e Apostas */}
+                    <div className="projections-column" style={{ display: 'flex', flexDirection: 'column', height: '100%', justifyContent: 'space-between' }}>
+                      {/* Projecao de Cantos */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ fontSize: '0.68rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.3px' }}>📐 Projecao de Cantos</div>
+                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#aaa' }}>Projetado:</span>
+                          <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>{cornStatsObj.projected}</span>
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#aaa' }}>Casa (F/S):</span>
+                          <span style={{ fontWeight: 'bold' }}>{cornStatsObj.home.feitos}/{cornStatsObj.home.sofridos}</span>
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                          <span style={{ color: '#aaa' }}>Fora (F/S):</span>
+                          <span style={{ fontWeight: 'bold' }}>{cornStatsObj.away.feitos}/{cornStatsObj.away.sofridos}</span>
+                        </div>
+                      </div>
+
+                      {/* Minhas Apostas no rodapé da Coluna 3 */}
+                      {gameBets.length > 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', borderTop: '1px dashed #222', paddingTop: '6px', width: '100%' }}>
                           <div style={{ fontSize: '0.62rem', color: 'var(--brand-neon)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.3px' }}>🎯 Minhas Apostas</div>
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                            {gameBets.slice(0, 2).map(bet => {
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                            {gameBets.slice(0, 1).map(bet => {
                               const isWin = bet.type === 'ganho';
                               const isLoss = bet.type === 'perda';
                               const isRefund = bet.odd === 1.0 && bet.description && bet.description.includes('[DEVOLVIDA]');
@@ -2714,131 +2792,9 @@ export default function PalpitesPage() {
                             })}
                           </div>
                         </div>
+                      ) : (
+                        <div style={{ height: '1px' }}></div>
                       )}
-                    </div>
-
-                    {/* Coluna 2: Projeções - Gols */}
-                    <div className="projections-column">
-                      {/* Mercado de Gols */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <div style={{ fontSize: '0.68rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.3px' }}>⚽ Mercado de Gols</div>
-                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#aaa' }}>xG:</span>
-                          <span style={{ fontWeight: 'bold' }}>{game.homeXG.toFixed(1)} v {game.awayXG.toFixed(1)}</span>
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#aaa' }}>Ambos Marcam:</span>
-                          <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>{(game.stats.probBtts * 100).toFixed(0)}%</span>
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#aaa' }}>Mais de 2.5:</span>
-                          <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>{(game.stats.probOver25 * 100).toFixed(0)}%</span>
-                        </div>
-                      </div>
-
-                      {/* Informacoes ao vivo (Escanteios, Cartões e Status) se Ao Vivo */}
-                      {game.isLive && (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px', borderTop: '1px dashed #333', paddingTop: '8px' }}>
-                          {(() => {
-                            const stats = liveStats[game.id] || getSimulatedLiveStats(game);
-                            if (!stats) return null;
-                            return (
-                              <div style={{
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center',
-                                gap: '8px',
-                                background: 'rgba(0,0,0,0.2)',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                border: '1px dashed rgba(204, 255, 0, 0.15)',
-                                width: '100%'
-                              }}>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.7rem', color: '#fff' }} title="Escanteios (Cantos)">
-                                  <span style={{ fontSize: '0.75rem' }}>📐</span>
-                                  <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>{stats.home.corners}-{stats.away.corners}</span>
-                                  <span style={{ fontSize: '0.6rem', color: '#888' }}>({stats.home.corners + stats.away.corners})</span>
-                                </div>
-                                <div style={{ width: '1px', height: '8px', background: '#333' }}></div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.7rem', color: '#fff' }} title="Cartoes Amarelos">
-                                  <span style={{ display: 'inline-block', width: '6px', height: '8px', background: '#ffd600', borderRadius: '1px' }}></span>
-                                  <span style={{ fontWeight: 'bold' }}>{stats.home.yellowCards}-{stats.away.yellowCards}</span>
-                                </div>
-                                {(stats.home.redCards > 0 || stats.away.redCards > 0) && (
-                                  <>
-                                    <div style={{ width: '1px', height: '8px', background: '#333' }}></div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '3px', fontSize: '0.7rem', color: '#fff' }} title="Cartoes Vermelhos">
-                                      <span style={{ display: 'inline-block', width: '6px', height: '8px', background: '#ff1744', borderRadius: '1px' }}></span>
-                                      <span style={{ fontWeight: 'bold', color: '#ff1744' }}>{stats.home.redCards}-{stats.away.redCards}</span>
-                                    </div>
-                                  </>
-                                )}
-                              </div>
-                            );
-                          })()}
-
-                          {/* Status Narrado do Radar */}
-                          {(() => {
-                            const radar = getLiveMatchRadar(game);
-                            if (!radar) return null;
-                            return (
-                              <div style={{
-                                background: 'rgba(255, 68, 68, 0.02)',
-                                border: '1px solid rgba(255, 68, 68, 0.1)',
-                                borderRadius: '6px',
-                                padding: '4px 8px',
-                                fontSize: '0.7rem', 
-                                color: '#bbb', 
-                                fontStyle: 'italic',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '4px'
-                              }}>
-                                <span style={{ display: 'inline-block', width: '4px', height: '4px', borderRadius: '50%', background: '#ff4444', animation: 'pulse 1.2s infinite', flexShrink: 0 }}></span>
-                                <span style={{ color: '#ff4444', fontWeight: 'bold', textTransform: 'uppercase', fontSize: '0.65rem' }}>Live:</span>
-                                <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>{radar.statusText}</span>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Coluna 3: Projeções - Cantos e Cartões */}
-                    <div className="projections-column" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {/* Projecao de Cantos */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <div style={{ fontSize: '0.68rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.3px' }}>📐 Projecao de Cantos</div>
-                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#aaa' }}>Projetado:</span>
-                          <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>{cornStatsObj.projected}</span>
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#aaa' }}>Casa (F/S):</span>
-                          <span style={{ fontWeight: 'bold' }}>{cornStatsObj.home.feitos}/{cornStatsObj.home.sofridos}</span>
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#aaa' }}>Fora (F/S):</span>
-                          <span style={{ fontWeight: 'bold' }}>{cornStatsObj.away.feitos}/{cornStatsObj.away.sofridos}</span>
-                        </div>
-                      </div>
-
-                      {/* Projecao de Cartoes */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                        <div style={{ fontSize: '0.68rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.3px' }}>🟨 Projecao de Cartoes</div>
-                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#aaa' }}>Total Amarelos:</span>
-                          <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>{cardsStatsObj.totalYellow}</span>
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#aaa' }}>Casa (A/V):</span>
-                          <span style={{ fontWeight: 'bold' }}>{cardsStatsObj.home.yellow}/{cardsStatsObj.home.red.toFixed(1)}</span>
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
-                          <span style={{ color: '#aaa' }}>Fora (A/V):</span>
-                          <span style={{ fontWeight: 'bold' }}>{cardsStatsObj.away.yellow}/{cardsStatsObj.away.red.toFixed(1)}</span>
-                        </div>
-                      </div>
                     </div>
 
                     {/* Coluna 4: Palpite Sugerido, Protecao, Botoes e Minhas Apostas */}
@@ -3025,6 +2981,43 @@ export default function PalpitesPage() {
                             <Send size={12} />
                           )}
                         </button>
+                      </div>
+
+                      {/* Casas de Aposta Simplificado */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px', width: '100%', marginTop: '4px' }}>
+                        {bmOdds.map(bm => {
+                          const fairOdd = Number(fairOddVal);
+                          const isEV = bm.odd > fairOdd;
+                          return (
+                            <div 
+                              key={bm.name} 
+                              onClick={() => {
+                                if (isFollowed(game)) return;
+                                setActiveFollowId(game.id);
+                                setFollowOdd(bm.odd.toFixed(2));
+                                setFollowAmount('50');
+                                showToast(`Selecionou ${bm.name} (@${bm.odd.toFixed(2)}) para registrar na Banca!`, 'success');
+                              }}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                background: bm.isBest ? 'rgba(204, 255, 0, 0.08)' : 'rgba(255,255,255,0.02)',
+                                border: bm.isBest ? '1px solid var(--brand-neon)' : '1px solid #222',
+                                padding: '2px 4px',
+                                borderRadius: '4px',
+                                fontSize: '0.62rem',
+                                cursor: isFollowed(game) ? 'not-allowed' : 'pointer',
+                                transition: 'all 0.2s',
+                              }}
+                            >
+                              {getBookmakerLogo(bm.name)}
+                              <span style={{ fontWeight: 'bold', color: bm.isBest ? 'var(--brand-neon)' : '#ccc' }}>
+                                @{bm.odd.toFixed(2)}
+                              </span>
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   </div>

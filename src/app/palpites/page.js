@@ -455,13 +455,14 @@ const generateTeamInsights = (game, formHome, formAway) => {
     return count;
   };
 
+  // 1. Seqüências de Resultados
   const homeWinsStreak = getStreak(formHome, 'V');
   const homeLossesStreak = getStreak(formHome, 'D');
   const awayWinsStreak = getStreak(formAway, 'V');
   const awayLossesStreak = getStreak(formAway, 'D');
 
   if (homeWinsStreak >= 2) {
-    insights.push(`A Colômbia vem de ${homeWinsStreak} vitórias consecutivas.` === `A Colômbia vem de ${homeWinsStreak} vitórias consecutivas.` && game.home === 'Colombia' ? `A Colômbia vem de ${homeWinsStreak} vitórias consecutivas.` : `O ${game.home} vem de ${homeWinsStreak} vitórias consecutivas.`);
+    insights.push(game.home === 'Colombia' || game.home === 'Colômbia' ? `A Colômbia vem de ${homeWinsStreak} vitórias consecutivas.` : `O ${game.home} vem de ${homeWinsStreak} vitórias consecutivas.`);
   } else if (homeLossesStreak >= 2) {
     insights.push(game.home === 'Uzbequistão' || game.home === 'Uzbekistan' ? `O Uzbequistão vem de ${homeLossesStreak} derrotas consecutivas.` : `O ${game.home} vem de ${homeLossesStreak} derrotas consecutivas.`);
   }
@@ -472,6 +473,7 @@ const generateTeamInsights = (game, formHome, formAway) => {
     insights.push(game.away === 'Uzbequistão' || game.away === 'Uzbekistan' ? `O Uzbequistão vem de ${awayLossesStreak} derrotas consecutivas.` : `O ${game.away} vem de ${awayLossesStreak} derrotas consecutivas.`);
   }
 
+  // 2. Comparativo da Última Partida
   const homeLast = formHome[0]?.result;
   const awayLast = formAway[0]?.result;
 
@@ -483,13 +485,11 @@ const generateTeamInsights = (game, formHome, formAway) => {
     insights.push((game.away === 'Colômbia' || game.away === 'Colombia') && (game.home === 'Uzbequistão' || game.home === 'Uzbekistan') 
       ? `A Colômbia venceu sua última partida, enquanto o Uzbequistão perdeu a sua.` 
       : `${game.away} venceu sua última partida, enquanto o ${game.home} perdeu a sua.`);
-  } else if (homeLast === 'E' && awayLast === 'E') {
-    insights.push(`Ambas as equipes empataram em suas últimas partidas.`);
   }
 
+  // 3. Invencibilidade / Sem Vitórias
   const homeUnbeaten = !formHome.some(f => f.result === 'D');
   const awayUnbeaten = !formAway.some(f => f.result === 'D');
-
   if (homeUnbeaten) {
     insights.push(`${game.home} está invicto há 5 jogos.`);
   }
@@ -497,18 +497,58 @@ const generateTeamInsights = (game, formHome, formAway) => {
     insights.push(`${game.away} está invicto há 5 jogos.`);
   }
 
-  const homeNoWin = !formHome.some(f => f.result === 'V');
-  const awayNoWin = !formAway.some(f => f.result === 'V');
-
-  if (homeNoWin) {
-    insights.push(`${game.home} não vence há 5 partidas.`);
+  // 4. Histórico de Confrontos (H2H)
+  const h2h = getH2HStats(game.home, game.away);
+  if (h2h && h2h.summary) {
+    if (h2h.summary.homeWins >= 3) {
+      insights.push(`Histórico favorável: ${game.home} venceu ${h2h.summary.homeWins} dos últimos 5 duelos contra o ${game.away}.`);
+    } else if (h2h.summary.awayWins >= 3) {
+      insights.push(`Histórico favorável: ${game.away} venceu ${h2h.summary.awayWins} dos últimos 5 duelos contra o ${game.home}.`);
+    } else if (h2h.summary.draws >= 3) {
+      insights.push(`Equilíbrio H2H: Houve ${h2h.summary.draws} empates nos últimos 5 confrontos diretos.`);
+    }
   }
-  if (awayNoWin) {
-    insights.push(`${game.away} não vence há 5 partidas.`);
+
+  // 5. Projeções de Escanteios
+  const corn = getCornersStats(game.home, game.away, game.homeXG, game.awayXG);
+  if (corn) {
+    insights.push(`Projeção de cantos: Média de ${corn.projected.toFixed(1)} escanteios projetados para o jogo.`);
   }
 
+  // 6. Projeções de Gols (BTTS e Over 2.5)
+  if (game.stats) {
+    if (game.stats.probBtts >= 0.50) {
+      insights.push(`Mercado Gols: probabilidade de Ambos Marcam (BTTS) de ${(game.stats.probBtts * 100).toFixed(0)}%.`);
+    }
+    if (game.stats.probOver25 >= 0.45) {
+      insights.push(`Expectativa ofensiva: ${(game.stats.probOver25 * 100).toFixed(0)}% de chance de mais de 2.5 gols.`);
+    } else {
+      insights.push(`Tendência defensiva: ${( (1 - game.stats.probOver25) * 100).toFixed(0)}% de chance de menos de 2.5 gols.`);
+    }
+  }
+
+  // 7. Projeções de Cartões
+  const cards = getCardsStats(game.home, game.away);
+  if (cards) {
+    insights.push(`Previsão de cartões: Média projetada de ${cards.totalYellow.toFixed(1)} cartões amarelos.`);
+  }
+
+  // 8. Diferença de Classificação
+  if (game.homePosition && game.awayPosition) {
+    const posHome = parseInt(game.homePosition);
+    const posAway = parseInt(game.awayPosition);
+    if (!isNaN(posHome) && !isNaN(posAway)) {
+      if (posAway - posHome >= 4) {
+        insights.push(`${game.home} está ${posAway - posHome} posições acima do ${game.away} na classificação.`);
+      } else if (posHome - posAway >= 4) {
+        insights.push(`${game.away} está ${posHome - posAway} posições acima do ${game.home} na classificação.`);
+      }
+    }
+  }
+
+  // Fallbacks para garantir que sempre haja dados
   if (insights.length === 0) {
-    insights.push(`Expectativa de confronto equilibrado.`);
+    insights.push(`Expectativa de confronto dinâmico e equilibrado.`);
   }
 
   return insights;

@@ -788,7 +788,29 @@ const getBookmakerLogo = (name) => {
   }
 };
 
-
+const normalizeMarketName = (marketName) => {
+  if (!marketName) return 'Outros';
+  const name = marketName.toLowerCase().trim();
+  if (name.includes('vitória do') || name.includes('vitoria do') || name === 'empate' || name.includes('dupla chance') || name.includes('vencedor')) {
+    return 'Resultado Final';
+  }
+  if (name.includes('ambos marcam') || name.includes('ambas marcam')) {
+    return 'Ambos Marcam';
+  }
+  if (name.includes('mais de') || name.includes('menos de') || name.includes('gols') || name.includes('gol')) {
+    return 'Total de Gols';
+  }
+  if (name.includes('escanteio') || name.includes('canto')) {
+    return 'Escanteios';
+  }
+  if (name.includes('cartão') || name.includes('cartao') || name.includes('cartões') || name.includes('cartoe')) {
+    return 'Cartões';
+  }
+  if (name.includes('handicap')) {
+    return 'Handicap Asiático';
+  }
+  return marketName; // Fallback
+};
 
 export default function PalpitesPage() {
   const { user, isTrialActive } = useAuth();
@@ -1169,26 +1191,46 @@ export default function PalpitesPage() {
           const marketsMap = {};
           data.forEach(d => {
             if (!d.mercado) return;
-            if (!marketsMap[d.mercado]) {
-              marketsMap[d.mercado] = { total: 0, wins: 0 };
+            const normMarket = normalizeMarketName(d.mercado);
+            if (!marketsMap[normMarket]) {
+              marketsMap[normMarket] = { total: 0, wins: 0, netProfit: 0 };
             }
-            marketsMap[d.mercado].total += 1;
+            marketsMap[normMarket].total += 1;
+            const odd = parseFloat(d.odd_oferecida || 1);
             if (d.resultado === 'green') {
-              marketsMap[d.mercado].wins += 1;
+              marketsMap[normMarket].wins += 1;
+              marketsMap[normMarket].netProfit += (odd - 1);
+            } else if (d.resultado === 'red') {
+              marketsMap[normMarket].netProfit -= 1;
             }
           });
 
           let bestMarket = 'Nenhum';
           let bestMarketHitRate = 0;
+          let maxNetProfit = -999999;
 
           Object.keys(marketsMap).forEach(mName => {
             const mData = marketsMap[mName];
-            const rate = mData.total > 0 ? (mData.wins / mData.total) * 100 : 0;
-            if (rate > bestMarketHitRate && mData.total >= 1) {
-              bestMarketHitRate = rate;
+            if (mData.netProfit > maxNetProfit && mData.total >= 5) {
+              maxNetProfit = mData.netProfit;
               bestMarket = mName;
+              bestMarketHitRate = mData.total > 0 ? (mData.wins / mData.total) * 100 : 0;
             }
           });
+
+          // Se nenhum mercado gerou lucro positivo com o mínimo de 5 apostas, busca apenas por taxa de acerto com pelo menos 2 apostas
+          if (bestMarket === 'Nenhum') {
+            let maxRate = 0;
+            Object.keys(marketsMap).forEach(mName => {
+              const mData = marketsMap[mName];
+              const rate = mData.total > 0 ? (mData.wins / mData.total) * 100 : 0;
+              if (rate > maxRate && mData.total >= 2) {
+                maxRate = rate;
+                bestMarket = mName;
+                bestMarketHitRate = rate;
+              }
+            });
+          }
 
           setDbStats({
             hitRate: `${hitRate.toFixed(1)}%`,

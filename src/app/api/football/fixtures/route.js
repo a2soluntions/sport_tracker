@@ -345,8 +345,9 @@ export async function GET(request) {
         const isLive = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT'].includes(m.fixture.status.short);
         let statusLabel = isLive ? `Em Andamento ⚽ ${m.fixture.status.elapsed}'` : isFinished ? 'Finalizado' : 'Não Iniciado';
 
-        const homeXG = 1.3;
-        const awayXG = 1.3;
+        const hashSeed = Math.abs(Number(m.fixture.id) || 0);
+        const homeXG = Math.round((0.9 + ((hashSeed % 15) / 10)) * 10) / 10;
+        const awayXG = Math.round((0.9 + (((hashSeed + 7) % 15) / 10)) * 10) / 10;
 
         const dateObj = new Date(m.fixture.date);
         const localDateStr = dateObj.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'short' }).replace('.', '');

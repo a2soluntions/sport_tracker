@@ -28,7 +28,8 @@ import {
   AlertCircle,
   Trash2,
   CheckCircle2,
-  Eye
+  Eye,
+  Trophy
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
@@ -606,12 +607,109 @@ export default function RelatorioApostasPage() {
     }
   };
 
-  // Filter only betting transactions (exclude deposit/withdrawal)
-  const bets = useMemo(() => {
+  // Helper to get league logo URL
+  const getLeagueLogoUrl = (leagueIdOrName) => {
+    if (!leagueIdOrName) return '';
+    const val = String(leagueIdOrName).toLowerCase().trim();
+    
+    if (!isNaN(parseInt(val))) {
+      return `https://media.api-sports.io/football/leagues/${val}.png`;
+    }
+    
+    if (val.includes('copa do mundo')) return 'https://media.api-sports.io/football/leagues/1.png';
+    if (val.includes('libertadores')) return 'https://media.api-sports.io/football/leagues/13.png';
+    if (val.includes('sudamericana')) return 'https://media.api-sports.io/football/leagues/12.png';
+    if (val.includes('série a') || val.includes('série-a') || val.includes('serie a')) {
+      if (val.includes('itália') || val.includes('italia') || val.includes('italy')) return 'https://media.api-sports.io/football/leagues/135.png';
+      return 'https://media.api-sports.io/football/leagues/71.png';
+    }
+    if (val.includes('série b') || val.includes('série-b') || val.includes('serie b')) return 'https://media.api-sports.io/football/leagues/72.png';
+    if (val.includes('série c') || val.includes('série-c') || val.includes('serie c')) return 'https://media.api-sports.io/football/leagues/75.png';
+    if (val.includes('premier')) return 'https://media.api-sports.io/football/leagues/39.png';
+    if (val.includes('la liga') || val.includes('espanha')) return 'https://media.api-sports.io/football/leagues/140.png';
+    if (val.includes('bundesliga') || val.includes('alemanha')) return 'https://media.api-sports.io/football/leagues/78.png';
+    if (val.includes('europa league')) return 'https://media.api-sports.io/football/leagues/3.png';
+    if (val.includes('conference league')) return 'https://media.api-sports.io/football/leagues/848.png';
+    if (val.includes('argentina')) return 'https://media.api-sports.io/football/leagues/44.png';
+    
+    return '';
+  };
+
+  const [selectedLeague, setSelectedLeague] = useState('Todas');
+
+  const betsWithLeague = useMemo(() => {
     return transactions
       .filter(t => t.type === 'ganho' || t.type === 'perda' || t.type === 'pendente')
-      .sort((a, b) => new Date(b.date) - new Date(a.date)); // descending date for table
-  }, [transactions]);
+      .map(t => {
+        let leagueName = 'Outros';
+        let leagueLogo = '';
+        
+        if (t.description) {
+          const isPalpite = t.description.startsWith('[Palpite] ');
+          const isApostaCriada = t.description.startsWith('[Aposta Criada] ');
+          if (isPalpite || isApostaCriada) {
+            const prefix = isPalpite ? '[Palpite] ' : '[Aposta Criada] ';
+            const matchName = t.description.replace(prefix, '').split(' (')[0];
+            
+            const game = fixtures.find(f => {
+              const gameName = `${f.home.trim()} x ${f.away.trim()}`.toLowerCase();
+              return gameName === matchName.trim().toLowerCase();
+            });
+            
+            if (game && game.league) {
+              leagueName = game.league;
+              leagueLogo = game.sourceLeagueId ? getLeagueLogoUrl(game.sourceLeagueId) : getLeagueLogoUrl(game.league);
+            } else {
+              const lowerDesc = t.description.toLowerCase();
+              if (lowerDesc.includes('flamengo') || lowerDesc.includes('palmeiras') || lowerDesc.includes('sao paulo') || lowerDesc.includes('corinthians') || lowerDesc.includes('gremio') || lowerDesc.includes('internacional') || lowerDesc.includes('atletico mg') || lowerDesc.includes('fluminense') || lowerDesc.includes('botafogo') || lowerDesc.includes('vasco') || lowerDesc.includes('cruzeiro') || lowerDesc.includes('bahia') || lowerDesc.includes('fortaleza') || lowerDesc.includes('bragantino')) {
+                leagueName = 'Brasileirão Série A';
+                leagueLogo = getLeagueLogoUrl('71');
+              } else if (lowerDesc.includes('real madrid') || lowerDesc.includes('barcelona') || lowerDesc.includes('atletico madrid') || lowerDesc.includes('sevilla') || lowerDesc.includes('girona')) {
+                leagueName = 'La Liga';
+                leagueLogo = getLeagueLogoUrl('140');
+              } else if (lowerDesc.includes('bayern') || lowerDesc.includes('dortmund') || lowerDesc.includes('leverkusen') || lowerDesc.includes('leipzig')) {
+                leagueName = 'Bundesliga';
+                leagueLogo = getLeagueLogoUrl('78');
+              } else if (lowerDesc.includes('manchester') || lowerDesc.includes('arsenal') || lowerDesc.includes('liverpool') || lowerDesc.includes('chelsea') || lowerDesc.includes('tottenham')) {
+                leagueName = 'Premier League';
+                leagueLogo = getLeagueLogoUrl('39');
+              } else {
+                leagueLogo = getLeagueLogoUrl(leagueName);
+              }
+            }
+          }
+        }
+        
+        return {
+          ...t,
+          league: leagueName,
+          leagueLogo: leagueLogo
+        };
+      })
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+  }, [transactions, fixtures]);
+
+  const leagues = useMemo(() => {
+    const uniqueLeagues = {};
+    betsWithLeague.forEach(b => {
+      if (b.league && !uniqueLeagues[b.league]) {
+        uniqueLeagues[b.league] = {
+          name: b.league,
+          logo: b.leagueLogo
+        };
+      }
+    });
+    return [
+      { name: 'Todas', logo: null },
+      ...Object.values(uniqueLeagues)
+    ];
+  }, [betsWithLeague]);
+
+  // Filter only betting transactions (exclude deposit/withdrawal)
+  const bets = useMemo(() => {
+    if (selectedLeague === 'Todas') return betsWithLeague;
+    return betsWithLeague.filter(b => b.league === selectedLeague);
+  }, [betsWithLeague, selectedLeague]);
 
   const paginatedBets = useMemo(() => {
     const startIndex = (backtestPage - 1) * backtestLimit;
@@ -996,7 +1094,7 @@ export default function RelatorioApostasPage() {
         </div>
       </header>
 
-      {bets.length === 0 ? (
+      {betsWithLeague.length === 0 ? (
         <div className="glass-panel" style={{ padding: '80px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '20px', alignItems: 'center' }}>
           <AlertCircle size={48} color="var(--brand-neon)" />
           <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Nenhum Palpite Seguido</h2>
@@ -1006,8 +1104,87 @@ export default function RelatorioApostasPage() {
         </div>
       ) : (
         <>
-          {/* KPI Cards */}
-          <div className="grid-responsive-cards">
+          {/* Filtro de Ligas */}
+          {betsWithLeague.length > 0 && (
+            <div className="no-print" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 'bold', marginRight: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Ligas:</span>
+              {leagues.map((league, idx) => (
+                <button
+                  key={`${league.name || 'league'}_${idx}`}
+                  onClick={() => {
+                    setSelectedLeague(league.name);
+                    setBacktestPage(1);
+                  }}
+                  title={league.name}
+                  style={{
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '50%',
+                    background: selectedLeague === league.name ? 'var(--brand-neon-dim)' : 'var(--bg-surface)',
+                    border: selectedLeague === league.name ? '2px solid var(--brand-neon)' : '1px solid var(--border-color)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s',
+                    position: 'relative',
+                    boxShadow: selectedLeague === league.name ? '0 0 8px var(--brand-neon-dim)' : 'none'
+                  }}
+                  onMouseEnter={(e) => { 
+                    if (selectedLeague !== league.name) {
+                      e.currentTarget.style.borderColor = 'var(--brand-neon)';
+                      e.currentTarget.style.transform = 'scale(1.08)';
+                    }
+                  }}
+                  onMouseLeave={(e) => { 
+                    if (selectedLeague !== league.name) {
+                      e.currentTarget.style.borderColor = 'var(--border-color)';
+                      e.currentTarget.style.transform = 'scale(1)';
+                    }
+                  }}
+                >
+                  {league.name === 'Todas' ? (
+                    <Trophy size={18} color={selectedLeague === 'Todas' ? 'var(--brand-neon)' : 'var(--text-secondary)'} />
+                  ) : (
+                    <>
+                      <img 
+                        src={league.logo} 
+                        alt={league.name} 
+                        style={{ width: '22px', height: '22px', objectFit: 'contain' }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = 'none';
+                          const parent = e.currentTarget.parentNode;
+                          if (parent) {
+                            const fallback = parent.querySelector('.fallback-letter');
+                            if (fallback) fallback.style.display = 'inline';
+                          }
+                        }}
+                      />
+                      <span 
+                        className="fallback-letter" 
+                        style={{ display: 'none', fontSize: '0.78rem', fontWeight: 'bold', color: selectedLeague === league.name ? 'var(--brand-neon)' : 'var(--text-secondary)' }}
+                      >
+                        {league.name.substring(0, 2).toUpperCase()}
+                      </span>
+                    </>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {bets.length === 0 ? (
+            <div className="glass-panel" style={{ padding: '60px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', marginBottom: '20px', width: '100%' }}>
+              <AlertCircle size={40} color="var(--brand-neon)" />
+              <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Nenhuma aposta para esta liga</h3>
+              <p style={{ color: '#888', maxWidth: '400px', fontSize: '0.9rem' }}>
+                Nenhuma entrada cadastrada na banca para a liga selecionada ({selectedLeague}).
+              </p>
+            </div>
+          ) : (
+            <>
+              {/* KPI Cards */}
+              <div className="grid-responsive-cards">
             
             <div className="glass-panel" style={{ background: 'linear-gradient(135deg, #111115, #161622)', borderLeft: '4px solid ' + (isProfitable ? '#4CAF50' : '#ff4d4d'), padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
               <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Resultado Líquido</div>
@@ -1343,6 +1520,8 @@ export default function RelatorioApostasPage() {
               </table>
             </div>
           </div>
+            </>
+          )}
         </>
       )}
 

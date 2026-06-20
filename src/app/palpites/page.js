@@ -5267,10 +5267,27 @@ export default function PalpitesPage() {
           gap: 24px;
         }
         
+        .game-card-wrapper {
+          height: 300px !important;
+          min-height: 300px !important;
+          max-height: 300px !important;
+          overflow-y: auto !important;
+          -ms-overflow-style: none !important;
+          scrollbar-width: none !important;
+        }
+        
+        .game-card-wrapper::-webkit-scrollbar {
+          display: none !important;
+          width: 0 !important;
+          height: 0 !important;
+        }
+        
         @media (min-width: 1200px) {
           .palpites-scroll-container {
             display: grid !important;
             grid-template-columns: 1fr 1fr !important;
+            grid-auto-rows: 300px !important;
+            align-items: start !important;
             gap: 16px !important;
           }
         }

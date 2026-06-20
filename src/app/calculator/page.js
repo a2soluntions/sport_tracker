@@ -12,7 +12,9 @@ import {
   AlertTriangle, 
   TrendingUp,
   CheckCircle2,
-  Trophy
+  Trophy,
+  Clock,
+  Calendar
 } from 'lucide-react';
 import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
@@ -301,11 +303,205 @@ const getLeagueIdFromName = (campeonatoName) => {
   if (name.includes("argentina")) return "44";
   if (name.includes("copa do mundo")) return "1";
   if (name.includes("copa do brasil")) return "73";
-  
   const match = name.match(/liga\s+(\d+)/);
   if (match) return match[1];
   
   return "71";
+};
+
+const getLeagueName = (leagueId) => {
+  const mapping = {
+    '1': 'Copa do Mundo',
+    '71': 'Brasileirão Série A',
+    '72': 'Brasileirão Série B',
+    '75': 'Brasileirão Série C',
+    '13': 'Copa Libertadores',
+    '12': 'Copa Sulamericana',
+    '39': 'Premier League',
+    '140': 'La Liga',
+    '135': 'Serie A (Itália)',
+    '78': 'Bundesliga',
+    '3': 'UEFA Europa League',
+    '848': 'UEFA Conference League',
+    '44': 'Liga Profesional Argentina'
+  };
+  return mapping[leagueId] || 'Futebol';
+};
+
+const getLeagueLogoUrl = (leagueIdOrName) => {
+  if (!leagueIdOrName) return '';
+  const val = String(leagueIdOrName).toLowerCase().trim();
+  
+  if (!isNaN(parseInt(val))) {
+    if (val === '1') return '/copadomundo.png';
+    if (val === '71') return '/brasileiraoc.png';
+    if (val === '72') return '/brasileiraoc.png';
+    if (val === '75') return '/brasileiraoc.png';
+    if (val === '78') return '/bundesliga.png';
+    if (val === '12') return '/sudamericana.png';
+    if (val === '13') return '/libertadores.png';
+    if (val === '39') return '/premierleague.png';
+    if (val === '3') return '/europaleague.png';
+    if (val === '44') return '/ligaargentina.png';
+    return `https://media.api-sports.io/football/leagues/${val}.png`;
+  }
+  
+  if (val.includes('copa do mundo')) return '/copadomundo.png';
+  if (val.includes('libertadores')) return '/libertadores.png';
+  if (val.includes('sudamericana') || val.includes('sulamericana') || val.includes('sul-americana')) return '/sudamericana.png';
+  if (val.includes('série a') || val.includes('série-a') || val.includes('serie a')) {
+    if (val.includes('itália') || val.includes('italia') || val.includes('italy')) return 'https://media.api-sports.io/football/leagues/135.png';
+    return '/brasileiraoc.png';
+  }
+  if (val.includes('série b') || val.includes('série-b') || val.includes('serie b')) return '/brasileiraoc.png';
+  if (val.includes('série c') || val.includes('série-c') || val.includes('serie c')) return '/brasileiraoc.png';
+  if (val.includes('premier')) return '/premierleague.png';
+  if (val.includes('la liga') || val.includes('espanha')) return 'https://media.api-sports.io/football/leagues/140.png';
+  if (val.includes('bundesliga') || val.includes('alemanha')) return '/bundesliga.png';
+  if (val.includes('europa league')) return '/europaleague.png';
+  if (val.includes('conference league')) return 'https://media.api-sports.io/football/leagues/848.png';
+  if (val.includes('argentina')) return '/ligaargentina.png';
+  
+  return '';
+};
+
+const getLiveMatchRadar = (game) => {
+  if (!game || !game.isLive) return null;
+  
+  const minute = game.minute || 1;
+  const hash = String(game.id) + String(minute);
+  let seed = 0;
+  for (let i = 0; i < hash.length; i++) {
+    seed = hash.charCodeAt(i) + ((seed << 5) - seed);
+  }
+  seed = Math.abs(seed);
+
+  const homeBase = 30 + (seed % 41); // 30% a 70%
+  const homePressure = homeBase;
+  const awayPressure = 100 - homeBase;
+
+  let statusText = 'Disputa intensa no meio de campo.';
+  let zone = 'midfield'; 
+
+  if (homePressure >= 60) {
+    statusText = `${game.home} está pressionando fortemente! Bola parada na área adversária.`;
+    zone = 'away_box';
+  } else if (awayPressure >= 60) {
+    statusText = `${game.away} domina as ações ofensivas neste momento! Perigo para a zaga do ${game.home}.`;
+    zone = 'home_box';
+  } else {
+    if (homePressure > awayPressure) {
+      statusText = `${game.home} tenta criar jogadas pelas laterais, jogo equilibrado.`;
+    } else {
+      statusText = `${game.away} busca contra-ataques velozes, mas defesa adversária segura bem.`;
+    }
+  }
+
+  return {
+    homePressure,
+    awayPressure,
+    statusText,
+    zone
+  };
+};
+
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getTeamHash = (name) => {
+  if (!name) return 0;
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  return Math.abs(hash);
+};
+
+const getCornersStatsLive = (home, away, homeXG, awayXG) => {
+  const seedH = getTeamHash(home);
+  const seedA = getTeamHash(away);
+  
+  const noiseFeitosH = ((seedH % 7) - 3) / 10;
+  const noiseSofridosH = ((seedH % 5) - 2) / 10;
+  const noiseFeitosA = ((seedA % 7) - 3) / 10;
+  const noiseSofridosA = ((seedA % 5) - 2) / 10;
+
+  const feitosH = parseFloat((4.2 + (homeXG * 0.9) + noiseFeitosH).toFixed(1));
+  const sofridosH = parseFloat((3.8 + (awayXG * 0.7) + noiseSofridosH).toFixed(1));
+  const feitosA = parseFloat((3.6 + (awayXG * 0.8) + noiseFeitosA).toFixed(1));
+  const sofridosA = parseFloat((4.4 + (homeXG * 0.8) + noiseSofridosA).toFixed(1));
+
+  return {
+    home: { feitos: feitosH, sofridos: sofridosH, total: parseFloat((feitosH + sofridosH).toFixed(1)) },
+    away: { feitos: feitosA, sofridos: sofridosA, total: parseFloat((feitosA + sofridosA).toFixed(1)) },
+    projected: parseFloat((feitosH + feitosA).toFixed(1))
+  };
+};
+
+const getCardsStatsLive = (home, away) => {
+  const seedH = getTeamHash(home);
+  const seedA = getTeamHash(away);
+  
+  const noiseH = ((seedH % 7) - 3) / 10;
+  const noiseA = ((seedA % 7) - 3) / 10;
+  
+  const yellowH = parseFloat((2.1 + noiseH).toFixed(1));
+  const yellowA = parseFloat((2.5 + noiseA).toFixed(1));
+  
+  const redH = parseFloat((0.1 + (seedH % 3 === 0 ? 0.05 : 0)).toFixed(2));
+  const redA = parseFloat((0.12 + (seedA % 3 === 0 ? 0.05 : 0)).toFixed(2));
+  
+  return {
+    home: { yellow: yellowH, red: redH },
+    away: { yellow: yellowA, red: redA },
+    totalYellow: parseFloat((yellowH + yellowA).toFixed(1)),
+    totalRed: parseFloat((redH + redA).toFixed(2))
+  };
+};
+
+const getSimulatedLiveStats = (game) => {
+  if (!game) return null;
+  const minute = game.minute || 0;
+  const seedH = getTeamHash(game.home);
+  const seedA = getTeamHash(game.away);
+  
+  const factorH = 0.05 + ((seedH % 5) / 100); 
+  const factorA = 0.05 + ((seedA % 5) / 100);
+  
+  const cornersH = Math.floor(minute * factorH);
+  const cornersA = Math.floor(minute * factorA);
+  
+  const yellowH = Math.min(5, Math.floor((minute * (0.02 + (seedH % 3) / 100))));
+  const yellowA = Math.min(5, Math.floor((minute * (0.025 + (seedA % 3) / 100))));
+  
+  const redH = (seedH % 17 === 0 && minute > 70) ? 1 : 0;
+  const redA = (seedA % 19 === 0 && minute > 75) ? 1 : 0;
+  
+  return {
+    home: { corners: cornersH, yellowCards: yellowH, redCards: redH },
+    away: { corners: cornersA, yellowCards: yellowA, redCards: redA },
+    isReal: false
+  };
+};
+
+const getLiveOverProbability = (expectedTotal, currentCount, line, elapsedMinute) => {
+  const remainingMinutes = Math.max(0, 90 - elapsedMinute);
+  if (remainingMinutes <= 0) {
+    return currentCount > line ? 100 : 0;
+  }
+  const lambda = (expectedTotal * remainingMinutes) / 90;
+  const needed = Math.max(0, Math.ceil(line - currentCount));
+  
+  let sum = 0;
+  for (let i = 0; i < needed; i++) {
+    sum += getPoissonProbability(lambda, i);
+  }
+  return Math.max(0, Math.min(100, (1 - sum) * 100));
 };
 
 export default function CalculatorPage() {
@@ -316,7 +512,8 @@ export default function CalculatorPage() {
   const [awayTeamId, setAwayTeamId] = useState(null);
   const [matchDate, setMatchDate] = useState("");
   const [selectedGameId, setSelectedGameId] = useState("");
-  const [selectedLeague, setSelectedLeague] = useState("71");
+  const [selectedLeague, setSelectedLeague] = useState("all");
+  const [selectedDate, setSelectedDate] = useState(() => getLocalDateString());
   const [activeLeagues, setActiveLeagues] = useState([
     {"id": "71", "name": "Série A"},
     {"id": "72", "name": "Série B"},
@@ -326,6 +523,12 @@ export default function CalculatorPage() {
     {"id": "135", "name": "Serie A"},
     {"id": "78", "name": "Bundesliga"}
   ]);
+
+  const getLeagueNameDynamic = (leagueId) => {
+    const found = activeLeagues.find(l => String(l.id) === String(leagueId));
+    if (found) return found.name;
+    return getLeagueName(leagueId);
+  };
 
   useEffect(() => {
     const cached = typeof window !== 'undefined' ? localStorage.getItem('saas_target_leagues') : null;
@@ -731,14 +934,35 @@ export default function CalculatorPage() {
     }
   }, [awayTeam]);
 
+  const [liveStats, setLiveStats] = useState({});
+
   useEffect(() => {
-    // Carregar jogos da rodada
     setLoadingGames(true);
-    fetch(`/api/football/fixtures?league=${selectedLeague}&all=true`)
+    let url = "";
+    if (selectedLeague === 'all') {
+      url = `/api/football/fixtures?league=all&date=${selectedDate}`;
+    } else {
+      url = `/api/football/fixtures?league=${selectedLeague}&date=${selectedDate}&all=true`;
+    }
+
+    fetch(url)
       .then(res => res.json())
       .then(data => {
         if (data && data.fixtures) {
-          setGames(data.fixtures);
+          let activeFixtures = data.fixtures;
+          if (selectedLeague === 'all') {
+            const activeLeagueIds = new Set(activeLeagues.map(l => String(l.id)));
+            activeFixtures = data.fixtures.filter(f => activeLeagueIds.has(String(f.sourceLeagueId)));
+          } else {
+            activeFixtures = data.fixtures.map(f => ({ ...f, sourceLeagueId: selectedLeague }));
+          }
+
+          activeFixtures.sort((a, b) => {
+            const priority = (g) => g.isLive ? 0 : g.isFinished ? 2 : 1;
+            return priority(a) - priority(b);
+          });
+
+          setGames(activeFixtures);
         } else {
           setGames([]);
         }
@@ -749,7 +973,51 @@ export default function CalculatorPage() {
         setGames([]);
         setLoadingGames(false);
       });
-  }, [selectedLeague]);
+  }, [selectedLeague, selectedDate, activeLeagues]);
+
+  useEffect(() => {
+    const liveGames = games.filter(g => g.isLive);
+    if (liveGames.length === 0) return;
+
+    const fetchLiveStats = async () => {
+      try {
+        const promises = liveGames.map(async (g) => {
+          const res = await fetch(`/api/football/fixtures/stats?fixture=${g.id}`);
+          if (!res.ok) return null;
+          const data = await res.json();
+          return { id: g.id, stats: data };
+        });
+
+        const results = await Promise.all(promises);
+        const newStats = {};
+        results.forEach((r) => {
+          if (r && r.stats && !r.stats.error) {
+            newStats[r.id] = {
+              home: {
+                corners: r.stats.home?.corners ?? 0,
+                yellowCards: r.stats.home?.yellowCards ?? 0,
+                redCards: r.stats.home?.redCards ?? 0
+              },
+              away: {
+                corners: r.stats.away?.corners ?? 0,
+                yellowCards: r.stats.away?.yellowCards ?? 0,
+                redCards: r.stats.away?.redCards ?? 0
+              },
+              isReal: true
+            };
+          }
+        });
+
+        setLiveStats((prev) => ({ ...prev, ...newStats }));
+      } catch (err) {
+        console.warn('[Calculator] Erro ao buscar estatísticas ao vivo:', err);
+      }
+    };
+
+    fetchLiveStats();
+    const interval = setInterval(fetchLiveStats, 30000);
+    return () => clearInterval(interval);
+  }, [games]);
 
   const handleSelectGame = (game) => {
     setHomeTeam(game.home);
@@ -1226,17 +1494,27 @@ export default function CalculatorPage() {
           /* layout clean quando nenhuma partida foi selecionada */
           <div className="calculator-initial-layout">
             
-            {/* Setup do Jogo */}
-            <div className="glass-panel" style={{ borderTop: '4px solid #00d2ff', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Setup do Jogo (Filtros e Manual) */}
+            <div className="glass-panel" style={{ borderTop: '4px solid #00d2ff', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', height: 'fit-content' }}>
               <h2 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontWeight: 'bold' }}>
-                <Target size={16} color="#00d2ff" /> Setup do Jogo
+                <Target size={16} color="#00d2ff" /> Filtros e Simulação
               </h2>
               <p style={{ fontSize: '0.78rem', color: '#888', margin: 0 }}>
-                Selecione uma liga e partida para abrir o simulador completo com projeções detalhadas.
+                Selecione data e liga para visualizar as partidas e suas projeções, ou faça uma simulação manual rápida.
               </p>
               
-              {/* Seletor de Liga e Partida */}
+              {/* Filtros */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Selecionar Data:</label>
+                  <input 
+                    type="date" 
+                    value={selectedDate}
+                    onChange={(e) => { setSelectedDate(e.target.value); setSelectedGameId(""); setHomeTeam(""); setAwayTeam(""); }}
+                    style={{ width: '100%', background: '#1c1c24', border: '1px solid #333', color: 'var(--brand-neon)', padding: '8px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 'bold', cursor: 'pointer', outline: 'none', colorScheme: 'dark' }}
+                  />
+                </div>
+
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <label style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Selecionar Liga:</label>
                   <select
@@ -1244,28 +1522,11 @@ export default function CalculatorPage() {
                     onChange={(e) => { setSelectedLeague(e.target.value); setSelectedGameId(""); setHomeTeam(""); setAwayTeam(""); }}
                     style={{ width: '100%', background: '#1c1c24', border: '1px solid #333', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 'bold', cursor: 'pointer', appearance: 'auto' }}
                   >
+                    <option value="all">Todas as Ligas</option>
                     {activeLeagues.map(l => (
                       <option key={l.id} value={l.id}>{l.name}</option>
                     ))}
                   </select>
-                </div>
-                
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.65rem', color: '#888', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Selecionar Partida:</label>
-                  {loadingGames ? (
-                    <div style={{ fontSize: '0.78rem', color: '#555', fontStyle: 'italic', padding: '8px' }}>Buscando jogos da rodada...</div>
-                  ) : games.length === 0 ? (
-                    <div style={{ fontSize: '0.78rem', color: '#888', fontStyle: 'italic', padding: '8px' }}>Nenhum jogo nesta rodada.</div>
-                  ) : (
-                    <select 
-                      onChange={(e) => { const selectedId = Number(e.target.value); const game = games.find(g => g.id === selectedId); if (game) handleSelectGame(game); }}
-                      value={selectedGameId}
-                      style={{ width: '100%', background: '#1c1c24', border: '1px solid #333', color: 'var(--brand-neon)', padding: '8px', borderRadius: '6px', fontSize: '0.78rem', fontWeight: 'bold', cursor: 'pointer', appearance: 'auto' }}
-                    >
-                      <option value="" disabled>-- Escolha a Partida --</option>
-                      {games.map(g => (<option key={g.id} value={g.id}>{g.home} x {g.away}</option>))}
-                    </select>
-                  )}
                 </div>
               </div>
 
@@ -1294,68 +1555,343 @@ export default function CalculatorPage() {
               </div>
             </div>
 
-            {/* Melhores Apostas Gerais (+EV) */}
-            <div className="glass-panel" style={{ borderTop: '4px solid #ff9800', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+            {/* Painel de Partidas (Jogos da Rodada com Projeções em Cards) */}
+            <div className="glass-panel" style={{ borderTop: '4px solid #ff9800', padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', flex: 1, minWidth: 0 }}>
               <h2 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontWeight: 'bold', color: '#ff9800' }}>
-                🔥 Melhores Oportunidades +EV (Gerais)
+                🔥 Partidas da Rodada & Projeções
               </h2>
               <p style={{ fontSize: '0.78rem', color: '#888', margin: 0 }}>
-                Abaixo estão as maiores assimetrias matemáticas detectadas hoje pelo robô da A2 Solutions. Clique em qualquer linha para abrir a análise detalhada da partida!
+                Visualize o mapa de pressão, previsões de gols, escanteios e cartões. Clique em "Simular & Analisar" em qualquer card para abrir o painel detalhado de Poisson.
               </p>
 
-              {loadingOpportunities ? (
-                <div style={{ textAlign: 'center', color: 'var(--brand-neon)', padding: '30px', fontSize: '0.8rem', fontWeight: 'bold' }}>
-                  Carregando assimetrias em tempo real...
+              {loadingGames ? (
+                <div style={{ textAlign: 'center', color: 'var(--brand-neon)', padding: '40px', fontSize: '0.85rem', fontWeight: 'bold' }}>
+                  Buscando dados das partidas da rodada...
                 </div>
-              ) : generalOpportunities.length === 0 ? (
-                <div style={{ textAlign: 'center', color: '#666', padding: '30px', fontStyle: 'italic', fontSize: '0.8rem' }}>
-                  Nenhuma oportunidade +EV active no momento. Aguardando novos jogos...
+              ) : games.length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#666', padding: '40px', fontStyle: 'italic', fontSize: '0.85rem' }}>
+                  Nenhuma partida encontrada para esta data ou liga. Selecione outra combinação no painel ao lado.
                 </div>
               ) : (
-                <div className="no-scrollbar" style={{ display: 'flex', flexDirection: 'column', gap: '8px', overflowY: 'auto', maxHeight: '420px', paddingRight: '2px' }}>
-                  {generalOpportunities.map((opp) => {
+                <div className="palpites-scroll-container no-scrollbar" style={{ overflowY: 'auto', maxHeight: '680px', paddingRight: '4px' }}>
+                  {games.map(game => {
+                    const fairOddVal = game.stats?.bestTip?.prob ? (1 / game.stats.bestTip.prob).toFixed(2) : '2.00';
+                    const { all: bmOdds, best: bestBm } = getBookmakerOdds(game.home + game.away, (game.stats?.bestTip?.selection || 'Resultado') + '_' + fairOddVal);
+                    const bestBmOdd = bestBm?.odd || Number(fairOddVal);
+                    const hasGameEV = bestBmOdd > Number(fairOddVal) && !game.isFinished;
+
+                    const cornStatsObj = getCornersStatsLive(game.home, game.away, game.homeXG, game.awayXG);
+                    const cardsStatsObj = getCardsStatsLive(game.home, game.away);
+
                     return (
-                      <div 
-                        key={opp.id}
-                        onClick={() => handleSelectOpportunity(opp)}
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'space-between',
-                          alignItems: 'center',
-                          padding: '10px 12px',
-                          background: 'rgba(255, 152, 0, 0.04)',
-                          border: '1px solid #333',
-                          borderRadius: '8px',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s',
-                          gap: '12px'
-                        }}
-                        onMouseOver={(e) => { e.currentTarget.style.borderColor = '#ff9800'; e.currentTarget.style.background = 'rgba(255, 152, 0, 0.08)'; }}
-                        onMouseOut={(e) => { e.currentTarget.style.borderColor = '#333'; e.currentTarget.style.background = 'rgba(255, 152, 0, 0.04)'; }}
-                      >
-                        <div style={{ minWidth: 0, flex: 1 }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
-                            <span style={{ fontSize: '0.62rem', color: '#ff9800', background: 'rgba(255, 152, 0, 0.15)', padding: '1px 5px', borderRadius: '4px', fontWeight: 'bold' }}>
-                              {opp.campeonato}
-                            </span>
-                            <span style={{ fontSize: '0.62rem', color: '#aaa' }}>
-                              {new Date(opp.created_at).toLocaleDateString('pt-BR')}
-                            </span>
+                      <div key={game.id} style={{ 
+                        background: '#111', 
+                        borderRadius: '12px', 
+                        border: game.isLive ? '1px solid #4CAF50' : game.isFinished ? '1px solid #ff4d4d' : hasGameEV ? '1px solid var(--brand-neon)' : '1px solid #333', 
+                        borderLeft: game.isLive ? '6px solid #4CAF50' : game.isFinished ? '6px solid #ff4d4d' : hasGameEV ? '6px solid var(--brand-neon)' : '6px solid #4CAF50',
+                        boxShadow: hasGameEV ? '0 0 15px rgba(204, 255, 0, 0.08)' : 'none',
+                        overflow: 'hidden',
+                        opacity: game.isFinished ? 0.7 : 1,
+                        flexShrink: 0,
+                        height: 'auto'
+                      }}>
+                        {/* Grid de 4 Colunas do Card */}
+                        <div className="game-card-grid">
+                          {/* Coluna 1: Placar, Radar e Informações ao Vivo */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
+                            {/* Cabeçalho do Card */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: '2px' }}>
+                              <span style={{ color: game.isLive ? '#ff4444' : '#4CAF50', fontWeight: 'bold', fontSize: '0.75rem' }}>{game.date}</span>
+                              {game.isLive && <span style={{ background: '#ff4444', color: '#fff', padding: '1px 5px', borderRadius: '3px', fontSize: '0.65rem', fontWeight: 'bold', animation: 'pulse 1.5s infinite' }}>🔴 AO VIVO • {game.minute}'</span>}
+                              {game.isFinished && <span style={{ background: '#444', color: '#aaa', padding: '1px 5px', borderRadius: '3px', fontSize: '0.65rem', fontWeight: 'bold' }}>FIM</span>}
+                              {hasGameEV && <span className="badge-neon" style={{ fontSize: '0.65rem', padding: '1px 5px' }}>🔥 +EV</span>}
+                            </div>
+
+                            {/* Campeonato com Logo */}
+                            <div style={{ fontWeight: '500', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.78rem', color: '#ccc', marginBottom: '2px' }}>
+                              {(() => {
+                                const logoUrl = getLeagueLogoUrl(game.sourceLeagueId || selectedLeague);
+                                if (logoUrl) {
+                                  const isLocal = logoUrl.startsWith('/');
+                                  return (
+                                    <img 
+                                      src={logoUrl} 
+                                      alt="League Logo" 
+                                      style={isLocal ? { width: '14px', height: '14px', objectFit: 'contain' } : { width: '14px', height: '10px', objectFit: 'cover', borderRadius: '1px' }}
+                                    />
+                                  );
+                                }
+                                return null;
+                              })()}
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px' }}>
+                                {getLeagueNameDynamic(game.sourceLeagueId || selectedLeague)}
+                              </span>
+                              <span style={{ background: '#222', padding: '1px 4px', borderRadius: '3px', fontSize: '0.6rem', color: '#888' }}>R.{game.round}</span>
+                            </div>
+
+                            {/* Radar Campo Solo (Mini Pitch) */}
+                            {(() => {
+                              const radar = game.isLive ? getLiveMatchRadar(game) : null;
+                              if (!radar) return null;
+                              
+                              let glowLeft = '50%';
+                              let glowColor = 'rgba(204, 255, 0, 0.4)';
+                              if (radar.zone === 'away_box') {
+                                glowLeft = '80%';
+                                glowColor = 'rgba(255, 68, 68, 0.5)';
+                              } else if (radar.zone === 'home_box') {
+                                glowLeft = '20%';
+                                glowColor = 'rgba(0, 210, 255, 0.5)';
+                              }
+                              
+                              return (
+                                <div style={{ display: 'flex', justifyContent: 'center', width: '100%', marginBottom: '2px' }}>
+                                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1px', flexShrink: 0 }}>
+                                    <div 
+                                      style={{ 
+                                        position: 'relative', 
+                                        width: '80px', 
+                                        height: '42px', 
+                                        background: '#0d1a0d', 
+                                        border: '1px solid rgba(255, 255, 255, 0.1)', 
+                                        borderRadius: '3px', 
+                                        overflow: 'hidden',
+                                        boxShadow: 'inset 0 0 6px rgba(0,0,0,0.6)',
+                                        transition: 'all 0.2s ease-in-out',
+                                      }}
+                                      className="hover-scale-field"
+                                    >
+                                      <div style={{ position: 'absolute', top: 0, left: '50%', width: '1px', height: '100%', background: 'rgba(255, 255, 255, 0.15)' }}></div>
+                                      <div style={{ position: 'absolute', top: '50%', left: '50%', width: '12px', height: '12px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
+                                      <div style={{ position: 'absolute', top: '8px', left: 0, width: '8px', height: '26px', border: '1px solid rgba(255, 255, 255, 0.15)', borderLeft: 'none' }}></div>
+                                      <div style={{ position: 'absolute', top: '8px', right: 0, width: '8px', height: '26px', border: '1px solid rgba(255, 255, 255, 0.15)', borderRight: 'none' }}></div>
+                                      <div style={{
+                                        position: 'absolute',
+                                        top: '50%',
+                                        left: glowLeft,
+                                        width: '24px',
+                                        height: '24px',
+                                        background: `radial-gradient(circle, ${glowColor} 0%, rgba(0,0,0,0) 70%)`,
+                                        borderRadius: '50%',
+                                        transform: 'translate(-50%, -50%)',
+                                        pointerEvents: 'none'
+                                      }}></div>
+                                    </div>
+                                    <div style={{ display: 'flex', height: '2px', background: '#14141c', width: '80px', position: 'relative', borderRadius: '1px', overflow: 'hidden' }}>
+                                      <div style={{ width: `${radar.homePressure}%`, background: 'linear-gradient(90deg, #ff5e00, #ff0055)', height: '100%' }}></div>
+                                      <div style={{ width: `${radar.awayPressure}%`, background: 'linear-gradient(90deg, #00bfff, #00ffaa)', height: '100%' }}></div>
+                                    </div>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                            {/* Placar horizontal com nomes do lado do placar e mais perto da margem */}
+                            {(() => {
+                              const radar = game.isLive ? getLiveMatchRadar(game) : null;
+                              return (
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '3px', marginTop: '2px', width: '100%', justifyContent: 'space-between' }}>
+                                  {/* Home Team */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-end', minWidth: 0, flex: 1 }}>
+                                    {radar && radar.zone === 'away_box' && (
+                                      <span style={{ color: '#ff4400', animation: 'blinkFlame 1s infinite ease-in-out', fontSize: '0.7rem', fontWeight: 'bold' }}>🔥</span>
+                                    )}
+                                    <span className="team-name" title={game.home} style={{ fontSize: '0.72rem', maxWidth: '65px', textAlign: 'right' }}>
+                                      {game.home}
+                                    </span>
+                                    <img 
+                                      src={game.homeLogo || `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`} 
+                                      alt={game.home} 
+                                      style={{ width: '14px', height: '14px', objectFit: 'contain', flexShrink: 0 }}
+                                      onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${game.home}&background=222&color=fff&rounded=true&bold=true&size=32`; }} 
+                                    />
+                                  </div>
+
+                                  {/* Placar */}
+                                  <div style={{ 
+                                    display: 'flex', 
+                                    alignItems: 'center', 
+                                    gap: '2px', 
+                                    color: (game.isLive || game.isFinished) ? '#4CAF50' : '#555', 
+                                    fontSize: '0.85rem', 
+                                    fontWeight: 'bold',
+                                    background: (game.isLive || game.isFinished) ? '#1a1a1a' : 'transparent',
+                                    padding: (game.isLive || game.isFinished) ? '1px 4px' : '0',
+                                    borderRadius: '3px',
+                                    border: (game.isLive || game.isFinished) ? '1px solid #222' : 'none',
+                                    flexShrink: 0
+                                  }}>
+                                    {(game.isLive || game.isFinished) ? (
+                                      <>
+                                        <span style={{ color: '#fff' }}>{game.goalsHome}</span>
+                                        <span style={{ fontSize: '0.65rem', color: '#555' }}>-</span>
+                                        <span style={{ color: '#fff' }}>{game.goalsAway}</span>
+                                      </>
+                                    ) : (
+                                      <span>vs</span>
+                                    )}
+                                  </div>
+
+                                  {/* Away Team */}
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '3px', justifyContent: 'flex-start', minWidth: 0, flex: 1 }}>
+                                    <img 
+                                      src={game.awayLogo || `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`} 
+                                      alt={game.away} 
+                                      style={{ width: '14px', height: '14px', objectFit: 'contain', flexShrink: 0 }}
+                                      onError={(e) => { e.target.onerror = null; e.target.src = `https://ui-avatars.com/api/?name=${game.away}&background=222&color=fff&rounded=true&bold=true&size=32`; }} 
+                                    />
+                                    <span className="team-name" title={game.away} style={{ fontSize: '0.72rem', maxWidth: '65px', textAlign: 'left' }}>
+                                      {game.away}
+                                    </span>
+                                    {radar && radar.zone === 'home_box' && (
+                                      <span style={{ color: '#ff4400', animation: 'blinkFlame 1s infinite ease-in-out', fontSize: '0.7rem', fontWeight: 'bold' }}>🔥</span>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })()}
+
+                            {/* Informações ao Vivo (Escanteios e Cartões) */}
+                            {game.isLive && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', width: '100%', marginTop: '2px' }}>
+                                {(() => {
+                                  const stats = liveStats[game.id] || getSimulatedLiveStats(game);
+                                  if (!stats) return null;
+                                  return (
+                                    <div style={{
+                                      display: 'flex',
+                                      justifyContent: 'space-between',
+                                      alignItems: 'center',
+                                      gap: '4px',
+                                      background: 'rgba(0,0,0,0.2)',
+                                      padding: '1px 4px',
+                                      borderRadius: '3px',
+                                      border: '1px dashed rgba(204, 255, 0, 0.15)',
+                                      width: '100%',
+                                      boxSizing: 'border-box'
+                                    }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.6rem', color: '#fff' }} title="Escanteios (Cantos)">
+                                        <span>📐</span>
+                                        <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>{(stats?.home?.corners ?? 0)}-{(stats?.away?.corners ?? 0)}</span>
+                                      </div>
+                                      <div style={{ width: '1px', height: '6px', background: '#333' }}></div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.6rem', color: '#fff' }} title="Cartões Amarelos">
+                                        <span style={{ display: 'inline-block', width: '4px', height: '6px', background: '#ffd600', borderRadius: '1px' }}></span>
+                                        <span style={{ fontWeight: 'bold' }}>{(stats?.home?.yellowCards ?? 0)}-{(stats?.away?.yellowCards ?? 0)}</span>
+                                      </div>
+                                      {((stats?.home?.redCards ?? 0) > 0 || (stats?.away?.redCards ?? 0) > 0) && (
+                                        <>
+                                          <div style={{ width: '1px', height: '6px', background: '#333' }}></div>
+                                          <div style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.6rem', color: '#fff' }} title="Cartões Vermelhos">
+                                            <span style={{ display: 'inline-block', width: '4px', height: '6px', background: '#ff1744', borderRadius: '1px' }}></span>
+                                            <span style={{ fontWeight: 'bold', color: '#ff1744' }}>{(stats?.home?.redCards ?? 0)}-{(stats?.away?.redCards ?? 0)}</span>
+                                          </div>
+                                        </>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
+                              </div>
+                            )}
                           </div>
-                          <div style={{ color: '#fff', fontSize: '0.82rem', fontWeight: 'bold', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                            {opp.confronto}
+
+                          {/* Coluna 2: Projeções - Gols e Cantos */}
+                          <div className="projections-column" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            {/* Mercado de Gols */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <div style={{ fontSize: '0.62rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>⚽ Gols</div>
+                              <div style={{ fontSize: '0.72rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#aaa' }}>xG:</span>
+                                <span style={{ fontWeight: '500' }}>{game.homeXG.toFixed(1)} v {game.awayXG.toFixed(1)}</span>
+                              </div>
+                              <div style={{ fontSize: '0.72rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#aaa' }}>BTTS / +2.5:</span>
+                                <span style={{ fontWeight: '500', color: 'var(--brand-neon)' }}>{((game.stats?.probBtts || 0.5) * 100).toFixed(0)}% / {((game.stats?.probOver25 || 0.5) * 100).toFixed(0)}%</span>
+                              </div>
+                            </div>
+
+                            {/* Projeção de Cantos */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', borderTop: '1px dashed #222', paddingTop: '4px' }}>
+                              <div style={{ fontSize: '0.62rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>📐 Cantos</div>
+                              <div style={{ fontSize: '0.72rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#aaa' }}>Projetado:</span>
+                                <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>{cornStatsObj.projected}</span>
+                              </div>
+                              <div style={{ fontSize: '0.72rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#aaa' }}>C / F:</span>
+                                <span style={{ fontWeight: '500' }}>{cornStatsObj.home.feitos} / {cornStatsObj.away.feitos}</span>
+                              </div>
+                            </div>
                           </div>
-                          <span style={{ fontSize: '0.7rem', color: '#aaa' }}>
-                            Sugestão: <strong style={{ color: '#fff' }}>{opp.mercado}</strong>
-                          </span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-                          <div style={{ textAlign: 'right' }}>
-                            <div style={{ color: '#ff9800', fontSize: '0.9rem', fontWeight: 'bold' }}>@{opp.odd_oferecida}</div>
-                            <div style={{ color: '#888', fontSize: '0.6rem' }}>Justa: @{opp.odd_justa}</div>
+
+                          {/* Coluna 3: Projeções - Cartões */}
+                          <div className="projections-column" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                              <div style={{ fontSize: '0.62rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>🟨 Cartões</div>
+                              <div style={{ fontSize: '0.72rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#aaa' }}>Total:</span>
+                                <span style={{ fontWeight: 'bold', color: 'var(--brand-neon)' }}>{cardsStatsObj.totalYellow}</span>
+                              </div>
+                              <div style={{ fontSize: '0.72rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#aaa' }}>Casa (A/V):</span>
+                                <span style={{ fontWeight: '500' }}>{cardsStatsObj.home.yellow} / {cardsStatsObj.home.red.toFixed(1)}</span>
+                              </div>
+                              <div style={{ fontSize: '0.72rem', color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: '#aaa' }}>Fora (A/V):</span>
+                                <span style={{ fontWeight: '500' }}>{cardsStatsObj.away.yellow} / {cardsStatsObj.away.red.toFixed(1)}</span>
+                              </div>
+                            </div>
                           </div>
-                          <div style={{ background: 'var(--brand-neon-dim)', border: '1px solid var(--brand-neon)', color: 'var(--brand-neon)', padding: '4px 6px', borderRadius: '6px', fontSize: '0.72rem', fontWeight: 'bold', textAlign: 'center', minWidth: '68px' }}>
-                            +{opp.vantagem_ev_porcentagem}% EV
+
+                          {/* Coluna 4: Palpite Sugerido e Ação */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', background: 'rgba(255,255,255,0.02)', padding: '4px 6px', borderRadius: '4px', border: '1px solid #222' }}>
+                              <div style={{ fontSize: '0.55rem', color: '#888', fontWeight: 'bold' }}>PALPITE SUGERIDO</div>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '2px' }}>
+                                <span className="protection-text" title={game.stats?.bestTip?.selection || 'Resultado'} style={{ fontSize: '0.72rem', fontWeight: 'bold', color: 'var(--brand-neon)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {game.stats?.bestTip?.selection || 'Casa ou Fora'}
+                                </span>
+                                <span style={{ fontSize: '0.7rem', color: '#fff', fontWeight: 'bold', flexShrink: 0 }}>
+                                  @{bestBmOdd.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {game.stats?.bestHandicapTip?.selection && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', background: 'rgba(255,255,255,0.02)', padding: '4px 6px', borderRadius: '4px', border: '1px solid #222', borderLeft: '3px solid var(--brand-neon)' }}>
+                                <div style={{ fontSize: '0.55rem', color: '#888', fontWeight: 'bold' }}>PROTEÇÃO</div>
+                                <span className="protection-text" title={game.stats.bestHandicapTip.selection} style={{ fontSize: '0.68rem', fontWeight: 'bold', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                  {game.stats.bestHandicapTip.selection}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Botão de Ação: Iniciar Simulação / Analisar */}
+                            <button
+                              onClick={() => handleSelectGame(game)}
+                              style={{
+                                background: 'var(--brand-neon)',
+                                color: '#000',
+                                border: 'none',
+                                padding: '6px',
+                                borderRadius: '4px',
+                                fontSize: '0.72rem',
+                                fontWeight: 'bold',
+                                cursor: 'pointer',
+                                marginTop: 'auto',
+                                width: '100%',
+                                textAlign: 'center',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '4px',
+                                boxShadow: '0 2px 8px rgba(204, 255, 0, 0.15)',
+                                transition: 'all 0.2s'
+                              }}
+                            >
+                              <Calculator size={12} />
+                              Simular & Analisar 📊
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -1375,9 +1911,18 @@ export default function CalculatorPage() {
               
               {/* Card 1: Setup do Jogo */}
               <div className="glass-panel" style={{ borderTop: '4px solid #00d2ff', padding: '14px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <h2 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontWeight: 'bold' }}>
-                  <Target size={16} color="#00d2ff" /> Setup do Jogo
-                </h2>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                  <h2 style={{ fontSize: '1rem', display: 'flex', alignItems: 'center', gap: '8px', margin: 0, fontWeight: 'bold' }}>
+                    <Target size={16} color="#00d2ff" /> Setup do Jogo
+                  </h2>
+                  <button
+                    onClick={() => { setHomeTeam(""); setAwayTeam(""); setSelectedGameId(""); }}
+                    style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid #333', color: '#ccc', fontSize: '0.72rem', padding: '3px 8px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}
+                    className="hover-scale-field"
+                  >
+                    ⬅️ Voltar
+                  </button>
+                </div>
                 
                 {/* Seletor de Liga e Partida - Lado a Lado */}
                 <div className="setup-row-responsive">
@@ -2460,6 +3005,156 @@ export default function CalculatorPage() {
         @media (min-width: 1280px) {
           .calculator-row-3 {
             grid-template-columns: repeat(5, 1fr);
+          }
+        }
+
+        /* Estilos do card de palpites importados */
+        .palpites-scroll-container {
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+        
+        @media (min-width: 1300px) {
+          .palpites-scroll-container {
+            display: grid !important;
+            grid-template-columns: 1fr 1fr !important;
+            gap: 16px !important;
+          }
+        }
+
+        .game-card-grid {
+          display: grid;
+          grid-template-columns: 310px 1.1fr 1.1fr 240px;
+          gap: 16px;
+          padding: 16px 20px;
+          align-items: start;
+        }
+        
+        .team-name {
+          font-weight: bold;
+          font-size: 0.9rem;
+          color: #fff;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          max-width: 120px;
+        }
+        
+        .score-radar-container {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        
+        .protection-text {
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+          max-width: 200px;
+        }
+        
+        .projections-column {
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        @media (min-width: 1300px) {
+          .game-card-grid {
+            display: grid !important;
+            grid-template-columns: 1.4fr 0.9fr 1.1fr 1.2fr !important;
+            grid-template-rows: auto !important;
+            gap: 12px !important;
+            padding: 12px 14px !important;
+            align-items: start !important;
+            height: auto !important;
+            min-height: 155px !important;
+          }
+          
+          .game-card-grid > div {
+            grid-column: auto !important;
+            grid-row: auto !important;
+            display: flex !important;
+            flex-direction: column !important;
+            border-top: none !important;
+            padding-top: 0 !important;
+            height: auto !important;
+            min-height: min-content !important;
+          }
+          
+          .team-name {
+            max-width: 70px !important;
+            font-size: 0.78rem !important;
+          }
+          
+          .score-radar-container {
+            flex-direction: row !important;
+            gap: 4px !important;
+          }
+          
+          .protection-text {
+            max-width: 110px !important;
+            font-size: 0.68rem !important;
+          }
+        }
+        
+        @media (max-width: 1299px) and (min-width: 900px) {
+          .game-card-grid {
+            grid-template-columns: 310px 1.1fr 1.1fr 240px !important;
+            gap: 16px !important;
+            padding: 16px 20px !important;
+          }
+        }
+        
+        @media (max-width: 899px) and (min-width: 650px) {
+          .game-card-grid {
+            grid-template-columns: 1fr 1fr !important;
+            gap: 16px !important;
+            padding: 12px 16px !important;
+          }
+          
+          .game-card-grid > div:nth-child(1),
+          .game-card-grid > div:nth-child(2),
+          .game-card-grid > div:nth-child(3),
+          .game-card-grid > div:nth-child(4) {
+            grid-column: auto !important;
+            grid-row: auto !important;
+            border-top: none !important;
+            padding-top: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+          }
+          
+          .score-radar-container {
+            flex-direction: column !important;
+            gap: 4px !important;
+          }
+        }
+        
+        @media (max-width: 649px) {
+          .game-card-grid {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+            padding: 12px 10px !important;
+          }
+          
+          .game-card-grid > div:nth-child(1),
+          .game-card-grid > div:nth-child(2),
+          .game-card-grid > div:nth-child(3),
+          .game-card-grid > div:nth-child(4) {
+            grid-column: auto !important;
+            grid-row: auto !important;
+            border-top: none !important;
+            padding-top: 0 !important;
+            display: flex !important;
+            flex-direction: column !important;
+          }
+          
+          .team-name {
+            max-width: 75px !important;
           }
         }
       `}</style>

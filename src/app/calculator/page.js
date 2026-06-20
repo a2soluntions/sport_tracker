@@ -1454,116 +1454,196 @@ export default function AnalysisPage() {
         }
       `}} />
 
-      {/* B3 style infinite ticker */}
-      {matches.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', color: 'var(--brand-neon)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
-            <Activity size={12} className="pulse" />
-            <span>Painel de Cotações +EV (B3 Ticker)</span>
-          </div>
-          <div className="ticker-wrap" style={{
-            overflow: 'hidden',
-            width: '100%',
-            background: 'var(--bg-surface)',
-            border: '1px solid var(--border-color)',
-            borderRadius: '12px',
-            padding: '12px 0',
-            position: 'relative'
-          }}>
-            <div className="ticker-content" style={{
-              display: 'flex',
-              gap: '8px',
-              width: 'max-content',
-              animation: `tickerAnimation ${Math.max(120, matches.length * 35)}s linear infinite`
+      {(() => {
+        const getAbbr = (name) => {
+          if (!name) return '???';
+          const cleanName = name.replace(/[^a-zA-Z\s]/g, '').trim();
+          const parts = cleanName.split(/\s+/);
+          if (parts.length >= 3) {
+            return (parts[0][0] + parts[1][0] + parts[2][0]).toUpperCase();
+          } else if (parts.length === 2) {
+            return (parts[0].slice(0, 2) + parts[1][0]).toUpperCase();
+          } else {
+            return cleanName.slice(0, 3).toUpperCase();
+          }
+        };
+
+        const parseMatchDate = (dateStr) => {
+          if (!dateStr) return { day: '', time: '' };
+          const parts = dateStr.split(' • ');
+          if (parts.length === 2) {
+            return { day: parts[0], time: parts[1] };
+          }
+          return { day: dateStr, time: '' };
+        };
+
+        const activeTickerMatches = matches.filter(match => match.isLive || !match.isFinished);
+        if (activeTickerMatches.length === 0) return null;
+
+        const matchesByDay = {};
+        activeTickerMatches.forEach(match => {
+          const { day } = parseMatchDate(match.date);
+          if (!matchesByDay[day]) {
+            matchesByDay[day] = [];
+          }
+          matchesByDay[day].push(match);
+        });
+
+        const tickerItems = [];
+        Object.keys(matchesByDay).forEach(day => {
+          tickerItems.push({ type: 'separator', label: day });
+          matchesByDay[day].forEach(match => {
+            tickerItems.push({ type: 'match', match });
+          });
+        });
+
+        const marqueeSpeed = Math.max(90, tickerItems.length * 20);
+
+        return (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', color: 'var(--brand-neon)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
+              <Activity size={12} className="pulse" />
+              <span>Painel de Cotações +EV (B3 Ticker)</span>
+            </div>
+            <div className="ticker-wrap" style={{
+              overflow: 'hidden',
+              width: '100%',
+              background: 'var(--bg-surface)',
+              border: '1px solid var(--border-color)',
+              borderRadius: '12px',
+              padding: '10px 0',
+              position: 'relative'
             }}>
-              {/* Render the matches list multiple times to allow infinite scrolling */}
-              {[...matches, ...matches, ...matches].map((match, idx) => {
-                const isSelected = selectedMatch && selectedMatch.id === match.id;
-                const hasScore = match.isLive || match.isFinished;
-                return (
-                  <div 
-                    key={`${match.id || 'match'}_ticker_${idx}`}
-                    onClick={() => setSelectedMatch(match)}
-                    style={{
-                      flex: '0 0 196px',
-                      background: isSelected ? 'rgba(204, 255, 0, 0.05)' : 'var(--bg-surface-light)',
-                      border: isSelected ? '1px solid var(--brand-neon)' : '1px solid var(--border-color)',
-                      borderRadius: '10px',
-                      padding: '8px 12px',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s ease',
-                      display: 'flex',
-                      flexDirection: 'column',
-                      justifyContent: 'space-between',
-                      height: '86px'
-                    }}
-                    onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--brand-neon)'; }}
-                    onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--border-color)'; }}
-                  >
-                    {/* Header: League & Status */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.55rem', borderBottom: '1px solid rgba(255, 255, 255, 0.03)', paddingBottom: '4px' }}>
-                      <span style={{ color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '110px' }}>
-                        {match.league}
-                      </span>
-                      <span style={{
-                        color: match.isLive ? 'var(--alert-red)' : 'var(--text-secondary)',
-                        fontWeight: 'bold',
+              <div className="ticker-content" style={{
+                display: 'flex',
+                gap: '12px',
+                width: 'max-content',
+                alignItems: 'center',
+                animation: `tickerAnimation ${marqueeSpeed}s linear infinite`
+              }}>
+                {[...tickerItems, ...tickerItems, ...tickerItems].map((item, idx) => {
+                  if (item.type === 'separator') {
+                    return (
+                      <div 
+                        key={`sep_${idx}`}
+                        style={{ 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          gap: '6px', 
+                          color: '#666', 
+                          fontSize: '0.7rem', 
+                          fontWeight: '800',
+                          padding: '0 8px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        <span>•</span>
+                        <span>{item.label}</span>
+                        <span>•</span>
+                      </div>
+                    );
+                  }
+
+                  const { match } = item;
+                  const isSelected = selectedMatch && selectedMatch.id === match.id;
+                  const { time } = parseMatchDate(match.date);
+                  const displayTime = match.isLive ? `${match.status.replace('Em Andamento ⚽ ', '')}` : time;
+                  
+                  const isLive = match.isLive;
+                  
+                  let pillBg = 'rgba(255, 255, 255, 0.02)';
+                  let pillBorder = 'rgba(255, 255, 255, 0.08)';
+                  let glowColor = 'rgba(255,255,255,0)';
+                  
+                  if (isLive) {
+                    pillBg = 'rgba(255, 68, 68, 0.06)';
+                    pillBorder = 'rgba(255, 68, 68, 0.25)';
+                    glowColor = 'rgba(255, 68, 68, 0.08)';
+                  } else if (isSelected) {
+                    pillBg = 'rgba(204, 255, 0, 0.04)';
+                    pillBorder = 'var(--brand-neon)';
+                    glowColor = 'rgba(204, 255, 0, 0.08)';
+                  } else {
+                    pillBg = 'rgba(16, 185, 129, 0.04)';
+                    pillBorder = 'rgba(16, 185, 129, 0.15)';
+                  }
+
+                  return (
+                    <div
+                      key={`match_${match.id}_${idx}`}
+                      onClick={() => setSelectedMatch(match)}
+                      style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '3px'
+                        gap: '8px',
+                        background: pillBg,
+                        border: `1px solid ${pillBorder}`,
+                        borderRadius: '20px',
+                        padding: '4px 12px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        boxShadow: isSelected || isLive ? `0 0 8px ${glowColor}` : 'none',
+                        height: '28px',
+                        boxSizing: 'border-box',
+                        whiteSpace: 'nowrap'
+                      }}
+                      onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--brand-neon)'; }}
+                      onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.borderColor = pillBorder; }}
+                    >
+                      {/* Time / Status */}
+                      <span style={{ 
+                        fontSize: '0.62rem', 
+                        fontWeight: '800', 
+                        color: isLive ? '#ff4444' : '#aaa',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px'
                       }}>
-                        {match.isLive && <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: 'var(--alert-red)', display: 'inline-block' }} className="pulse" />}
-                        {match.status}
+                        {isLive && <span style={{ width: '4px', height: '4px', borderRadius: '50%', background: '#ff4444', display: 'inline-block' }} className="pulse" />}
+                        {displayTime}
                       </span>
-                    </div>
 
-                    {/* Team 1 Row */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: '#fff', marginTop: '4px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                      {/* Flags & VS */}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <img 
                           src={match.homeLogo || getTeamLogoUrl(match.home)} 
-                          alt={translateTeamName(match.home)} 
-                          style={{ width: '18px', height: '18px', objectFit: 'contain' }}
+                          alt={match.home} 
+                          style={{ width: '14px', height: '10px', objectFit: 'cover', borderRadius: '2px', border: '1px solid rgba(255,255,255,0.08)' }}
                           onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getTeamLogoUrl(match.home); }}
                         />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px', fontWeight: '700' }}>
-                          {translateTeamName(match.home)}
+                        <span style={{ fontSize: '0.62rem', fontWeight: 'bold', color: '#fff' }}>
+                          {getAbbr(match.home)}
                         </span>
-                      </div>
-                      {hasScore && (
-                        <span style={{ fontWeight: '800', color: match.isLive ? 'var(--brand-neon)' : '#fff' }}>
-                          {match.goalsHome}
+                        
+                        <span style={{ color: '#555', fontSize: '0.6rem', fontWeight: 'bold' }}>-</span>
+                        
+                        <span style={{ fontSize: '0.62rem', fontWeight: 'bold', color: '#fff' }}>
+                          {getAbbr(match.away)}
                         </span>
-                      )}
-                    </div>
-
-                    {/* Team 2 Row */}
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.72rem', color: '#fff' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
                         <img 
                           src={match.awayLogo || getTeamLogoUrl(match.away)} 
-                          alt={translateTeamName(match.away)} 
-                          style={{ width: '18px', height: '18px', objectFit: 'contain' }}
+                          alt={match.away} 
+                          style={{ width: '14px', height: '10px', objectFit: 'cover', borderRadius: '2px', border: '1px solid rgba(255,255,255,0.08)' }}
                           onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getTeamLogoUrl(match.away); }}
                         />
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '120px', fontWeight: '700' }}>
-                          {translateTeamName(match.away)}
-                        </span>
                       </div>
-                      {hasScore && (
-                        <span style={{ fontWeight: '800', color: match.isLive ? 'var(--brand-neon)' : '#fff' }}>
-                          {match.goalsAway}
+
+                      {/* Score (Only when Live or Finished) */}
+                      {isLive && (
+                        <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--brand-neon)', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '6px' }}>
+                          {match.goalsHome} x {match.goalsAway}
                         </span>
                       )}
                     </div>
-
-                  </div>
-                );
-              })}
+                  );
+                })}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
 
       {/* Header and Title */}
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>

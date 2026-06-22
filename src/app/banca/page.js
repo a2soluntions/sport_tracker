@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { 
   LineChart as RechartsLineChart, 
   Line, 
+  BarChart as RechartsBarChart,
+  Bar,
   XAxis, 
   YAxis, 
   CartesianGrid, 
@@ -242,7 +244,7 @@ const formatOddMobile = (odd) => {
 };
 
 export default function GestaoBancaPage() {
-  const { user } = useAuth();
+  const { user, isTrialActive } = useAuth();
   const [initialValue, setInitialValue] = useState(0);
   const [transactions, setTransactions] = useState([]);
   const [mounted, setMounted] = useState(false);
@@ -259,10 +261,46 @@ export default function GestaoBancaPage() {
   const [selectedTxForDetail, setSelectedTxForDetail] = useState(null);
   const [fixtures, setFixtures] = useState([]);
 
-  // Form States
   const [txType, setTxType] = useState('ganho'); // 'ganho', 'perda', 'alavancagem'
   const [txAmount, setTxAmount] = useState('');
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
+  const [chartView, setChartView] = useState('banca'); // 'banca' or 'alavancagem'
+  const [chartPeriod, setChartPeriod] = useState('diario'); // 'diario' or 'mensal'
+  const [riskPct, setRiskPct] = useState(0.05); // default 5%
+  const [selectedMonth, setSelectedMonth] = useState('Todos');
+  const [selectedYear, setSelectedYear] = useState('Todos');
+
+  useEffect(() => {
+    if (!user) return;
+    const userRiskKey = `ev_tracker_max_risk_pct_${user.id}`;
+    const savedRisk = localStorage.getItem(userRiskKey);
+    if (savedRisk) {
+      setRiskPct(parseFloat(savedRisk));
+    } else {
+      setRiskPct(0.05);
+    }
+  }, [user?.id]);
+
+  const handleIncreaseRisk = () => {
+    setRiskPct(prev => {
+      const next = Math.min(1.0, parseFloat((prev + 0.01).toFixed(2)));
+      if (user) {
+        localStorage.setItem(`ev_tracker_max_risk_pct_${user.id}`, next.toString());
+      }
+      return next;
+    });
+  };
+
+  const handleDecreaseRisk = () => {
+    setRiskPct(prev => {
+      const next = Math.max(0.01, parseFloat((prev - 0.01).toFixed(2)));
+      if (user) {
+        localStorage.setItem(`ev_tracker_max_risk_pct_${user.id}`, next.toString());
+      }
+      return next;
+    });
+  };
 
   // Mapeia transações com descrição 'Alavancagem' para o tipo virtual 'alavancagem'
   const normalizedTransactions = useMemo(() => {
@@ -773,6 +811,7 @@ export default function GestaoBancaPage() {
   const stats = useMemo(() => {
     let totalDeposits = initialValue;
     let totalWithdrawals = 0;
+    let totalLeverage = 0;
     let totalProfit = 0;
     let totalLoss = 0;
     let wins = 0;
@@ -782,7 +821,10 @@ export default function GestaoBancaPage() {
     normalizedTransactions.forEach(t => {
       if (t.type === 'aporte') totalDeposits += t.amount;
       else if (t.type === 'retirada') totalWithdrawals += t.amount;
-      else if (t.type === 'ganho' || t.type === 'alavancagem') {
+      else if (t.type === 'alavancagem') {
+        totalLeverage += t.amount;
+      }
+      else if (t.type === 'ganho') {
         const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;
         totalProfit += profit;
         wins += 1;
@@ -797,7 +839,7 @@ export default function GestaoBancaPage() {
     });
 
     const netProfit = totalProfit - totalLoss;
-    const currentBalance = totalDeposits - totalWithdrawals + netProfit - pendingStakes; // Saldo calculado automaticamente descontando pendentes
+    const currentBalance = totalDeposits + totalLeverage - totalWithdrawals + netProfit - pendingStakes; // Saldo calculado automaticamente descontando pendentes
     const totalYield = totalLoss > 0 ? (netProfit / totalLoss) * 100 : 0;
 
     const totalBets = wins + losses;
@@ -806,6 +848,7 @@ export default function GestaoBancaPage() {
     return {
       totalDeposits,
       totalWithdrawals,
+      totalLeverage,
       netProfit,
       currentBalance,
       totalYield,
@@ -820,37 +863,208 @@ export default function GestaoBancaPage() {
   const chartData = useMemo(() => {
     const sorted = [...normalizedTransactions]
       .filter(t => t.type === 'ganho' || t.type === 'perda' || t.type === 'alavancagem')
+      .filter(t => {
+        if (!t.date) return true;
+        const [y, m, d] = t.date.split('-');
+        if (selectedYear !== 'Todos' && y !== selectedYear) return false;
+        if (selectedMonth !== 'Todos' && m !== selectedMonth) return false;
+        return true;
+      })
       .sort((a, b) => new Date(a.date) - new Date(b.date));
     
+    if (chartPeriod === 'mensal') {
+      let minYearMonth = null;
+      let maxYearMonth = null;
+      
+      const allSorted = [...normalizedTransactions]
+        .filter(t => t.date && (t.type === 'ganho' || t.type === 'perda' || t.type === 'alavancagem'))
+        .sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+      allSorted.forEach(t => {
+        const ym = t.date.substring(0, 7); // "YYYY-MM"
+        if (!minYearMonth || ym < minYearMonth) minYearMonth = ym;
+        if (!maxYearMonth || ym > maxYearMonth) maxYearMonth = ym;
+      });
+      
+      const now = new Date();
+      const currentYearMonth = now.toISOString().substring(0, 7);
+      if (!minYearMonth) minYearMonth = currentYearMonth;
+      if (!maxYearMonth) maxYearMonth = currentYearMonth;
+      
+      const monthsSequence = [];
+      let currentYM = minYearMonth;
+      while (currentYM <= maxYearMonth) {
+        monthsSequence.push(currentYM);
+        let [y, m] = currentYM.split('-').map(Number);
+        m++;
+        if (m > 12) {
+          m = 1;
+          y++;
+        }
+        currentYM = `${y}-${String(m).padStart(2, '0')}`;
+      }
+
+      const monthlyDataMap = {};
+      let balance = initialValue;
+      let leverage = 0;
+      
+      allSorted.forEach((t) => {
+        if (t.type === 'ganho') {
+          const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;
+          balance += profit;
+        } else if (t.type === 'alavancagem') {
+          balance += t.amount;
+          leverage += t.amount;
+        } else if (t.type === 'perda') {
+          balance -= t.amount;
+        }
+        
+        const monthYear = t.date.substring(0, 7);
+        monthlyDataMap[monthYear] = {
+          balance: balance,
+          leverage: leverage,
+          date: monthYear
+        };
+      });
+
+      let lastKnownBalance = initialValue;
+      let lastKnownLeverage = 0;
+      
+      const fullMonthlyPoints = monthsSequence.map(ym => {
+        if (monthlyDataMap[ym]) {
+          lastKnownBalance = monthlyDataMap[ym].balance;
+          lastKnownLeverage = monthlyDataMap[ym].leverage;
+        }
+        
+        return {
+          yearMonth: ym,
+          balance: lastKnownBalance,
+          leverage: lastKnownLeverage
+        };
+      });
+      
+      const monthNames = {
+        '01': 'Jan', '02': 'Fev', '03': 'Mar', '04': 'Abr', '05': 'Mai', '06': 'Jun',
+        '07': 'Jul', '08': 'Ago', '09': 'Set', '10': 'Out', '11': 'Nov', '12': 'Dez'
+      };
+      
+      const monthlyPoints = fullMonthlyPoints
+        .filter(p => {
+          const [year, month] = p.yearMonth.split('-');
+          if (selectedYear !== 'Todos' && year !== selectedYear) return false;
+          if (selectedMonth !== 'Todos' && month !== selectedMonth) return false;
+          return true;
+        })
+        .map(p => {
+          const [year, month] = p.yearMonth.split('-');
+          const displayLabel = `${monthNames[month] || month}/${year.substring(2)}`;
+          return {
+            date: displayLabel,
+            balance: parseFloat(p.balance.toFixed(2)),
+            leverage: parseFloat(p.leverage.toFixed(2)),
+            label: `Fim de ${monthNames[month] || month} ${year}`
+          };
+        });
+
+      return monthlyPoints;
+    }
+
     const dataPoints = [{
       date: 'Início',
       balance: initialValue,
+      leverage: 0,
       label: 'Saldo Inicial'
     }];
 
     let balance = initialValue;
+    let leverage = 0;
     sorted.forEach((t) => {
-      if (t.type === 'ganho' || t.type === 'alavancagem') {
+      if (t.type === 'ganho') {
         const profit = t.odd ? t.amount * (t.odd - 1) : t.amount;
         balance += profit;
       }
-      else if (t.type === 'perda') balance -= t.amount;
+      else if (t.type === 'alavancagem') {
+        balance += t.amount;
+        leverage += t.amount;
+      }
+      else if (t.type === 'perda') {
+        balance -= t.amount;
+      }
 
-      // Formatar data para exibição no eixo X
+      // Formatar data para exibição no eixo X (dia, mês e ano)
       const txDateObj = new Date(t.date + 'T12:00:00');
-      const dateStr = txDateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '');
+      const dateStr = txDateObj.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
       dataPoints.push({
         date: dateStr,
         balance: balance,
+        leverage: leverage,
         label: t.description
       });
     });
 
     return dataPoints;
-  }, [normalizedTransactions, initialValue]);
+  }, [normalizedTransactions, initialValue, selectedMonth, selectedYear, chartView, chartPeriod]);
 
   const isPositive = stats.netProfit >= 0;
+
+  if (!user) {
+    return null;
+  }
+
+  if (!isTrialActive()) {
+    return (
+      <div style={{
+        padding: '40px 24px',
+        textAlign: 'center',
+        background: '#111116',
+        border: '2px solid rgba(255, 68, 68, 0.3)',
+        borderRadius: '16px',
+        maxWidth: '600px',
+        margin: '60px auto',
+        boxShadow: '0 0 30px rgba(255, 68, 68, 0.05)',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#fff'
+      }}>
+        <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔒</div>
+        <h3 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fff', textTransform: 'uppercase' }}>
+          Seu Teste Grátis de 7 Dias Expirou!
+        </h3>
+        <p style={{ color: '#aaa', fontSize: '0.9rem', marginTop: '12px', lineHeight: 1.5 }}>
+          O período de avaliação gratuita da sua Carteira e Gestão de Banca acabou. Assine agora o plano PRO por apenas **R$ 19,90/mês** para liberar acesso instantâneo e ilimitado.
+        </p>
+        
+        <div style={{ margin: '30px 0', borderTop: '1px dashed #222', borderBottom: '1px dashed #222', padding: '16px 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ color: 'var(--brand-neon)', fontSize: '1.8rem', fontWeight: 900 }}>PRO</div>
+              <div style={{ color: '#888', fontSize: '0.78rem', marginTop: '4px' }}>R$ 19,90 / mês</div>
+            </div>
+            <div>
+              <div style={{ color: '#0088cc', fontSize: '1.8rem', fontWeight: 900 }}>TELEGRAM VIP</div>
+              <div style={{ color: '#888', fontSize: '0.78rem', marginTop: '4px' }}>R$ 9,90 / mês</div>
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={() => window.location.href = '/pricing'}
+          style={{
+            background: 'var(--brand-neon)',
+            color: '#000',
+            border: 'none',
+            padding: '14px 28px',
+            borderRadius: '8px',
+            fontWeight: 'bold',
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            boxShadow: '0 4px 15px rgba(204, 255, 0, 0.2)'
+          }}
+        >
+          Assinar Agora
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: '0 20px', maxWidth: '1200px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '24px' }}>
@@ -865,148 +1079,697 @@ export default function GestaoBancaPage() {
             Gerencie seu capital de apostas. Registre seus aportes, retiradas, greens e reds, e acompanhe o crescimento dos seus lucros.
           </p>
         </div>
-        
-        {/* Indicador de Sincronização */}
-        <div style={{ marginTop: '8px' }}>
-          {syncStatus === 'connecting' && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', background: 'rgba(255, 255, 255, 0.05)', color: '#aaa', border: '1px solid #333' }}>
-              <span className="sync-pulse" style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#ff9800', display: 'inline-block' }}></span>
-              Conectando Banco...
-            </span>
-          )}
-          {syncStatus === 'cloud' && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', background: 'rgba(0, 255, 170, 0.1)', color: '#00ffa0', border: '1px solid rgba(0, 255, 170, 0.2)' }}>
-              ☁️ Nuvem Ativa (Supabase)
-            </span>
-          )}
-          {syncStatus === 'local' && (
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '6px 12px', borderRadius: '20px', fontSize: '0.8rem', fontWeight: 'bold', background: 'rgba(255, 152, 0, 0.1)', color: '#ff9800', border: '1px solid rgba(255, 152, 0, 0.2)' }}>
-              💾 Modo Local (Offline)
-            </span>
-          )}
-        </div>
       </header>
 
-      {/* KPI Cards */}
-      <div className="grid-responsive-cards grid-responsive-cards-banca">
-        
-        <div className="glass-panel" style={{ background: 'linear-gradient(135deg, #111115, #161622)', borderLeft: '4px solid var(--brand-neon)', padding: '12px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Saldo Atual</div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', marginTop: '4px' }}>
-            R$ {stats.currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-        </div>
+      {/* KPI Cards & Formulário de Movimentação Unificados */}
+      <form onSubmit={handleAddTransaction}>
+        {(() => {
+          // Calcular porcentagens para as bordas de progresso circular (conic-gradient)
+          const growthPct = initialValue > 0 ? Math.min(100, Math.max(0, (stats.currentBalance / initialValue) * 100)) : 100;
+          const yieldProgress = Math.min(100, Math.max(0, Math.abs(stats.totalYield) * 2)); // 50% Yield = 100% de preenchimento
+          let typeColor = 'var(--brand-neon)';
+          let typeLabel = 'Ganho 🔵';
+          if (txType === 'ganho') {
+            typeColor = '#00d2ff';
+            typeLabel = 'Ganho 🔵';
+          } else if (txType === 'perda') {
+            typeColor = '#ff4d4d';
+            typeLabel = 'Perda 🔴';
+          } else if (txType === 'alavancagem') {
+            typeColor = '#4CAF50';
+            typeLabel = 'Alavancagem 🟢';
+          }
 
-        <div className="glass-panel" style={{ background: 'linear-gradient(135deg, #111115, #161622)', borderLeft: '4px solid ' + (isPositive ? '#4CAF50' : '#ff4d4d'), padding: '12px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Lucro Líquido</div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 800, color: isPositive ? '#4CAF50' : '#ff4d4d', marginTop: '4px', display: 'flex', alignItems: 'baseline', gap: '8px', flexWrap: 'wrap' }}>
-            {isPositive ? '+' : ''}R$ {stats.netProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-            <span style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>({stats.totalYield.toFixed(1)}% Yield)</span>
-          </div>
-        </div>
+          return (
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', justifyContent: 'center', marginBottom: '32px', width: '100%', alignItems: 'flex-start' }}>
+              
+              {/* 1. Saldo Atual */}
+              <div style={{ 
+                width: '132px', 
+                height: '132px', 
+                borderRadius: '50%', 
+                background: `conic-gradient(var(--brand-neon) ${growthPct}%, #27272a ${growthPct}%)`,
+                display: 'flex', 
+                flexShrink: 0,
+                alignItems: 'center', 
+                justifyContent: 'center',
+                boxShadow: '0 6px 24px rgba(0, 0, 0, 0.4)'
+              }}>
+                <div style={{
+                  width: '124px',
+                  height: '124px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #111115, #161622)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  padding: '8px',
+                  boxSizing: 'border-box'
+                }}>
+                  <div className="kpi-title" style={{ fontSize: '0.62rem', marginBottom: '2px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Saldo Atual</div>
+                  <div className="kpi-value" style={{ fontSize: '0.88rem', color: '#fff', margin: '2px 0', wordBreak: 'break-word', fontWeight: 800 }}>
+                    R$ {stats.currentBalance.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="kpi-subtext" style={{ fontSize: '0.58rem', lineHeight: '1.2', color: '#555' }}>
+                    Total em caixa
+                  </div>
+                </div>
+              </div>
 
-        <div className="glass-panel" style={{ background: 'linear-gradient(135deg, #111115, #161622)', borderLeft: '4px solid #FFD700', padding: '12px 16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-          <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <span>Valor Inicial</span>
-            <button 
-              onClick={() => {
-                setModalInputVal(initialValue.toString());
-                setShowModal(true);
-              }}
-              className="mobile-edit-btn"
-              style={{ background: 'transparent', border: 'none', color: 'var(--brand-neon)', cursor: 'pointer', fontSize: '0.75rem', padding: '0 4px', fontWeight: 'bold' }}
-            >
-              Editar
-            </button>
-          </div>
-          <div style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', marginTop: '4px' }}>
-            R$ {initialValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </div>
-        </div>
+              {/* 2. Lucro Líquido */}
+              <div style={{ 
+                width: '132px', 
+                height: '132px', 
+                borderRadius: '50%', 
+                background: `conic-gradient(${isPositive ? '#4CAF50' : '#ff4d4d'} ${yieldProgress}%, #27272a ${yieldProgress}%)`,
+                display: 'flex', 
+                flexShrink: 0,
+                alignItems: 'center', 
+                justifyContent: 'center',
+                boxShadow: '0 6px 24px rgba(0, 0, 0, 0.4)'
+              }}>
+                <div style={{
+                  width: '124px',
+                  height: '124px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #111115, #161622)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  padding: '8px',
+                  boxSizing: 'border-box'
+                }}>
+                  <div className="kpi-title" style={{ fontSize: '0.62rem', marginBottom: '2px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Lucro Líquido</div>
+                  <div className="kpi-value" style={{ fontSize: '0.88rem', color: isPositive ? '#4CAF50' : '#ff4d4d', margin: '2px 0', wordBreak: 'break-word', fontWeight: 800 }}>
+                    {isPositive ? '+' : ''}R$ {stats.netProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="kpi-subtext" style={{ fontSize: '0.58rem', lineHeight: '1.2', color: isPositive ? '#4CAF50' : '#ff4d4d', fontWeight: 'bold' }}>
+                    {stats.totalYield.toFixed(1)}% Yield
+                  </div>
+                </div>
+              </div>
 
-      </div>
+              {/* 3. Retorno Real */}
+              <div style={{ 
+                width: '132px', 
+                height: '132px', 
+                borderRadius: '50%', 
+                background: `conic-gradient(#00d2ff 100%, #27272a 100%)`,
+                display: 'flex', 
+                flexShrink: 0,
+                alignItems: 'center', 
+                justifyContent: 'center',
+                boxShadow: '0 6px 24px rgba(0, 0, 0, 0.4)'
+              }}>
+                <div style={{
+                  width: '124px',
+                  height: '124px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #111115, #161622)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  padding: '8px',
+                  boxSizing: 'border-box'
+                }}>
+                  <div className="kpi-title" style={{ fontSize: '0.62rem', marginBottom: '2px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Retorno Real</div>
+                  <div className="kpi-value" style={{ fontSize: '0.88rem', color: '#00d2ff', margin: '2px 0', wordBreak: 'break-word', fontWeight: 800 }}>
+                    R$ {stats.netProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="kpi-subtext" style={{ fontSize: '0.58rem', lineHeight: '1.2', color: '#888' }}>
+                    Ganhos reais
+                  </div>
+                </div>
+              </div>
 
-      {/* Formulário de Registrar Movimentação */}
-      <div className="glass-panel responsive-banca-form" style={{ display: 'flex', flexDirection: 'column' }}>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
-          <PlusCircle size={20} color="var(--brand-neon)" /> Registrar Movimentação
-        </h2>
-        
-        <form onSubmit={handleAddTransaction} className="banca-form-row" style={{ marginTop: '12px' }}>
-          
-          <div style={{ flex: '2 1 120px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Tipo de Lançamento</label>
-            <select 
-              value={txType} 
-              onChange={(e) => handleTypeChange(e.target.value)}
-              style={{ width: '100%', background: '#1c1c1c', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 'bold', height: '42px' }}
-            >
-              <option value="ganho">Ganho (Blue) 🔵</option>
-              <option value="perda">Perda (Red) 🔴</option>
-              <option value="alavancagem">Alavancagem 🟢</option>
-            </select>
-          </div>
+              {/* 4. Alavancagem */}
+              <div style={{ 
+                width: '132px', 
+                height: '132px', 
+                borderRadius: '50%', 
+                background: `conic-gradient(#4CAF50 100%, #27272a 100%)`,
+                display: 'flex', 
+                flexShrink: 0,
+                alignItems: 'center', 
+                justifyContent: 'center',
+                boxShadow: '0 6px 24px rgba(0, 0, 0, 0.4)'
+              }}>
+                <div style={{
+                  width: '124px',
+                  height: '124px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #111115, #161622)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  padding: '8px',
+                  boxSizing: 'border-box'
+                }}>
+                  <div className="kpi-title" style={{ fontSize: '0.62rem', marginBottom: '2px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Alavancagem</div>
+                  <div className="kpi-value" style={{ fontSize: '0.88rem', color: '#4CAF50', margin: '2px 0', wordBreak: 'break-word', fontWeight: 800 }}>
+                    R$ {stats.totalLeverage.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <div className="kpi-subtext" style={{ fontSize: '0.58rem', lineHeight: '1.2', color: '#888' }}>
+                    Capital alavancado
+                  </div>
+                </div>
+              </div>
 
-          <div style={{ flex: '2 1 120px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-            <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Valor</label>
-            <div style={{ display: 'flex', alignItems: 'center', background: '#1c1c1c', border: '1px solid #333', borderRadius: '8px', overflow: 'hidden', height: '42px' }}>
-              <span style={{ background: '#27272A', color: '#888', padding: '10px 14px', fontSize: '0.9rem', fontWeight: 'bold', borderRight: '1px solid #333' }}>
-                R$
-              </span>
-              <input 
-                type="number" 
-                step="0.01" 
-                min="0.01" 
-                required
-                placeholder="0,00"
-                value={txAmount}
-                onChange={(e) => setTxAmount(e.target.value)}
-                style={{ flex: 1, background: 'transparent', border: 'none', color: '#fff', padding: '10px', fontSize: '0.9rem', outline: 'none' }} 
-              />
+              {/* 5. Valor Inicial */}
+              <div style={{ 
+                width: '132px', 
+                height: '132px', 
+                borderRadius: '50%', 
+                background: `conic-gradient(var(--brand-neon) 100%, #27272a 100%)`,
+                display: 'flex', 
+                flexShrink: 0,
+                alignItems: 'center', 
+                justifyContent: 'center',
+                boxShadow: '0 6px 24px rgba(0, 0, 0, 0.4)'
+              }}>
+                <div style={{
+                  width: '124px',
+                  height: '124px',
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg, #111115, #161622)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  textAlign: 'center',
+                  padding: '8px',
+                  boxSizing: 'border-box'
+                }}>
+                  <div className="kpi-title" style={{ fontSize: '0.62rem', marginBottom: '2px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Valor Inicial</div>
+                  <div className="kpi-value" style={{ fontSize: '0.88rem', color: '#fff', margin: '2px 0', wordBreak: 'break-word', fontWeight: 800 }}>
+                    R$ {initialValue.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setModalInputVal(initialValue.toString());
+                      setShowModal(true);
+                    }}
+                    style={{ background: 'transparent', border: 'none', color: 'var(--brand-neon)', cursor: 'pointer', fontSize: '0.62rem', padding: '2px 6px', fontWeight: 'bold', textTransform: 'uppercase', borderBottom: '1px dashed var(--brand-neon)' }}
+                  >
+                    Editar
+                  </button>
+                </div>
+              </div>
+
+              {/* 6. Tipo de Lançamento (Seletor Circular) */}
+              <div style={{ position: 'relative', display: 'inline-block', flexShrink: 0 }}>
+                <div 
+                  onClick={() => setIsTypeDropdownOpen(!isTypeDropdownOpen)}
+                  style={{ 
+                    width: '132px', 
+                    height: '132px', 
+                    borderRadius: '50%', 
+                    background: `conic-gradient(${typeColor} 100%, #27272a 100%)`,
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    boxShadow: '0 6px 24px rgba(0, 0, 0, 0.4)',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{
+                    width: '124px',
+                    height: '124px',
+                    borderRadius: '50%',
+                    background: 'linear-gradient(135deg, #111115, #161622)',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    textAlign: 'center',
+                    padding: '8px',
+                    boxSizing: 'border-box'
+                  }}>
+                    <div className="kpi-title" style={{ fontSize: '0.62rem', marginBottom: '2px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Tipo</div>
+                    <div className="kpi-value" style={{ fontSize: '0.82rem', color: typeColor, margin: '2px 0', fontWeight: 800 }}>
+                      {typeLabel}
+                    </div>
+                    <div className="kpi-subtext" style={{ fontSize: '0.58rem', lineHeight: '1.2', color: 'var(--brand-neon)', borderBottom: '1px dashed var(--brand-neon)' }}>
+                      Alterar
+                    </div>
+                  </div>
+                </div>
+
+                {isTypeDropdownOpen && (
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    width: '132px',
+                    height: '132px',
+                    borderRadius: '50%',
+                    background: 'rgba(17, 17, 21, 0.98)',
+                    border: `2px solid ${typeColor}`,
+                    boxShadow: '0 8px 24px rgba(0,0,0,0.6)',
+                    zIndex: 100,
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '4px',
+                    padding: '8px',
+                    boxSizing: 'border-box'
+                  }}>
+                    <div 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTypeChange('ganho');
+                        setIsTypeDropdownOpen(false);
+                      }}
+                      style={{ padding: '4px 8px', color: '#fff', fontSize: '0.72rem', cursor: 'pointer', fontWeight: txType === 'ganho' ? 'bold' : 'normal', borderRadius: '20px', background: txType === 'ganho' ? 'rgba(0, 210, 255, 0.15)' : 'transparent', border: txType === 'ganho' ? '1px solid rgba(0, 210, 255, 0.3)' : '1px dashed rgba(255,255,255,0.05)', width: '100px', textAlign: 'center' }}
+                    >
+                      Ganho 🔵
+                    </div>
+                    <div 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTypeChange('perda');
+                        setIsTypeDropdownOpen(false);
+                      }}
+                      style={{ padding: '4px 8px', color: '#fff', fontSize: '0.72rem', cursor: 'pointer', fontWeight: txType === 'perda' ? 'bold' : 'normal', borderRadius: '20px', background: txType === 'perda' ? 'rgba(255, 77, 77, 0.15)' : 'transparent', border: txType === 'perda' ? '1px solid rgba(255, 77, 77, 0.3)' : '1px dashed rgba(255,255,255,0.05)', width: '100px', textAlign: 'center' }}
+                    >
+                      Perda 🔴
+                    </div>
+                    <div 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleTypeChange('alavancagem');
+                        setIsTypeDropdownOpen(false);
+                      }}
+                      style={{ padding: '4px 8px', color: '#fff', fontSize: '0.72rem', cursor: 'pointer', fontWeight: txType === 'alavancagem' ? 'bold' : 'normal', borderRadius: '20px', background: txType === 'alavancagem' ? 'rgba(76, 175, 80, 0.15)' : 'transparent', border: txType === 'alavancagem' ? '1px solid rgba(76, 175, 80, 0.3)' : '1px dashed rgba(255,255,255,0.05)', width: '100px', textAlign: 'center' }}
+                    >
+                      Alavancagem 🟢
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* 7. Campo de Valor Circular com Botão de Adicionar Integrado */}
+              {(() => {
+                const maxSafeStake = stats.currentBalance * riskPct;
+                const isExcessiveRisk = txAmount && Number(txAmount) > maxSafeStake && (txType === 'ganho' || txType === 'perda');
+                return (
+                  <div style={{ 
+                    width: '132px', 
+                    height: '132px', 
+                    borderRadius: '50%', 
+                    background: isExcessiveRisk ? `conic-gradient(#ff3b30 100%, #27272a 100%)` : `conic-gradient(var(--brand-neon) 100%, #27272a 100%)`,
+                    display: 'flex', 
+                    flexShrink: 0,
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    boxShadow: '0 6px 24px rgba(0, 0, 0, 0.4)',
+                    transition: 'background 0.3s'
+                  }}>
+                    <div style={{
+                      width: '124px',
+                      height: '124px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #111115, #161622)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      padding: '8px',
+                      boxSizing: 'border-box'
+                    }}>
+                      <div className="kpi-title" style={{ fontSize: '0.62rem', marginBottom: '2px', color: isExcessiveRisk ? '#ff3b30' : '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        {isExcessiveRisk ? '⚠️ ALERTA' : 'Valor'}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '2px 0', width: '100%' }}>
+                        <span style={{ color: '#888', fontSize: '0.78rem', fontWeight: 'bold', marginRight: '2px' }}>R$</span>
+                        <input 
+                          type="number" 
+                          step="0.01" 
+                          min="0.01" 
+                          required
+                          placeholder="0,00"
+                          value={txAmount}
+                          onChange={(e) => setTxAmount(e.target.value)}
+                          style={{
+                            width: '60px',
+                            background: 'transparent',
+                            border: 'none',
+                            borderBottom: '1px dashed #555',
+                            color: '#fff',
+                            textAlign: 'center',
+                            fontSize: '0.95rem',
+                            fontWeight: 800,
+                            outline: 'none',
+                            padding: '1px 0'
+                          }} 
+                        />
+                      </div>
+
+                      {isExcessiveRisk ? (
+                        <div style={{ fontSize: '0.45rem', color: '#ff3b30', fontWeight: 'bold', lineHeight: '1.2', margin: '1px 0', maxWidth: '110px' }}>
+                          Excede ({ (riskPct * 100).toFixed(0) }%)
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: '0.55rem', color: '#555', lineHeight: '1.2' }}>
+                          Limite R$ {maxSafeStake.toFixed(0)}
+                        </div>
+                      )}
+                      
+                      <button 
+                        type="submit"
+                        style={{
+                          marginTop: '2px',
+                          background: isExcessiveRisk ? '#ff3b30' : 'var(--brand-neon)',
+                          color: isExcessiveRisk ? '#fff' : '#000',
+                          border: 'none',
+                          borderRadius: '50%',
+                          width: '24px',
+                          height: '24px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          boxShadow: isExcessiveRisk ? '0 3px 8px rgba(255, 59, 48, 0.4)' : '0 3px 8px rgba(204, 255, 0, 0.4)',
+                          transition: 'all 0.2s'
+                        }}
+                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.15)'}
+                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                        title="Salvar Lançamento"
+                      >
+                        <PlusCircle size={14} strokeWidth={2.5} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              {/* 8. Gestão de Risco / Plano de Gerenciamento */}
+              {(() => {
+                const pct = Math.round(riskPct * 100);
+                const isHighRisk = riskPct > 0.10;
+                const isModerateRisk = riskPct > 0.05 && riskPct <= 0.10;
+                
+                let riskColor = 'var(--brand-neon)';
+                let riskStatus = 'Seguro';
+                if (isHighRisk) {
+                  riskColor = '#ff3b30';
+                  riskStatus = 'Alto Risco ⚠️';
+                } else if (isModerateRisk) {
+                  riskColor = 'orange';
+                  riskStatus = 'Moderado ⚡';
+                }
+                
+                const maxSafeAmount = stats.currentBalance * riskPct;
+
+                return (
+                  <div style={{ 
+                    width: '132px', 
+                    height: '132px', 
+                    borderRadius: '50%', 
+                    background: `conic-gradient(${riskColor} ${pct}%, #27272a ${pct}%)`,
+                    display: 'flex', 
+                    flexShrink: 0,
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    boxShadow: '0 6px 24px rgba(0, 0, 0, 0.4)'
+                  }}>
+                    <div style={{
+                      width: '124px',
+                      height: '124px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #111115, #161622)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      padding: '8px',
+                      boxSizing: 'border-box'
+                    }}>
+                      <div className="kpi-title" style={{ fontSize: '0.62rem', marginBottom: '2px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                        % Risco Max
+                      </div>
+                      
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', margin: '2px 0' }}>
+                        <button
+                          type="button"
+                          onClick={handleDecreaseRisk}
+                          style={{
+                            background: '#222',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '20px',
+                            height: '20px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            fontSize: '0.9rem',
+                            outline: 'none'
+                          }}
+                        >
+                          -
+                        </button>
+                        
+                        <span style={{ fontSize: '0.95rem', color: '#fff', fontWeight: 800 }}>
+                          {pct}%
+                        </span>
+                        
+                        <button
+                          type="button"
+                          onClick={handleIncreaseRisk}
+                          style={{
+                            background: '#222',
+                            color: '#fff',
+                            border: 'none',
+                            borderRadius: '50%',
+                            width: '20px',
+                            height: '20px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            fontWeight: 'bold',
+                            fontSize: '0.9rem',
+                            outline: 'none'
+                          }}
+                        >
+                          +
+                        </button>
+                      </div>
+                      
+                      <div style={{ fontSize: '0.58rem', lineHeight: '1.2', color: riskColor, fontWeight: 'bold' }}>
+                        {riskStatus}
+                      </div>
+                      
+                      <div style={{ fontSize: '0.5rem', color: '#555', marginTop: '2px' }} title="Limite máximo de stake calculado para este risco">
+                        Lim: R$ {maxSafeAmount.toFixed(0)}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
             </div>
-          </div>
-
-          <button 
-            type="submit"
-            className="btn-responsive-compact"
-            style={{ height: '42px', background: 'var(--brand-neon)', color: '#000', borderRadius: '8px', border: 'none', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 15px rgba(204, 255, 0, 0.2)' }}
-            title="Gravar Transação"
-          >
-            <PlusCircle size={18} />
-            <span className="btn-text-mobile-hide" style={{ marginLeft: '8px' }}>Gravar Transação</span>
-          </button>
-
-        </form>
-      </div>
+          );
+        })()}
+      </form>
 
       {/* Gráfico de Crescimento do Capital */}
-      <div className="glass-panel responsive-chart-panel" style={{ display: 'flex', flexDirection: 'column', maxWidth: '100%', width: '100%' }}>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0, color: '#ccc', borderBottom: '1px solid #222', paddingBottom: '12px' }}>
-          Gráfico de Crescimento do Capital
-        </h2>
-        <div className="responsive-chart-wrapper">
+      <div className="glass-panel responsive-chart-panel" style={{ display: 'flex', flexDirection: 'column', maxWidth: '100%', width: '100%', height: '480px', minHeight: '480px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '12px', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 'bold', margin: 0, color: '#ccc' }}>
+            Gráfico de Desempenho
+          </h2>
+          
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+            {/* Filtro Mês */}
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(e.target.value)}
+              style={{
+                background: '#141419',
+                border: '1px solid #333',
+                color: '#fff',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontSize: '0.8rem',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="Todos">Todos os Meses</option>
+              <option value="01">Janeiro</option>
+              <option value="02">Fevereiro</option>
+              <option value="03">Março</option>
+              <option value="04">Abril</option>
+              <option value="05">Maio</option>
+              <option value="06">Junho</option>
+              <option value="07">Julho</option>
+              <option value="08">Agosto</option>
+              <option value="09">Setembro</option>
+              <option value="10">Outubro</option>
+              <option value="11">Novembro</option>
+              <option value="12">Dezembro</option>
+            </select>
+
+            {/* Filtro Ano */}
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(e.target.value)}
+              style={{
+                background: '#141419',
+                border: '1px solid #333',
+                color: '#fff',
+                padding: '6px 12px',
+                borderRadius: '8px',
+                fontSize: '0.8rem',
+                outline: 'none',
+                cursor: 'pointer'
+              }}
+            >
+              <option value="Todos">Todos os Anos</option>
+              <option value="2024">2024</option>
+              <option value="2025">2025</option>
+              <option value="2026">2026</option>
+              <option value="2027">2027</option>
+            </select>
+
+            {/* Seletor de Métrica */}
+            <div style={{ display: 'flex', gap: '6px', background: '#111116', padding: '3px', borderRadius: '20px', border: '1px solid #222' }}>
+              <button
+                type="button"
+                onClick={() => setChartView('banca')}
+                style={{
+                  background: chartView === 'banca' ? 'var(--brand-neon)' : 'transparent',
+                  color: chartView === 'banca' ? '#000' : '#888',
+                  border: 'none',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '0.78rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  outline: 'none'
+                }}
+              >
+                Saldo Banca
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartView('alavancagem')}
+                style={{
+                  background: chartView === 'alavancagem' ? '#4CAF50' : 'transparent',
+                  color: chartView === 'alavancagem' ? '#fff' : '#888',
+                  border: 'none',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '0.78rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  outline: 'none'
+                }}
+              >
+                Alavancagem
+              </button>
+            </div>
+
+            {/* Seletor de Período */}
+            <div style={{ display: 'flex', gap: '6px', background: '#111116', padding: '3px', borderRadius: '20px', border: '1px solid #222' }}>
+              <button
+                type="button"
+                onClick={() => setChartPeriod('diario')}
+                style={{
+                  background: chartPeriod === 'diario' ? 'var(--brand-neon)' : 'transparent',
+                  color: chartPeriod === 'diario' ? '#000' : '#888',
+                  border: 'none',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '0.78rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  outline: 'none'
+                }}
+              >
+                Detalhado
+              </button>
+              <button
+                type="button"
+                onClick={() => setChartPeriod('mensal')}
+                style={{
+                  background: chartPeriod === 'mensal' ? '#2196F3' : 'transparent',
+                  color: chartPeriod === 'mensal' ? '#fff' : '#888',
+                  border: 'none',
+                  padding: '6px 14px',
+                  borderRadius: '20px',
+                  fontSize: '0.78rem',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  outline: 'none'
+                }}
+              >
+                Evolução Mensal
+              </button>
+            </div>
+          </div>
+        </div>
+        <div className="responsive-chart-wrapper" style={{ height: '360px', minHeight: '360px', width: '100%' }}>
           {mounted ? (
             <ResponsiveContainer width="100%" height="100%">
-              <RechartsLineChart data={chartData} margin={{ top: 10, right: 10, left: 25, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
-                <XAxis dataKey="date" stroke="#666" tick={{ fill: '#666', fontSize: 11 }} />
-                <YAxis stroke="#666" tick={{ fill: '#666', fontSize: 11 }} tickFormatter={(val) => `R$${val}`} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: '#141419', border: '1px solid #333', borderRadius: '8px' }}
-                  itemStyle={{ color: 'var(--brand-neon)' }}
-                  labelStyle={{ color: '#aaa', fontWeight: 'bold' }}
-                />
-
-                <Line 
-                  type="monotone" 
-                  dataKey="balance" 
-                  name="Saldo da Banca"
-                  stroke="var(--brand-neon)" 
-                  strokeWidth={3} 
-                  dot={{ r: 4, stroke: '#000', strokeWidth: 1, fill: 'var(--brand-neon)' }}
-                  activeDot={{ r: 7 }}
-                />
-              </RechartsLineChart>
+              {chartPeriod === 'mensal' ? (
+                <RechartsBarChart data={chartData} margin={{ top: 10, right: 10, left: 25, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+                  <XAxis dataKey="date" stroke="#666" tick={{ fill: '#666', fontSize: 11 }} />
+                  <YAxis stroke="#666" tick={{ fill: '#666', fontSize: 11 }} tickFormatter={(val) => `R$${val}`} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#141419', border: '1px solid #333', borderRadius: '8px' }}
+                    itemStyle={{ color: chartView === 'banca' ? 'var(--brand-neon)' : '#4CAF50' }}
+                    labelStyle={{ color: '#aaa', fontWeight: 'bold' }}
+                  />
+                  <Bar 
+                    dataKey={chartView === 'banca' ? 'balance' : 'leverage'} 
+                    name={chartView === 'banca' ? 'Saldo da Banca' : 'Alavancagem Acumulada'}
+                    fill={chartView === 'banca' ? 'var(--brand-neon)' : '#4CAF50'}
+                    radius={[4, 4, 0, 0]}
+                  />
+                </RechartsBarChart>
+              ) : (
+                <RechartsLineChart data={chartData} margin={{ top: 10, right: 10, left: 25, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#222" vertical={false} />
+                  <XAxis dataKey="date" stroke="#666" tick={{ fill: '#666', fontSize: 11 }} />
+                  <YAxis stroke="#666" tick={{ fill: '#666', fontSize: 11 }} tickFormatter={(val) => `R$${val}`} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#141419', border: '1px solid #333', borderRadius: '8px' }}
+                    itemStyle={{ color: chartView === 'banca' ? 'var(--brand-neon)' : '#4CAF50' }}
+                    labelStyle={{ color: '#aaa', fontWeight: 'bold' }}
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey={chartView === 'banca' ? 'balance' : 'leverage'} 
+                    name={chartView === 'banca' ? 'Saldo da Banca' : 'Alavancagem Acumulada'}
+                    stroke={chartView === 'banca' ? 'var(--brand-neon)' : '#4CAF50'} 
+                    strokeWidth={3} 
+                    dot={false}
+                    activeDot={{ r: 6, stroke: '#000', strokeWidth: 1 }}
+                  />
+                </RechartsLineChart>
+              )}
             </ResponsiveContainer>
           ) : (
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#666' }}>

@@ -308,7 +308,30 @@ export async function GET(request) {
           if (data.errors && Object.keys(data.errors).length > 0) {
             console.error(`[API-Sports] Erro retornado pela API para a data ${targetDate}:`, data.errors);
           }
-          matches = (data.response || []).filter(m => !['CANC', 'PST', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short));
+          const ALLOWED_LEAGUE_IDS = [1, 71, 72, 75, 13, 12, 39, 140, 135, 78, 3, 848, 44, 667, 94];
+          matches = (data.response || []).filter(m => {
+            if (!m.fixture || !m.league) return false;
+            if (['CANC', 'PST', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short)) return false;
+            const lid = m.league.id;
+            if (lid && ALLOWED_LEAGUE_IDS.includes(Number(lid))) return true;
+            
+            const name = String(m.league.name || '').toLowerCase();
+            if (name.includes('copa do mundo')) return true;
+            if (name.includes('libertadores')) return true;
+            if (name.includes('sudamericana') || name.includes('sulamericana')) return true;
+            if (name.includes('série a') || name.includes('serie a')) return true;
+            if (name.includes('série b') || name.includes('serie b')) return true;
+            if (name.includes('série c') || name.includes('serie c')) return true;
+            if (name.includes('premier')) return true;
+            if (name.includes('la liga') || name.includes('espanha')) return true;
+            if (name.includes('bundesliga') || name.includes('alemanha')) return true;
+            if (name.includes('europa league')) return true;
+            if (name.includes('conference league')) return true;
+            if (name.includes('argentina')) return true;
+            if (name.includes('amistoso')) return true;
+            if (name.includes('portugal')) return true;
+            return false;
+          });
           if (matches.length > 0) {
             cache.fixtures[fixturesCacheKey] = {
               data: matches,

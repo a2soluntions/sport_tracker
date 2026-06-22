@@ -519,6 +519,7 @@ export function AuthProvider({ children }) {
 
   const isTrialActive = () => {
     if (!user) return false;
+    if (user.role === 'admin' || user.role === 'super_admin') return true;
     if (user.plan === 'pro' || user.plan === 'vip' || user.plan === 'vitalicio') return true;
     // Cupom de acesso total (100%) libera todas as funcionalidades
     if (user.coupon_code) return true;

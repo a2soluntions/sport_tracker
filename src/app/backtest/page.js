@@ -637,8 +637,17 @@ export default function RelatorioApostasPage() {
 
   const [selectedLeague, setSelectedLeague] = useState('Todas');
 
+  const normalizedTransactions = useMemo(() => {
+    return transactions.map(t => {
+      if (t.description === 'Alavancagem' || t.description === 'Alavancagem Manual' || (t.description && t.description.startsWith('[Alavancagem]')) || (t.description && t.description.toLowerCase().includes('alavancagem'))) {
+        return { ...t, type: 'alavancagem' };
+      }
+      return t;
+    });
+  }, [transactions]);
+
   const betsWithLeague = useMemo(() => {
-    return transactions
+    return normalizedTransactions
       .filter(t => t.type === 'ganho' || t.type === 'perda' || t.type === 'pendente')
       .map(t => {
         let leagueName = 'Outros';
@@ -1027,69 +1036,99 @@ export default function RelatorioApostasPage() {
         <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           <button 
             onClick={handlePrint}
-            className="btn-responsive-compact"
             style={{
-              background: '#222',
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%',
+              background: '#161622',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
               color: '#fff',
-              border: '1px solid #444',
-              borderRadius: '8px',
-              fontWeight: 'bold',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              padding: '10px 20px',
-              transition: 'all 0.2s'
+              justifyContent: 'center',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s',
+              padding: 0
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.1)';
+              e.currentTarget.style.opacity = '1';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.opacity = '0.8';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
             }}
             title="Imprimir PDF"
           >
-            <Printer size={16} />
-            <span className="btn-text-mobile-hide" style={{ marginLeft: '8px' }}>Imprimir PDF</span>
+            <Printer size={20} />
           </button>
           
           <button 
             onClick={handleExportCSV}
-            className="btn-responsive-compact"
             style={{
-              background: '#222',
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%',
+              background: '#161622',
+              border: '1px solid rgba(255, 255, 255, 0.1)',
               color: '#fff',
-              border: '1px solid #444',
-              borderRadius: '8px',
-              fontWeight: 'bold',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
-              padding: '10px 20px',
-              transition: 'all 0.2s'
+              justifyContent: 'center',
+              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+              transition: 'all 0.2s',
+              padding: 0
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'scale(1.1)';
+              e.currentTarget.style.opacity = '1';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.4)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1)';
+              e.currentTarget.style.opacity = '0.8';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
             }}
             title="Exportar CSV"
           >
-            <Download size={16} />
-            <span className="btn-text-mobile-hide" style={{ marginLeft: '8px' }}>Exportar CSV</span>
+            <Download size={20} />
           </button>
 
           <button 
             onClick={handleSendTelegram}
             disabled={sending}
-            className="btn-responsive-compact"
             style={{
-              background: 'var(--brand-neon)',
+              width: '44px',
+              height: '44px',
+              borderRadius: '50%',
+              background: sending ? 'rgba(204, 255, 0, 0.1)' : 'var(--brand-neon)',
+              border: sending ? '1px solid rgba(204, 255, 0, 0.3)' : 'none',
               color: '#000',
-              borderRadius: '8px',
-              border: 'none',
-              fontWeight: 'bold',
               cursor: sending ? 'not-allowed' : 'pointer',
               display: 'flex',
               alignItems: 'center',
-              padding: '10px 20px',
+              justifyContent: 'center',
               boxShadow: '0 4px 15px rgba(204, 255, 0, 0.2)',
-              transition: 'all 0.2s'
+              transition: 'all 0.2s',
+              padding: 0
+            }}
+            onMouseEnter={(e) => {
+              if (!sending) {
+                e.currentTarget.style.transform = 'scale(1.1)';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!sending) {
+                e.currentTarget.style.transform = 'scale(1)';
+              }
             }}
             title="Enviar Telegram"
           >
-            <Send size={16} className={sending ? 'sync-pulse' : ''} />
-            <span className="btn-text-mobile-hide" style={{ marginLeft: '8px' }}>
-              {sending ? 'Enviando...' : 'Enviar Telegram'}
-            </span>
+            <Send size={20} className={sending ? 'sync-pulse' : ''} color={sending ? 'var(--brand-neon)' : '#000'} />
           </button>
         </div>
       </header>
@@ -1104,126 +1143,167 @@ export default function RelatorioApostasPage() {
         </div>
       ) : (
         <>
-          {/* Filtro de Ligas */}
-          {betsWithLeague.length > 0 && (
-            <div className="no-print" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '20px', alignItems: 'center' }}>
-              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 'bold', marginRight: '4px', textTransform: 'uppercase', letterSpacing: '1px' }}>Ligas:</span>
-              {leagues.map((league, idx) => (
-                <button
-                  key={`${league.name || 'league'}_${idx}`}
-                  onClick={() => {
-                    setSelectedLeague(league.name);
-                    setBacktestPage(1);
-                  }}
-                  title={league.name}
-                  style={{
-                    width: '38px',
-                    height: '38px',
-                    borderRadius: '50%',
-                    background: selectedLeague === league.name ? 'var(--brand-neon-dim)' : 'var(--bg-surface)',
-                    border: selectedLeague === league.name ? '2px solid var(--brand-neon)' : '1px solid var(--border-color)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s',
-                    position: 'relative',
-                    boxShadow: selectedLeague === league.name ? '0 0 8px var(--brand-neon-dim)' : 'none'
-                  }}
-                  onMouseEnter={(e) => { 
-                    if (selectedLeague !== league.name) {
-                      e.currentTarget.style.borderColor = 'var(--brand-neon)';
-                      e.currentTarget.style.transform = 'scale(1.08)';
-                    }
-                  }}
-                  onMouseLeave={(e) => { 
-                    if (selectedLeague !== league.name) {
-                      e.currentTarget.style.borderColor = 'var(--border-color)';
-                      e.currentTarget.style.transform = 'scale(1)';
-                    }
-                  }}
-                >
-                  {league.name === 'Todas' ? (
-                    <Trophy size={18} color={selectedLeague === 'Todas' ? 'var(--brand-neon)' : 'var(--text-secondary)'} />
-                  ) : (
-                    <>
-                      <img 
-                        src={league.logo} 
-                        alt={league.name} 
-                        style={{ width: '22px', height: '22px', objectFit: 'contain' }}
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                          const parent = e.currentTarget.parentNode;
-                          if (parent) {
-                            const fallback = parent.querySelector('.fallback-letter');
-                            if (fallback) fallback.style.display = 'inline';
-                          }
-                        }}
-                      />
-                      <span 
-                        className="fallback-letter" 
-                        style={{ display: 'none', fontSize: '0.78rem', fontWeight: 'bold', color: selectedLeague === league.name ? 'var(--brand-neon)' : 'var(--text-secondary)' }}
-                      >
-                        {league.name.substring(0, 2).toUpperCase()}
-                      </span>
-                    </>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {bets.length === 0 ? (
-            <div className="glass-panel" style={{ padding: '60px 24px', textAlign: 'center', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', marginBottom: '20px', width: '100%' }}>
-              <AlertCircle size={40} color="var(--brand-neon)" />
-              <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Nenhuma aposta para esta liga</h3>
-              <p style={{ color: '#888', maxWidth: '400px', fontSize: '0.9rem' }}>
-                Nenhuma entrada cadastrada na banca para a liga selecionada ({selectedLeague}).
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* KPI Cards */}
-              <div className="grid-responsive-cards">
+          {(() => {
+            // Calcular porcentagens para as bordas de progresso circular (conic-gradient)
+            const roiVal = stats.roi || 0;
+            const roiProgress = Math.min(100, Math.max(0, Math.abs(roiVal) * 5)); // 20% ROI = 100% de preenchimento
             
-            <div className="glass-panel" style={{ background: 'linear-gradient(135deg, #111115, #161622)', borderLeft: '4px solid ' + (isProfitable ? '#4CAF50' : '#ff4d4d'), padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Resultado Líquido</div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: isProfitable ? '#4CAF50' : '#ff4d4d', marginTop: '4px' }}>
-                {isProfitable ? '+' : ''}R$ {stats.netProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#555', marginTop: '4px' }}>{stats.roi >= 0 ? '+' : ''}{stats.roi.toFixed(1)}% ROI (sobre resolvidas)</div>
-            </div>
+            const pendingPct = stats.totalInvested > 0 ? (stats.pendingInvested / stats.totalInvested) * 100 : 0;
+            const settledPct = 100 - pendingPct;
+            
+            const hitRatePct = stats.hitRate || 0;
+            
+            const totalResolved = stats.greens + stats.reds;
+            const greenPct = totalResolved > 0 ? (stats.greens / totalResolved) * 100 : 0;
 
-            <div className="glass-panel" style={{ background: 'linear-gradient(135deg, #111115, #161622)', borderLeft: '4px solid #00d2ff', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Volume Apostado</div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff', marginTop: '4px' }}>
-                R$ {stats.totalInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#555', marginTop: '4px' }}>
-                {stats.pendingInvested > 0 
-                  ? `R$ ${stats.pendingInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} pendentes`
-                  : 'Nenhuma aposta pendente'
-                }
-              </div>
-            </div>
+            return (
+              <>
+                {/* KPI Cards */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'center', marginBottom: '32px' }}>
+                  
+                  {/* 1. Resultado Líquido */}
+                  <div style={{ 
+                    width: '160px', 
+                    height: '160px', 
+                    borderRadius: '50%', 
+                    background: `conic-gradient(${isProfitable ? 'var(--brand-neon)' : '#ff4d4d'} ${roiProgress}%, #27272a ${roiProgress}%)`,
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                  }}>
+                    <div style={{
+                      width: '152px',
+                      height: '152px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #111115, #161622)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      padding: '12px',
+                      boxSizing: 'border-box'
+                    }}>
+                      <div className="kpi-title" style={{ fontSize: '0.65rem', marginBottom: '4px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Resultado Líquido</div>
+                      <div className="kpi-value" style={{ fontSize: '1.15rem', color: isProfitable ? '#4CAF50' : '#ff4d4d', margin: '4px 0', wordBreak: 'break-word', fontWeight: 800 }}>
+                        {isProfitable ? '+' : ''}R$ {stats.netProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className="kpi-subtext" style={{ fontSize: '0.62rem', lineHeight: '1.2', color: '#555' }}>
+                        {stats.roi >= 0 ? '+' : ''}{stats.roi.toFixed(1)}% ROI
+                      </div>
+                    </div>
+                  </div>
 
-            <div className="glass-panel" style={{ background: 'linear-gradient(135deg, #111115, #161622)', borderLeft: '4px solid #FFD700', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Taxa de Acerto</div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff', marginTop: '4px' }}>
-                {stats.hitRate.toFixed(1)}%
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#555', marginTop: '4px' }}>{stats.greens} G / {stats.reds} R / {stats.pending} P</div>
-            </div>
+                  {/* 2. Volume Apostado */}
+                  <div style={{ 
+                    width: '160px', 
+                    height: '160px', 
+                    borderRadius: '50%', 
+                    background: `conic-gradient(#00d2ff ${settledPct}%, #27272a ${settledPct}%)`,
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                  }}>
+                    <div style={{
+                      width: '152px',
+                      height: '152px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #111115, #161622)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      padding: '12px',
+                      boxSizing: 'border-box'
+                    }}>
+                      <div className="kpi-title" style={{ fontSize: '0.65rem', marginBottom: '4px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Volume Apostado</div>
+                      <div className="kpi-value" style={{ fontSize: '1.15rem', color: '#fff', margin: '4px 0', wordBreak: 'break-word', fontWeight: 800 }}>
+                        R$ {stats.totalInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </div>
+                      <div className="kpi-subtext" style={{ fontSize: '0.62rem', lineHeight: '1.2', color: '#555' }}>
+                        {stats.pendingInvested > 0 
+                          ? `R$ ${stats.pendingInvested.toFixed(0)} pend.`
+                          : 'Zero pendentes'
+                        }
+                      </div>
+                    </div>
+                  </div>
 
-            <div className="glass-panel" style={{ background: 'linear-gradient(135deg, #111115, #161622)', borderLeft: '4px solid #b339ff', padding: '16px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-              <div style={{ fontSize: '0.75rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Total de Entradas</div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: '#fff', marginTop: '4px' }}>
-                {stats.totalBets}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: '#555', marginTop: '4px' }}>Apostas cadastradas</div>
-            </div>
+                  {/* 3. Taxa de Acerto */}
+                  <div style={{ 
+                    width: '160px', 
+                    height: '160px', 
+                    borderRadius: '50%', 
+                    background: `conic-gradient(var(--brand-neon) ${hitRatePct}%, #27272a ${hitRatePct}%)`,
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                  }}>
+                    <div style={{
+                      width: '152px',
+                      height: '152px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #111115, #161622)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      padding: '12px',
+                      boxSizing: 'border-box'
+                    }}>
+                      <div className="kpi-title" style={{ fontSize: '0.65rem', marginBottom: '4px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Taxa de Acerto</div>
+                      <div className="kpi-value" style={{ fontSize: '1.4rem', color: '#fff', margin: '4px 0', fontWeight: 800 }}>
+                        {stats.hitRate.toFixed(1)}%
+                      </div>
+                      <div className="kpi-subtext" style={{ fontSize: '0.62rem', lineHeight: '1.2', color: '#555' }}>
+                        {stats.greens}G / {stats.reds}R / {stats.pending}P
+                      </div>
+                    </div>
+                  </div>
 
-          </div>
+                  {/* 4. Total de Entradas */}
+                  <div style={{ 
+                    width: '160px', 
+                    height: '160px', 
+                    borderRadius: '50%', 
+                    background: totalResolved > 0 ? `conic-gradient(#4CAF50 ${greenPct}%, #ff4d4d ${greenPct}%)` : '#27272a',
+                    display: 'flex', 
+                    alignItems: 'center', 
+                    justifyContent: 'center',
+                    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.4)'
+                  }}>
+                    <div style={{
+                      width: '152px',
+                      height: '152px',
+                      borderRadius: '50%',
+                      background: 'linear-gradient(135deg, #111115, #161622)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      textAlign: 'center',
+                      padding: '12px',
+                      boxSizing: 'border-box'
+                    }}>
+                      <div className="kpi-title" style={{ fontSize: '0.65rem', marginBottom: '4px', color: '#888', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Total de Entradas</div>
+                      <div className="kpi-value" style={{ fontSize: '1.4rem', color: '#fff', margin: '4px 0', fontWeight: 800 }}>
+                        {stats.totalBets}
+                      </div>
+                      <div className="kpi-subtext" style={{ fontSize: '0.62rem', lineHeight: '1.2', color: '#555' }}>
+                        Apostas cadastradas
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </>
+            );
+          })()}
 
           {/* CHARTS */}
           <div className="backtest-charts-grid">
@@ -1520,8 +1600,6 @@ export default function RelatorioApostasPage() {
               </table>
             </div>
           </div>
-            </>
-          )}
         </>
       )}
 

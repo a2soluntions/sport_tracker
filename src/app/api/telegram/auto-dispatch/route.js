@@ -116,11 +116,31 @@ async function handleDispatch(request) {
             const fixturesData = await resFixtures.json();
             const allFixtures = fixturesData.fixtures || [];
 
-            // Filter fixtures by selected leagues and today's dayCategory
-            const todayGames = allFixtures.filter(g => 
-              g.dayCategory === 'HOJE' && 
-              schedLeagues.includes(String(g.sourceLeagueId || ''))
-            );
+            // Filter fixtures by selected leagues and today's dayCategory, only before the match starts (not finished, not live, and scheduled time is in the future)
+            const todayGames = allFixtures.filter(g => {
+              if (g.dayCategory !== 'HOJE') return false;
+              if (!schedLeagues.includes(String(g.sourceLeagueId || ''))) return false;
+              if (g.isFinished || g.isLive) return false;
+
+              try {
+                if (g.date && g.date.includes(' • ')) {
+                  const parts = g.date.split(' • ');
+                  const timePart = parts[parts.length - 1]; // "HH:MM"
+                  if (timePart && timePart.includes(':')) {
+                    const matchTime = new Date(`${g.rawDate}T${timePart.trim()}:00-03:00`);
+                    const now = new Date();
+                    if (matchTime.getTime() <= now.getTime()) {
+                      // Match has already started or finished
+                      return false;
+                    }
+                  }
+                }
+              } catch (err) {
+                console.warn('[Auto-Dispatch] Error checking match time:', err);
+              }
+
+              return true;
+            });
 
             checkedPalpitesCount += todayGames.length;
 

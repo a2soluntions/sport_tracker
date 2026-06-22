@@ -46,7 +46,6 @@ export async function GET(request) {
 
     const responseTeams = data.response || [];
     if (responseTeams.length < 2) {
-      // Retorna objeto vazio ou erro apropriado para o client lidar
       return NextResponse.json({ error: 'Estatísticas não disponíveis para esta partida ainda', empty: true }, { status: 200 });
     }
 
@@ -63,13 +62,75 @@ export async function GET(request) {
         yellowCards: getVal('Yellow Cards'),
         redCards: getVal('Red Cards'),
         shotsOnGoal: getVal('Shots on Goal'),
-        ballPossession: parseInt(String(getVal('Ball Possession')).replace('%', '')) || 50
+        ballPossession: parseInt(String(getVal('Ball Possession')).replace('%', '')) || 50,
+        goalkeeperSaves: getVal('Goalkeeper Saves')
       };
     };
 
+    const teamHomeStats = formatStats(responseTeams[0]);
+    const teamAwayStats = formatStats(responseTeams[1]);
+
+    // Fetch players in parallel to get names of goalkeepers and shots on goal
+    let goalkeepers = { 
+      home: { name: 'Goleiro', saves: teamHomeStats.goalkeeperSaves }, 
+      away: { name: 'Goleiro', saves: teamAwayStats.goalkeeperSaves } 
+    };
+    let topShooter = { name: 'Nenhum', team: '', shotsOnGoal: 0 };
+
+    try {
+      const playersUrl = `${API_HOST}/fixtures/players?fixture=${fixtureId}`;
+      const playersRes = await fetch(playersUrl, {
+        headers: {
+          'x-apisports-key': API_KEY,
+          'x-apisports-host': 'v3.football.api-sports.io'
+        },
+        next: { revalidate: 60 }
+      });
+      if (playersRes.ok) {
+        const playersData = await playersRes.json();
+        const teams = playersData.response || [];
+        
+        let maxShotsOnGoal = 0;
+        const homeTeamId = responseTeams[0]?.team?.id;
+        
+        for (const t of teams) {
+          const isHome = t.team?.id === homeTeamId;
+          const teamName = t.team?.name || '';
+          
+          for (const p of (t.players || [])) {
+            const playerName = p.player?.name || '';
+            const position = p.statistics?.[0]?.games?.position || '';
+            const saves = p.statistics?.[0]?.goals?.saves || 0;
+            const shotsOn = p.statistics?.[0]?.shots?.on || 0;
+            
+            if (position.toLowerCase().includes('goalkeeper') || position === 'G' || position === 'GK') {
+              if (isHome) {
+                goalkeepers.home = { name: playerName, saves: saves || teamHomeStats.goalkeeperSaves };
+              } else {
+                goalkeepers.away = { name: playerName, saves: saves || teamAwayStats.goalkeeperSaves };
+              }
+            }
+            
+            if (shotsOn > maxShotsOnGoal && shotsOn > 0) {
+              maxShotsOnGoal = shotsOn;
+              topShooter = {
+                name: playerName,
+                team: teamName,
+                shotsOnGoal: shotsOn
+              };
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn(`[API-Sports Players] Erro ao processar jogadores para fixture ${fixtureId}:`, err);
+    }
+
     const formattedData = {
-      home: formatStats(responseTeams[0]),
-      away: formatStats(responseTeams[1]),
+      home: teamHomeStats,
+      away: teamAwayStats,
+      goalkeepers,
+      topShooter,
       timestamp: now
     };
 

@@ -311,6 +311,7 @@ export default function LandingPage() {
         </div>
         
         <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
+          <Link href="/jogo-responsavel" style={{ color: '#a1a1aa', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 500, transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#fff'} onMouseLeave={(e) => e.target.style.color = '#a1a1aa'}>Jogo Responsável</Link>
           <Link href="/faq" style={{ color: '#a1a1aa', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 500, transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#fff'} onMouseLeave={(e) => e.target.style.color = '#a1a1aa'}>FAQ</Link>
           <Link href="/quem-somos" style={{ color: '#a1a1aa', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 500, transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#fff'} onMouseLeave={(e) => e.target.style.color = '#a1a1aa'}>Quem Somos</Link>
           <Link href="/login" style={{

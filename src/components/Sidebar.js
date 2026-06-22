@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabaseClient';
-import { Activity, TrendingUp, Settings, Bell, Calculator, Zap, Trophy, PiggyBank, LogOut, ArrowUpCircle, Info, HelpCircle, ShieldCheck, BookOpen } from 'lucide-react';
+import { Activity, TrendingUp, Settings, Bell, Calculator, Zap, Trophy, PiggyBank, LogOut, ArrowUpCircle, Info, HelpCircle, ShieldCheck, BookOpen, HeartHandshake } from 'lucide-react';
 import styles from './Sidebar.module.css';
 
 export default function Sidebar() {
@@ -227,8 +227,12 @@ export default function Sidebar() {
             <span>Alertas +EV</span>
           </Link>
           <Link href="/calculator" className={`${styles.navItem} ${pathname === '/calculator' ? styles.navItemActive : ''}`}>
-            <Calculator size={20} className={styles.navIcon} /> 
-            <span>Análise</span>
+            <img 
+              src="/a2logo.jpg" 
+              alt="" 
+              style={{ width: '20px', height: '20px', borderRadius: '4px', objectFit: 'cover', marginRight: '12px' }} 
+            />
+            <span>A2score</span>
           </Link>
           <Link href="/backtest" className={`${styles.navItem} ${pathname === '/backtest' ? styles.navItemActive : ''}`}>
             <TrendingUp size={20} className={styles.navIcon} /> 
@@ -263,6 +267,10 @@ export default function Sidebar() {
           <Link href="/tutorial" className={`${styles.navItem} ${pathname === '/tutorial' ? styles.navItemActive : ''}`}>
             <BookOpen size={20} className={styles.navIcon} /> 
             <span>Tutorial</span>
+          </Link>
+          <Link href="/jogo-responsavel" className={`${styles.navItem} ${pathname === '/jogo-responsavel' ? styles.navItemActive : ''}`}>
+            <HeartHandshake size={20} className={styles.navIcon} /> 
+            <span>Jogo Responsável</span>
           </Link>
           <Link href="/faq" className={`${styles.navItem} ${pathname === '/faq' ? styles.navItemActive : ''}`}>
             <HelpCircle size={20} className={styles.navIcon} /> 
@@ -394,8 +402,12 @@ export default function Sidebar() {
           <span>Alertas</span>
         </Link>
         <Link href="/calculator" className={`${styles.bottomNavItem} ${pathname === '/calculator' ? styles.bottomNavItemActive : ''}`}>
-          <Calculator size={18} className={styles.bottomNavIcon} />
-          <span>Análise</span>
+          <img 
+            src="/a2logo.jpg" 
+            alt="" 
+            style={{ width: '18px', height: '18px', borderRadius: '4px', objectFit: 'cover', marginBottom: '4px' }} 
+          />
+          <span>A2score</span>
         </Link>
         <Link href="/palpites" className={`${styles.bottomNavItem} ${pathname === '/palpites' ? styles.bottomNavItemActive : ''}`}>
           <Trophy size={18} className={styles.bottomNavIcon} />

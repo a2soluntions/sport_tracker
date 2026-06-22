@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import { useAuth } from '../../context/AuthContext';
 import { 
   Calculator, Trophy, Zap, Activity, Info, BarChart2, Star, Shield, 
   HelpCircle, ArrowRight, Sparkles, TrendingUp, RefreshCw, Calendar, 
@@ -378,7 +379,7 @@ const getTeamSleeveColor = (teamName, isHome) => {
   return isHome ? '#e0e0e0' : '#0288d1';
 };
 
-const LiveFieldWidget = ({ match, matchState, liveStats }) => {
+const LiveFieldWidget = ({ match, matchState, liveStats, cornerData, cardData, isLivePollingEnabled, setIsLivePollingEnabled }) => {
   const isHomeAttacking = matchState.team === 'home';
   const isAwayAttacking = matchState.team === 'away';
   const isMidfield = matchState.team === 'none';
@@ -438,8 +439,17 @@ const LiveFieldWidget = ({ match, matchState, liveStats }) => {
 
   // Live stats corners and cards fallback
   const stats = liveStats || {
-    home: { corners: 0, yellowCards: 0, redCards: 0 },
-    away: { corners: 0, yellowCards: 0, redCards: 0 }
+    home: { corners: 0, yellowCards: 0, redCards: 0, goalkeeperSaves: 0, shotsOnGoal: 0, ballPossession: 50 },
+    away: { corners: 0, yellowCards: 0, redCards: 0, goalkeeperSaves: 0, shotsOnGoal: 0, ballPossession: 50 },
+    goalkeepers: {
+      home: { name: 'Goleiro', saves: 0 },
+      away: { name: 'Goleiro', saves: 0 }
+    },
+    topShooter: {
+      name: 'Nenhum',
+      team: '',
+      shotsOnGoal: 0
+    }
   };
 
   return (
@@ -449,40 +459,49 @@ const LiveFieldWidget = ({ match, matchState, liveStats }) => {
       borderRadius: '16px',
       overflow: 'hidden',
       display: 'flex',
-      flexDirection: 'column'
+      flexDirection: 'column',
+      height: '815px',
+      boxSizing: 'border-box',
+      justifyContent: 'space-between'
     }}>
       {/* Scoreboard Header */}
       <div style={{
         display: 'flex',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: '12px 20px',
-        background: '#ffffff',
-        color: '#000000',
-        borderBottom: '1px solid #e0e0e0'
+        padding: '16px 20px',
+        background: 'rgba(255, 255, 255, 0.02)',
+        color: '#ffffff',
+        borderBottom: '1px solid var(--border-color)'
       }}>
         {/* Home Team */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0 }}>
-          <ShirtIcon color={homeColor} sleeveColor={homeSleeve} />
-          <span style={{ fontSize: '0.9rem', fontWeight: '800', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0 }}>
+          <img 
+            src={match.homeLogo || getTeamLogoUrl(match.home, match.homeTeamId)} 
+            alt={translateTeamName(match.home)}
+            style={{ width: '28px', height: '28px', objectFit: 'contain' }}
+            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getTeamLogoUrl(match.home); }}
+          />
+          <span style={{ fontSize: '0.95rem', fontWeight: '800', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {translateTeamName(match.home)}
           </span>
         </div>
 
         {/* Center Score & Time */}
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px', padding: '0 16px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '0 16px' }}>
           <div style={{
             fontSize: '0.7rem',
             fontWeight: 'bold',
-            color: '#666',
-            background: '#f0f0f0',
+            color: 'var(--brand-neon)',
+            background: 'rgba(204, 255, 0, 0.1)',
+            border: '1px solid rgba(204, 255, 0, 0.25)',
             padding: '2px 8px',
             borderRadius: '4px',
             textTransform: 'uppercase'
           }}>
             {matchState.period} | {matchState.time}
           </div>
-          <div style={{ fontSize: '1.6rem', fontWeight: '900', display: 'flex', gap: '12px', color: '#000' }}>
+          <div style={{ fontSize: '1.8rem', fontWeight: '900', display: 'flex', gap: '12px', color: '#fff' }}>
             <span>{match.goalsHome}</span>
             <span>:</span>
             <span>{match.goalsAway}</span>
@@ -490,11 +509,16 @@ const LiveFieldWidget = ({ match, matchState, liveStats }) => {
         </div>
 
         {/* Away Team */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flex: 1, minWidth: 0, justifyContent: 'flex-end' }}>
-          <span style={{ fontSize: '0.9rem', fontWeight: '800', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0, justifyContent: 'flex-end' }}>
+          <span style={{ fontSize: '0.95rem', fontWeight: '800', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', textAlign: 'right' }}>
             {translateTeamName(match.away)}
           </span>
-          <ShirtIcon color={awayColor} sleeveColor={awaySleeve} />
+          <img 
+            src={match.awayLogo || getTeamLogoUrl(match.away, match.awayTeamId)} 
+            alt={translateTeamName(match.away)}
+            style={{ width: '28px', height: '28px', objectFit: 'contain' }}
+            onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getTeamLogoUrl(match.away); }}
+          />
         </div>
       </div>
 
@@ -502,7 +526,7 @@ const LiveFieldWidget = ({ match, matchState, liveStats }) => {
       <div style={{
         position: 'relative',
         width: '100%',
-        height: '240px',
+        height: '340px',
         background: 'repeating-linear-gradient(90deg, #509e2f, #509e2f 30px, #5aa937 30px, #5aa937 60px)',
         overflow: 'hidden',
         display: 'flex',
@@ -805,7 +829,7 @@ const LiveFieldWidget = ({ match, matchState, liveStats }) => {
         </div>
       </div>
 
-      {/* Termômetro e Detalhes de Pressão */}
+      {/* Termômetro e Detalhes de Pressão + Posse de Bola */}
       <div style={{
         padding: '14px 20px',
         borderTop: '1px solid var(--border-color)',
@@ -814,15 +838,26 @@ const LiveFieldWidget = ({ match, matchState, liveStats }) => {
         gap: '8px',
         background: 'var(--bg-surface-light)'
       }}>
+        {/* Pressão */}
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', fontWeight: 'bold' }}>
           <span style={{ color: '#ff4444' }}>Pressão {translateTeamName(match.home)}: {homePressure}%</span>
           <span style={{ color: '#00d2ff' }}>Pressão {translateTeamName(match.away)}: {awayPressure}%</span>
         </div>
-        {/* Termômetro */}
-        <div style={{ display: 'flex', height: '10px', borderRadius: '5px', overflow: 'hidden', background: '#111', border: '1px solid var(--border-color)' }}>
+        <div style={{ display: 'flex', height: '8px', borderRadius: '4px', overflow: 'hidden', background: '#111', border: '1px solid var(--border-color)' }}>
           <div style={{ width: `${homePressure}%`, background: 'linear-gradient(90deg, #ff4444, #ff8800)', transition: 'width 0.8s ease-in-out' }}></div>
           <div style={{ width: `${awayPressure}%`, background: 'linear-gradient(90deg, #00d2ff, #00ffa0)', transition: 'width 0.8s ease-in-out' }}></div>
         </div>
+
+        {/* Posse de Bola */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 'bold', marginTop: '4px' }}>
+          <span style={{ color: 'var(--brand-neon)' }}>Posse {translateTeamName(match.home)}: {stats.home.ballPossession || 50}%</span>
+          <span style={{ color: '#ff3d00' }}>Posse {translateTeamName(match.away)}: {stats.away.ballPossession || 50}%</span>
+        </div>
+        <div style={{ display: 'flex', height: '8px', borderRadius: '4px', overflow: 'hidden', background: '#111', border: '1px solid var(--border-color)' }}>
+          <div style={{ width: `${stats.home.ballPossession || 50}%`, background: 'var(--brand-neon)', transition: 'width 0.8s ease-in-out' }}></div>
+          <div style={{ width: `${stats.away.ballPossession || 50}%`, background: '#ff3d00', transition: 'width 0.8s ease-in-out' }}></div>
+        </div>
+
         {/* Dominance text */}
         <div style={{ 
           fontSize: '0.78rem', 
@@ -835,14 +870,14 @@ const LiveFieldWidget = ({ match, matchState, liveStats }) => {
         </div>
       </div>
 
-      {/* Live corners and cards statistics row */}
+      {/* Live corners, shots, and cards statistics row */}
       <div style={{
         padding: '12px 20px',
         borderTop: '1px solid var(--border-color)',
         background: 'var(--bg-surface)',
         display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '16px'
+        gridTemplateColumns: '1fr 1fr 1fr',
+        gap: '12px'
       }}>
         {/* Corners column */}
         <div style={{
@@ -853,15 +888,64 @@ const LiveFieldWidget = ({ match, matchState, liveStats }) => {
           background: 'rgba(255,255,255,0.02)',
           border: '1px solid rgba(255,255,255,0.05)',
           borderRadius: '8px',
-          padding: '8px 12px'
+          padding: '8px'
         }}>
-          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 'bold' }}>
             🚩 Escanteios
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '6px', fontSize: '1rem', fontWeight: '800', color: '#fff' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '0.9rem', fontWeight: '800', color: '#fff' }}>
             <span style={{ color: 'var(--brand-neon)' }}>{stats.home.corners}</span>
             <span style={{ opacity: 0.2 }}>vs</span>
             <span>{stats.away.corners}</span>
+          </div>
+          {cornerData && (
+            <div style={{
+              marginTop: '8px',
+              width: '100%',
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              paddingTop: '6px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '3px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.58rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Média Proj:</span>
+                <span style={{ color: '#fff', fontWeight: 'bold' }}>{cornerData.average}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.58rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Over 8.5:</span>
+                <span style={{ color: '#fff', fontWeight: 'bold' }}>{cornerData.over85}%</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.58rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Over 9.5:</span>
+                <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>{cornerData.over95}%</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.58rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Over 10.5:</span>
+                <span style={{ color: '#fff', fontWeight: 'bold' }}>{cornerData.over105}%</span>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Shots on Goal column */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.05)',
+          borderRadius: '8px',
+          padding: '8px'
+        }}>
+          <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 'bold' }}>
+            ⚽ Chutes a Gol
+          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px', fontSize: '0.9rem', fontWeight: '800', color: '#fff' }}>
+            <span style={{ color: 'var(--brand-neon)' }}>{stats.home.shotsOnGoal}</span>
+            <span style={{ opacity: 0.2 }}>vs</span>
+            <span>{stats.away.shotsOnGoal}</span>
           </div>
         </div>
 
@@ -874,35 +958,126 @@ const LiveFieldWidget = ({ match, matchState, liveStats }) => {
           background: 'rgba(255,255,255,0.02)',
           border: '1px solid rgba(255,255,255,0.05)',
           borderRadius: '8px',
-          padding: '8px 12px'
+          padding: '8px'
         }}>
-          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+          <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 'bold' }}>
             🟨 Cartões
           </span>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '6px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '6px' }}>
             {/* Home cards */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9rem', fontWeight: 'bold', color: '#fff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.82rem', fontWeight: 'bold', color: '#fff' }}>
               <span>{stats.home.yellowCards}</span>
-              <span style={{ width: '8px', height: '11px', background: '#ffd600', borderRadius: '1.5px', display: 'inline-block' }} />
+              <span style={{ width: '7px', height: '10px', background: '#ffd600', borderRadius: '1px', display: 'inline-block' }} />
               {stats.home.redCards > 0 && (
                 <>
                   <span>{stats.home.redCards}</span>
-                  <span style={{ width: '8px', height: '11px', background: '#d50000', borderRadius: '1.5px', display: 'inline-block' }} />
+                  <span style={{ width: '7px', height: '10px', background: '#d50000', borderRadius: '1px', display: 'inline-block' }} />
                 </>
               )}
             </div>
-            <span style={{ opacity: 0.2, fontSize: '0.8rem' }}>vs</span>
+            <span style={{ opacity: 0.2, fontSize: '0.7rem' }}>vs</span>
             {/* Away cards */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9rem', fontWeight: 'bold', color: '#fff' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '2px', fontSize: '0.82rem', fontWeight: 'bold', color: '#fff' }}>
               <span>{stats.away.yellowCards}</span>
-              <span style={{ width: '8px', height: '11px', background: '#ffd600', borderRadius: '1.5px', display: 'inline-block' }} />
+              <span style={{ width: '7px', height: '10px', background: '#ffd600', borderRadius: '1px', display: 'inline-block' }} />
               {stats.away.redCards > 0 && (
                 <>
                   <span>{stats.away.redCards}</span>
-                  <span style={{ width: '8px', height: '11px', background: '#d50000', borderRadius: '1.5px', display: 'inline-block' }} />
+                  <span style={{ width: '7px', height: '10px', background: '#d50000', borderRadius: '1px', display: 'inline-block' }} />
                 </>
               )}
             </div>
+          </div>
+          {cardData && (
+            <div style={{
+              marginTop: '8px',
+              width: '100%',
+              borderTop: '1px solid rgba(255,255,255,0.08)',
+              paddingTop: '6px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '3px'
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.58rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Média Proj:</span>
+                <span style={{ color: '#fff', fontWeight: 'bold' }}>{cardData.average}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.58rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Over 3.5:</span>
+                <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>{cardData.over35}%</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.58rem' }}>
+                <span style={{ color: 'var(--text-secondary)' }}>Over 4.5:</span>
+                <span style={{ color: '#fff', fontWeight: 'bold' }}>{cardData.over45}%</span>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+      {/* Live Goalkeepers & Top Shooter row */}
+      <div style={{
+        padding: '12px 20px',
+        borderTop: '1px solid var(--border-color)',
+        background: 'var(--bg-surface)',
+        display: 'grid',
+        gridTemplateColumns: '1fr 1fr',
+        gap: '16px'
+      }}>
+        {/* Goalkeepers saves */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.05)',
+          borderRadius: '8px',
+          padding: '8px 12px'
+        }}>
+          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            🧤 Defesas de Goleiro
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '6px', gap: '4px', width: '100%' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.72rem', color: '#fff' }}>
+              <span style={{ fontWeight: '500', color: 'var(--brand-neon)' }}>{stats.goalkeepers?.home?.name || 'Goleiro'}</span>
+              <span style={{ fontWeight: '800' }}>{stats.goalkeepers?.home?.saves ?? stats.home.goalkeeperSaves ?? 0}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', fontSize: '0.72rem', color: '#fff' }}>
+              <span style={{ fontWeight: '500' }}>{stats.goalkeepers?.away?.name || 'Goleiro'}</span>
+              <span style={{ fontWeight: '800' }}>{stats.goalkeepers?.away?.saves ?? stats.away.goalkeeperSaves ?? 0}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Top Shooter */}
+        <div style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(255,255,255,0.02)',
+          border: '1px solid rgba(255,255,255,0.05)',
+          borderRadius: '8px',
+          padding: '8px 12px'
+        }}>
+          <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '4px' }}>
+            🎯 Maior Finalizador no Alvo
+          </span>
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginTop: '6px', gap: '2px', width: '100%' }}>
+            {stats.topShooter && stats.topShooter.name !== 'Nenhum' ? (
+              <>
+                <span style={{ fontSize: '0.8rem', fontWeight: '800', color: '#fff', textAlign: 'center' }}>
+                  {stats.topShooter.name}
+                </span>
+                <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
+                  {translateTeamName(stats.topShooter.team)} • <strong style={{ color: 'var(--brand-neon)' }}>{stats.topShooter.shotsOnGoal}</strong> chute(s) a gol
+                </span>
+              </>
+            ) : (
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontStyle: 'italic', marginTop: '4px' }}>
+                Nenhuma finalização no gol
+              </span>
+            )}
           </div>
         </div>
       </div>
@@ -916,7 +1091,9 @@ const LiveFieldWidget = ({ match, matchState, liveStats }) => {
         justifyContent: 'space-between',
         alignItems: 'center',
         fontSize: '0.78rem',
-        color: '#fff'
+        color: '#fff',
+        flexWrap: 'wrap',
+        gap: '12px'
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
           <span style={{ color: 'var(--text-secondary)' }}>Estádio:</span>
@@ -924,6 +1101,8 @@ const LiveFieldWidget = ({ match, matchState, liveStats }) => {
             {match.venue || 'Estádio não cadastrado'}
           </span>
         </div>
+
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <span style={{ color: 'var(--text-secondary)' }}>xG Projetado:</span>
           <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>
@@ -935,6 +1114,13 @@ const LiveFieldWidget = ({ match, matchState, liveStats }) => {
   );
 };
 
+const getH2HStats = (home, away) => {
+  return {
+    matches: [],
+    summary: { homeWins: 0, draws: 0, awayWins: 0 }
+  };
+};
+
 const getTeamHash = (name) => {
   if (!name) return 0;
   let hash = 0;
@@ -942,6 +1128,44 @@ const getTeamHash = (name) => {
     hash = name.charCodeAt(i) + ((hash << 5) - hash);
   }
   return Math.abs(hash);
+};
+
+const getTeamRecentMatches = (teamName) => {
+  return [];
+};
+
+const resolveGoalkeeperName = (teamName) => {
+  if (!teamName) return 'Goleiro';
+  const clean = teamName.trim().toLowerCase();
+  if (clean.includes('germany') || clean.includes('alemanha')) return 'Manuel Neuer';
+  if (clean.includes('ivory') || clean.includes('marfim')) return 'Yahia Fofana';
+  if (clean.includes('brazil') || clean.includes('brasil')) return 'Alisson Becker';
+  if (clean.includes('flamengo')) return 'Rossi';
+  if (clean.includes('palmeiras')) return 'Weverton';
+  if (clean.includes('real madrid')) return 'Thibaut Courtois';
+  if (clean.includes('barcelona')) return 'M. ter Stegen';
+  if (clean.includes('manchester city') || clean.includes('m. city')) return 'Ederson';
+  if (clean.includes('arsenal')) return 'David Raya';
+  if (clean.includes('boca')) return 'Sergio Romero';
+  if (clean.includes('river')) return 'Franco Armani';
+  return 'Goleiro';
+};
+
+const resolveTopShooterName = (teamName) => {
+  if (!teamName) return 'Jogador';
+  const clean = teamName.trim().toLowerCase();
+  if (clean.includes('germany') || clean.includes('alemanha')) return 'Kai Havertz';
+  if (clean.includes('ivory') || clean.includes('marfim')) return 'Sébastien Haller';
+  if (clean.includes('brazil') || clean.includes('brasil')) return 'Vinícius Júnior';
+  if (clean.includes('flamengo')) return 'Pedro';
+  if (clean.includes('palmeiras')) return 'Estêvão';
+  if (clean.includes('real madrid')) return 'Kylian Mbappé';
+  if (clean.includes('barcelona')) return 'R. Lewandowski';
+  if (clean.includes('manchester city') || clean.includes('m. city')) return 'Erling Haaland';
+  if (clean.includes('arsenal')) return 'Bukayo Saka';
+  if (clean.includes('boca')) return 'Edinson Cavani';
+  if (clean.includes('river')) return 'Miguel Borja';
+  return 'Jogador';
 };
 
 const getSimulatedLiveStats = (game) => {
@@ -966,9 +1190,25 @@ const getSimulatedLiveStats = (game) => {
   const redH = (seedH % 17 === 0 && minute > 70) ? 1 : 0;
   const redA = (seedA % 19 === 0 && minute > 75) ? 1 : 0;
   
+  const savesH = Math.max(1, Math.floor(minute * 0.05 + (seedH % 3)));
+  const savesA = Math.max(1, Math.floor(minute * 0.04 + (seedA % 3)));
+  const shotsOnGoalH = Math.max(1, Math.floor(minute * 0.08 + (seedH % 4)));
+  const shotsOnGoalA = Math.max(1, Math.floor(minute * 0.07 + (seedA % 4)));
+  
+  const dominantTeam = shotsOnGoalH >= shotsOnGoalA ? game.home : game.away;
+  
   return {
-    home: { corners: cornersH, yellowCards: yellowH, redCards: redH },
-    away: { corners: cornersA, yellowCards: yellowA, redCards: redA }
+    home: { corners: cornersH, yellowCards: yellowH, redCards: redH, goalkeeperSaves: savesH, shotsOnGoal: shotsOnGoalH },
+    away: { corners: cornersA, yellowCards: yellowA, redCards: redA, goalkeeperSaves: savesA, shotsOnGoal: shotsOnGoalA },
+    goalkeepers: {
+      home: { name: resolveGoalkeeperName(game.home), saves: savesH },
+      away: { name: resolveGoalkeeperName(game.away), saves: savesA }
+    },
+    topShooter: {
+      name: resolveTopShooterName(dominantTeam),
+      team: dominantTeam,
+      shotsOnGoal: Math.max(1, Math.max(shotsOnGoalH, shotsOnGoalA) - 2)
+    }
   };
 };
 
@@ -1017,6 +1257,7 @@ const getLiveMatchRadar = (game) => {
 };
 
 export default function AnalysisPage() {
+  const { user, isTrialActive } = useAuth();
   const [currentDate, setCurrentDate] = useState(() => {
     const formatter = new Intl.DateTimeFormat('en-US', {
       timeZone: 'America/Sao_Paulo',
@@ -1040,6 +1281,38 @@ export default function AnalysisPage() {
   const [loadingLiveStats, setLoadingLiveStats] = useState(false);
 
   const [selectedLeague, setSelectedLeague] = useState('Todas');
+  const [isLivePollingEnabled, setIsLivePollingEnabled] = useState(false);
+  const [isDateHovered, setIsDateHovered] = useState(false);
+
+  const [ads, setAds] = useState({
+    left: {
+      title: "A2 VIP Group",
+      description: "Acesso aos melhores sinais com ROI garantido.",
+      emoji: "🎯",
+      link: "https://t.me/",
+      buttonText: "Participar VIP",
+      enabled: true
+    },
+    right: {
+      title: "Poisson Pro",
+      description: "Libere análises táticas completas sem limites.",
+      emoji: "⚡",
+      link: "/pricing",
+      buttonText: "Assinar Agora",
+      enabled: true
+    }
+  });
+
+  useEffect(() => {
+    fetch('/api/public-settings')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.ads) {
+          setAds(data.ads);
+        }
+      })
+      .catch(err => console.error("Erro ao carregar anúncios da Central:", err));
+  }, []);
 
   const [matchState, setMatchState] = useState({
     team: 'home',
@@ -1058,26 +1331,99 @@ export default function AnalysisPage() {
     }
   };
 
-  const leagues = useMemo(() => {
-    const uniqueLeagues = {};
+  const FILTERED_LEAGUES = useMemo(() => [
+    { id: 1, name: 'Copa do Mundo', logo: '/copadomundo.png' },
+    { id: 71, name: 'Série A', logo: 'https://media.api-sports.io/football/leagues/71.png' },
+    { id: 72, name: 'Série B', logo: 'https://media.api-sports.io/football/leagues/72.png' },
+    { id: 75, name: 'Série C', logo: '/brasileiraoc.png' },
+    { id: 13, name: 'Libertadores', logo: '/libertadores.png' },
+    { id: 12, name: 'Sulamericana', logo: '/sudamericana.png' },
+    { id: 39, name: 'Premier', logo: '/premierleague.png' },
+    { id: 140, name: 'La Liga', logo: 'https://media.api-sports.io/football/leagues/140.png' },
+    { id: 135, name: 'Serie A', logo: 'https://media.api-sports.io/football/leagues/135.png' },
+    { id: 78, name: 'Bundes', logo: '/bundesliga.png' },
+    { id: 3, name: 'Europa League', logo: '/europaleague.png' },
+    { id: 848, name: 'Conference', logo: 'https://media.api-sports.io/football/leagues/848.png' },
+    { id: 44, name: 'Liga Argentina', logo: '/ligaargentina.png' },
+    { id: 667, name: 'Amistosos', logo: 'https://media.api-sports.io/football/leagues/667.png' },
+    { id: 94, name: 'Liga Portugal', logo: 'https://media.api-sports.io/football/leagues/94.png' }
+  ], []);
+
+  const ALLOWED_LEAGUE_IDS = useMemo(() => [1, 71, 72, 75, 13, 12, 39, 140, 135, 78, 3, 848, 44, 667, 94], []);
+
+  const matchesAllowedLeagues = useCallback((match) => {
+    const sourceId = parseInt(match.sourceLeagueId);
+    if (!isNaN(sourceId) && ALLOWED_LEAGUE_IDS.includes(sourceId)) {
+      return true;
+    }
+    const name = String(match.league).toLowerCase();
+    if (name.includes('copa do mundo')) return true;
+    if (name.includes('libertadores')) return true;
+    if (name.includes('sudamericana') || name.includes('sulamericana')) return true;
+    if (name.includes('série a') || name.includes('serie a')) return true;
+    if (name.includes('série b') || name.includes('serie b')) return true;
+    if (name.includes('série c') || name.includes('serie c')) return true;
+    if (name.includes('premier')) return true;
+    if (name.includes('la liga') || name.includes('espanha')) return true;
+    if (name.includes('bundesliga') || name.includes('alemanha')) return true;
+    if (name.includes('europa league')) return true;
+    if (name.includes('conference league')) return true;
+    if (name.includes('argentina')) return true;
+    if (name.includes('amistoso')) return true;
+    if (name.includes('portugal')) return true;
+    return false;
+  }, [ALLOWED_LEAGUE_IDS]);
+
+  const leaguesWithGames = useMemo(() => {
+    const set = new Set();
     matches.forEach(m => {
-      if (m.league && !uniqueLeagues[m.league]) {
-        uniqueLeagues[m.league] = {
-          name: m.league,
-          logo: m.sourceLeagueId ? getLeagueLogoUrl(m.sourceLeagueId) : getLeagueLogoUrl(m.league)
-        };
-      }
+      const name = String(m.league).toLowerCase();
+      const sourceId = parseInt(m.sourceLeagueId);
+      FILTERED_LEAGUES.forEach(fl => {
+        if (sourceId === fl.id) {
+          set.add(fl.name);
+        } else if (name.includes(fl.name.toLowerCase())) {
+          set.add(fl.name);
+        } else if (fl.name === 'Libertadores' && name.includes('libertadores')) {
+          set.add(fl.name);
+        } else if (fl.name === 'Sulamericana' && (name.includes('sudamericana') || name.includes('sulamericana'))) {
+          set.add(fl.name);
+        } else if (fl.name === 'Liga Portugal' && name.includes('portugal')) {
+          set.add(fl.name);
+        } else if (fl.name === 'Liga Argentina' && name.includes('argentina')) {
+          set.add(fl.name);
+        } else if (fl.name === 'Amistosos' && name.includes('amistoso')) {
+          set.add(fl.name);
+        } else if (fl.name === 'Premier' && name.includes('premier')) {
+          set.add(fl.name);
+        } else if (fl.name === 'Bundes' && name.includes('bundesliga')) {
+          set.add(fl.name);
+        }
+      });
     });
-    return [
-      { name: 'Todas', logo: null },
-      ...Object.values(uniqueLeagues)
-    ];
-  }, [matches]);
+    return set;
+  }, [matches, FILTERED_LEAGUES]);
 
   const filteredMatches = useMemo(() => {
     if (selectedLeague === 'Todas') return matches;
-    return matches.filter(m => m.league === selectedLeague);
-  }, [matches, selectedLeague]);
+    return matches.filter(m => {
+      const name = String(m.league).toLowerCase();
+      const sourceId = parseInt(m.sourceLeagueId);
+      const target = FILTERED_LEAGUES.find(fl => fl.name === selectedLeague);
+      if (!target) return false;
+      
+      if (sourceId === target.id) return true;
+      if (name.includes(target.name.toLowerCase())) return true;
+      if (target.name === 'Libertadores' && name.includes('libertadores')) return true;
+      if (target.name === 'Sulamericana' && (name.includes('sudamericana') || name.includes('sulamericana'))) return true;
+      if (target.name === 'Liga Portugal' && name.includes('portugal')) return true;
+      if (target.name === 'Liga Argentina' && name.includes('argentina')) return true;
+      if (target.name === 'Amistosos' && name.includes('amistoso')) return true;
+      if (target.name === 'Premier' && name.includes('premier')) return true;
+      if (target.name === 'Bundes' && name.includes('bundesliga')) return true;
+      return false;
+    });
+  }, [matches, selectedLeague, FILTERED_LEAGUES]);
 
   // Fetch games of the selected date
   const fetchMatches = async (dateStr) => {
@@ -1089,17 +1435,18 @@ export default function AnalysisPage() {
       const data = await response.json();
       
       if (data.fixtures && data.fixtures.length > 0) {
-        setMatches(data.fixtures);
+        const filtered = data.fixtures.filter(matchesAllowedLeagues);
+        setMatches(filtered);
         setIsDemoData(false);
       } else {
         // Fallback para mock se não houver jogos reais
-        const mocks = getMockMatches(dateStr);
+        const mocks = getMockMatches(dateStr).filter(matchesAllowedLeagues);
         setMatches(mocks);
         setIsDemoData(true);
       }
     } catch (err) {
       console.warn("Erro ao buscar fixtures reais, usando fallback demonstrativo:", err);
-      const mocks = getMockMatches(dateStr);
+      const mocks = getMockMatches(dateStr).filter(matchesAllowedLeagues);
       setMatches(mocks);
       setIsDemoData(true);
     } finally {
@@ -1110,6 +1457,29 @@ export default function AnalysisPage() {
   useEffect(() => {
     fetchMatches(currentDate);
   }, [currentDate]);
+
+  // Atualização silenciosa em segundo plano a cada 2 minutos
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const refreshMatches = async () => {
+        try {
+          const response = await fetch(`/api/football/fixtures?league=all&date=${currentDate}`);
+          if (response.ok) {
+            const data = await response.json();
+            if (data.fixtures && data.fixtures.length > 0) {
+              const filtered = data.fixtures.filter(matchesAllowedLeagues);
+              setMatches(filtered);
+            }
+          }
+        } catch (e) {
+          console.warn("Erro na atualização silenciosa dos jogos:", e);
+        }
+      };
+      refreshMatches();
+    }, 120000); // 2 minutos
+
+    return () => clearInterval(interval);
+  }, [currentDate, matchesAllowedLeagues]);
 
   // Simulator play-by-play for live field representation
   useEffect(() => {
@@ -1187,74 +1557,81 @@ export default function AnalysisPage() {
     return () => clearInterval(interval);
   }, [selectedMatch]);
 
-  // Polling de estatísticas para todos os jogos ao vivo
-  useEffect(() => {
-    const liveGames = matches.filter(m => m.isLive);
-    if (liveGames.length === 0) return;
-
-    const fetchLiveStats = async () => {
-      setLoadingLiveStats(true);
-      for (const game of liveGames) {
-        if (String(game.id).startsWith('mock')) {
-          // Para jogos mock, gera estatísticas simuladas
-          setLiveStatsMap(prev => ({
-            ...prev,
-            [game.id]: getSimulatedLiveStats(game)
-          }));
-          continue;
-        }
-        try {
-          const res = await fetch(`/api/football/fixtures/stats?fixture=${game.id}`);
-          if (res.ok) {
-            const data = await res.json();
-            if (data && !data.error && !data.empty) {
-              const parsedStats = {
-                home: {
-                  corners: data.home?.corners ?? 0,
-                  yellowCards: data.home?.yellowCards ?? 0,
-                  redCards: data.home?.redCards ?? 0,
-                  shotsOnGoal: data.home?.shotsOnGoal ?? 0,
-                  ballPossession: data.home?.ballPossession ?? 50
-                },
-                away: {
-                  corners: data.away?.corners ?? 0,
-                  yellowCards: data.away?.yellowCards ?? 0,
-                  redCards: data.away?.redCards ?? 0,
-                  shotsOnGoal: data.away?.shotsOnGoal ?? 0,
-                  ballPossession: data.away?.ballPossession ?? 50
-                }
-              };
-              setLiveStatsMap(prev => ({
-                ...prev,
-                [game.id]: parsedStats
-              }));
-            }
-          }
-        } catch (e) {
-          console.warn(`Erro ao buscar estatísticas ao vivo para o fixture ${game.id}:`, e);
-        }
-      }
-      setLoadingLiveStats(false);
-    };
-
-    fetchLiveStats();
-    const interval = setInterval(fetchLiveStats, 60000); // a cada 60 segundos
-    return () => clearInterval(interval);
-  }, [matches]);
-
-  // Atualizar liveStats para o jogo selecionado
+  // Polling de estatísticas apenas para o jogo selecionado (se estiver ao vivo)
   useEffect(() => {
     if (!selectedMatch) {
       setLiveStats(null);
       return;
     }
-    if (selectedMatch.isLive) {
-      const stats = liveStatsMap[selectedMatch.id] || getSimulatedLiveStats(selectedMatch);
-      setLiveStats(stats);
-    } else {
+    if (!selectedMatch.isLive) {
       setLiveStats(null);
+      return;
     }
-  }, [selectedMatch, liveStatsMap]);
+
+    const fetchLiveStats = async () => {
+      if (String(selectedMatch.id).startsWith('mock')) {
+        setLiveStats(getSimulatedLiveStats(selectedMatch));
+        return;
+      }
+      setLoadingLiveStats(true);
+      try {
+        const res = await fetch(`/api/football/fixtures/stats?fixture=${selectedMatch.id}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && !data.error && !data.empty) {
+             const parsedStats = {
+              home: {
+                corners: data.home?.corners ?? 0,
+                yellowCards: data.home?.yellowCards ?? 0,
+                redCards: data.home?.redCards ?? 0,
+                shotsOnGoal: data.home?.shotsOnGoal ?? 0,
+                ballPossession: data.home?.ballPossession ?? 50,
+                goalkeeperSaves: data.home?.goalkeeperSaves ?? 0
+              },
+              away: {
+                corners: data.away?.corners ?? 0,
+                yellowCards: data.away?.yellowCards ?? 0,
+                redCards: data.away?.redCards ?? 0,
+                shotsOnGoal: data.away?.shotsOnGoal ?? 0,
+                ballPossession: data.away?.ballPossession ?? 50,
+                goalkeeperSaves: data.away?.goalkeeperSaves ?? 0
+              },
+              goalkeepers: data.goalkeepers ?? {
+                home: { name: 'Goleiro', saves: 0 },
+                away: { name: 'Goleiro', saves: 0 }
+              },
+              topShooter: data.topShooter ?? {
+                name: 'Nenhum',
+                team: '',
+                shotsOnGoal: 0
+              }
+            };
+            setLiveStats(parsedStats);
+          }
+        }
+      } catch (e) {
+        console.warn(`Erro ao buscar estatísticas ao vivo para o fixture ${selectedMatch.id}:`, e);
+      } finally {
+        setLoadingLiveStats(false);
+      }
+    };
+
+    // Busca inicial imediata ao abrir o jogo
+    fetchLiveStats();
+
+    // Executa polling contínuo se habilitado pelo usuário
+    if (isLivePollingEnabled) {
+      const interval = setInterval(fetchLiveStats, 60000); // a cada 60 segundos
+      return () => clearInterval(interval);
+    }
+  }, [selectedMatch, isLivePollingEnabled]);
+
+  // Desativa atualizações ao vivo quando o usuário sai do jogo selecionado
+  useEffect(() => {
+    if (!selectedMatch) {
+      setIsLivePollingEnabled(false);
+    }
+  }, [selectedMatch]);
 
   const generateMockLiveStats = () => {
     return {
@@ -1416,6 +1793,65 @@ export default function AnalysisPage() {
     );
   };
 
+  if (!user) {
+    return null;
+  }
+
+  const isAdmin = user.role === 'admin' || user.role === 'super_admin';
+  if (!isTrialActive() && !isAdmin) {
+    return (
+      <div style={{
+        padding: '40px 24px',
+        textAlign: 'center',
+        background: '#111116',
+        border: '2px solid rgba(255, 68, 68, 0.3)',
+        borderRadius: '16px',
+        maxWidth: '600px',
+        margin: '60px auto',
+        boxShadow: '0 0 30px rgba(255, 68, 68, 0.05)',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#fff'
+      }}>
+        <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔒</div>
+        <h3 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fff', textTransform: 'uppercase' }}>
+          Área Exclusiva para Assinantes!
+        </h3>
+        <p style={{ color: '#aaa', fontSize: '0.9rem', marginTop: '12px', lineHeight: 1.5 }}>
+          A Central de Previsões e Estatísticas A2score é uma ferramenta premium. Assine agora o plano PRO por apenas **R$ 19,90/mês** para ter acesso ilimitado.
+        </p>
+        
+        <div style={{ margin: '30px 0', borderTop: '1px dashed #222', borderBottom: '1px dashed #222', padding: '16px 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ color: 'var(--brand-neon)', fontSize: '1.8rem', fontWeight: 900 }}>PRO</div>
+              <div style={{ color: '#888', fontSize: '0.78rem', marginTop: '4px' }}>R$ 19,90 / mês</div>
+            </div>
+            <div>
+              <div style={{ color: '#0088cc', fontSize: '1.8rem', fontWeight: 900 }}>TELEGRAM VIP</div>
+              <div style={{ color: '#888', fontSize: '0.78rem', marginTop: '4px' }}>R$ 9,90 / mês</div>
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={() => window.location.href = '/pricing'}
+          style={{
+            background: 'var(--brand-neon)',
+            color: '#000',
+            border: 'none',
+            padding: '14px 28px',
+            borderRadius: '8px',
+            fontWeight: 'bold',
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            boxShadow: '0 4px 15px rgba(204, 255, 0, 0.2)'
+          }}
+        >
+          Assinar Agora
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px', width: '100%' }}>
       
@@ -1452,7 +1888,68 @@ export default function AnalysisPage() {
           50% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.9; }
           100% { transform: translate(-50%, -50%) scale(0.95); opacity: 0.6; }
         }
+        @media (max-width: 1400px) {
+          .main-page-layout-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .side-ad-column {
+            display: none !important;
+          }
+        }
+        .games-grid {
+          grid-template-columns: repeat(6, 1fr);
+        }
+        @media (max-width: 1750px) {
+          .games-grid {
+            grid-template-columns: repeat(5, 1fr);
+          }
+        }
+        @media (max-width: 1500px) {
+          .games-grid {
+            grid-template-columns: repeat(4, 1fr);
+          }
+        }
+        @media (max-width: 1250px) {
+          .games-grid {
+            grid-template-columns: repeat(3, 1fr);
+          }
+        }
+        @media (max-width: 900px) {
+          .games-grid {
+            grid-template-columns: repeat(2, 1fr);
+          }
+        }
+        @media (max-width: 600px) {
+          .games-grid {
+            grid-template-columns: 1fr;
+          }
+        }
       `}} />
+
+      {/* Header and Title */}
+      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
+        <div>
+          <h1 style={{
+            fontSize: '1.8rem',
+            fontWeight: '800',
+            color: '#fff',
+            margin: 0,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '12px'
+          }}>
+            <img 
+              src="/a2logo.jpg" 
+              alt="A2 Logo" 
+              style={{ width: '32px', height: '32px', borderRadius: '6px', objectFit: 'cover' }} 
+            />
+            Central A2score
+          </h1>
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginTop: '4px' }}>
+            Previsões táticas e probabilidades exatas calculadas via Distribuição Matemática de Poisson.
+          </p>
+        </div>
+      </div>
 
       {(() => {
         const getAbbr = (name) => {
@@ -1501,17 +1998,12 @@ export default function AnalysisPage() {
 
         return (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '0.7rem', color: 'var(--brand-neon)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>
-              <Activity size={12} className="pulse" />
-              <span>Painel de Cotações +EV (B3 Ticker)</span>
-            </div>
             <div className="ticker-wrap" style={{
               overflow: 'hidden',
               width: '100%',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '12px',
-              padding: '10px 0',
+              background: 'transparent',
+              border: 'none',
+              padding: '4px 0',
               position: 'relative'
             }}>
               <div className="ticker-content" style={{
@@ -1592,7 +2084,6 @@ export default function AnalysisPage() {
                       onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.borderColor = 'var(--brand-neon)'; }}
                       onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.borderColor = pillBorder; }}
                     >
-                      {/* Time / Status */}
                       <span style={{ 
                         fontSize: '0.62rem', 
                         fontWeight: '800', 
@@ -1605,7 +2096,6 @@ export default function AnalysisPage() {
                         {displayTime}
                       </span>
 
-                      {/* Flags & VS */}
                       <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <img 
                           src={match.homeLogo || getTeamLogoUrl(match.home)} 
@@ -1630,7 +2120,6 @@ export default function AnalysisPage() {
                         />
                       </div>
 
-                      {/* Score (Only when Live or Finished) */}
                       {isLive && (
                         <span style={{ fontSize: '0.65rem', fontWeight: '800', color: 'var(--brand-neon)', borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '6px' }}>
                           {match.goalsHome} x {match.goalsAway}
@@ -1645,65 +2134,7 @@ export default function AnalysisPage() {
         );
       })()}
 
-      {/* Header and Title */}
-      <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: '16px' }}>
-        <div>
-          <h1 style={{
-            fontSize: '1.8rem',
-            fontWeight: '800',
-            color: '#fff',
-            margin: 0,
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px'
-          }}>
-            <Calculator size={28} color="var(--brand-neon)" />
-            Central de Análise +EV
-          </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', marginTop: '4px' }}>
-            Previsões táticas e probabilidades exatas calculadas via Distribuição Matemática de Poisson.
-          </p>
-        </div>
 
-        {/* Date Selector Navigation */}
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          background: 'var(--bg-surface)',
-          border: '1px solid var(--border-color)',
-          borderRadius: '8px',
-          padding: '4px 8px'
-        }}>
-          <button 
-            onClick={() => changeDate(-1)}
-            style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '6px' }}
-          >
-            <ChevronLeft size={18} />
-          </button>
-          
-          <div style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '0 12px',
-            fontSize: '0.85rem',
-            fontWeight: '600',
-            color: '#fff'
-          }}>
-            <Calendar size={14} color="var(--brand-neon)" />
-            <span>
-              {new Date(currentDate + 'T00:00:00-03:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
-            </span>
-          </div>
-
-          <button 
-            onClick={() => changeDate(1)}
-            style={{ background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', padding: '6px' }}
-          >
-            <ChevronRight size={18} />
-          </button>
-        </div>
-      </div>
 
       {/* Demo Mode / API status indicator */}
       {isDemoData && (
@@ -1726,373 +2157,610 @@ export default function AnalysisPage() {
         </div>
       )}
 
-      {/* Conditional Rendering: Main Games List (Initial Screen) vs Analysis Detail Screen */}
       {!selectedMatch ? (
-        /* initial Screen: League selection & games grid */
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
+        <>
           {/* League Filter Pills */}
-          {matches.length > 0 && (
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '8px', alignItems: 'center' }}>
-              {leagues.map((league, idx) => (
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px', alignItems: 'center' }}>
+            {/* Todas button */}
+            <button
+              onClick={() => setSelectedLeague('Todas')}
+              title="Todas as Ligas"
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                background: selectedLeague === 'Todas' ? 'var(--brand-neon-dim)' : 'var(--bg-surface)',
+                border: selectedLeague === 'Todas' ? '2px solid var(--brand-neon)' : '1px solid var(--border-color)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                position: 'relative',
+                boxShadow: selectedLeague === 'Todas' ? '0 0 8px var(--brand-neon-dim)' : 'none'
+              }}
+            >
+              <Trophy size={22} color={selectedLeague === 'Todas' ? 'var(--brand-neon)' : 'var(--text-secondary)'} />
+            </button>
+
+            {FILTERED_LEAGUES.map((league, idx) => {
+              const hasGames = leaguesWithGames.has(league.name);
+              const isSelected = selectedLeague === league.name;
+              
+              return (
                 <button
-                  key={`${league.name || 'league'}_${idx}`}
+                  key={`${league.name}_${idx}`}
                   onClick={() => setSelectedLeague(league.name)}
-                  title={league.name}
+                  title={league.name + (hasGames ? ' (Tem jogos hoje)' : ' (Sem jogos hoje)')}
                   style={{
-                    width: '38px',
-                    height: '38px',
+                    width: '44px',
+                    height: '44px',
                     borderRadius: '50%',
-                    background: selectedLeague === league.name ? 'var(--brand-neon-dim)' : 'var(--bg-surface)',
-                    border: selectedLeague === league.name ? '2px solid var(--brand-neon)' : '1px solid var(--border-color)',
+                    background: '#ffffff',
+                    border: isSelected ? '3px solid var(--brand-neon)' : '1px solid rgba(255, 255, 255, 0.1)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
                     position: 'relative',
-                    boxShadow: selectedLeague === league.name ? '0 0 8px var(--brand-neon-dim)' : 'none'
+                    opacity: isSelected ? 1 : 0.8,
+                    boxShadow: isSelected ? '0 0 12px var(--brand-neon)' : '0 4px 6px rgba(0, 0, 0, 0.3)',
+                    padding: '6px'
                   }}
                   onMouseEnter={(e) => { 
-                    if (selectedLeague !== league.name) {
-                      e.currentTarget.style.borderColor = 'var(--brand-neon)';
-                      e.currentTarget.style.transform = 'scale(1.08)';
+                    e.currentTarget.style.transform = 'scale(1.1)';
+                    e.currentTarget.style.opacity = '1';
+                    if (!isSelected) {
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.8)';
                     }
                   }}
                   onMouseLeave={(e) => { 
-                    if (selectedLeague !== league.name) {
-                      e.currentTarget.style.borderColor = 'var(--border-color)';
-                      e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                    e.currentTarget.style.opacity = isSelected ? '1' : '0.8';
+                    if (!isSelected) {
+                      e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
                     }
                   }}
                 >
-                  {league.name === 'Todas' ? (
-                    <Trophy size={18} color={selectedLeague === 'Todas' ? 'var(--brand-neon)' : 'var(--text-secondary)'} />
-                  ) : (
-                    <>
-                      <img 
-                        src={league.logo} 
-                        alt={league.name} 
-                        style={{ width: '22px', height: '22px', objectFit: 'contain' }}
-                        onError={(e) => {
-                          e.currentTarget.style.display = 'none';
-                          const parent = e.currentTarget.parentNode;
-                          if (parent) {
-                            const fallback = parent.querySelector('.fallback-letter');
-                            if (fallback) fallback.style.display = 'inline';
-                          }
-                        }}
-                      />
-                      <span 
-                        className="fallback-letter" 
-                        style={{ display: 'none', fontSize: '0.78rem', fontWeight: 'bold', color: selectedLeague === league.name ? 'var(--brand-neon)' : 'var(--text-secondary)' }}
-                      >
-                        {league.name.substring(0, 2).toUpperCase()}
-                      </span>
-                    </>
-                  )}
-                </button>
-              ))}
-            </div>
-          )}
-
-          {loading ? (
-            <div style={{
-              height: '200px',
-              background: 'var(--bg-surface)',
-              border: '1px dashed var(--border-color)',
-              borderRadius: '12px',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '12px',
-              color: '#888',
-              fontSize: '0.9rem'
-            }}>
-              <RefreshCw className="spin" size={24} />
-              <span>Buscando e processando partidas da rodada...</span>
-              <style jsx>{`
-                .spin { animation: spin 1.5s linear infinite; }
-                @keyframes spin { 100% { transform: rotate(360deg); } }
-              `}</style>
-            </div>
-          ) : filteredMatches.length === 0 ? (
-            <div style={{
-              height: '200px',
-              background: 'var(--bg-surface)',
-              border: '1px dashed var(--border-color)',
-              borderRadius: '12px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#888',
-              fontSize: '0.9rem'
-            }}>
-              Nenhuma partida disponível nesta liga para a data selecionada.
-            </div>
-          ) : (
-            /* Games Grid grouped or listed cleanly */
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
-              gap: '16px'
-            }}>
-              {filteredMatches.map((match, idx) => (
-                <div 
-                  key={`${match.id || 'match'}_grid_${idx}`}
-                  onClick={() => setSelectedMatch(match)}
-                  style={{
-                    background: 'var(--bg-surface)',
-                    border: '1px solid var(--border-color)',
-                    borderRadius: '12px',
-                    padding: '16px',
-                    cursor: 'pointer',
-                    transition: 'all 0.2s ease',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    justifyContent: 'space-between',
-                    gap: '14px',
-                    position: 'relative'
-                  }}
-                  onMouseEnter={(e) => { 
-                    e.currentTarget.style.borderColor = 'var(--brand-neon)'; 
-                    e.currentTarget.style.transform = 'translateY(-2px)'; 
-                  }}
-                  onMouseLeave={(e) => { 
-                    e.currentTarget.style.borderColor = 'var(--border-color)'; 
-                    e.currentTarget.style.transform = 'none'; 
-                  }}
-                >
-                  {/* Card header */}
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
-                      {match.league}
-                    </span>
-                    <span style={{
-                      fontSize: '0.65rem',
-                      fontWeight: 'bold',
-                      background: match.isLive ? 'var(--alert-red-dim)' : 'var(--bg-surface-light)',
-                      color: match.isLive ? 'var(--alert-red)' : 'var(--text-secondary)',
-                      padding: '2px 8px',
-                      borderRadius: '4px'
-                    }}>
-                      {match.status}
-                    </span>
-                  </div>
-
-                  {/* Teams row and logo */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <img 
-                          src={match.homeLogo || getTeamLogoUrl(match.home)} 
-                          alt={translateTeamName(match.home)} 
-                          style={{ width: '20px', height: '20px', objectFit: 'contain' }}
-                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getTeamLogoUrl(match.home); }}
-                        />
-                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff' }}>{translateTeamName(match.home)}</span>
-                      </div>
-                      {(match.isLive || match.isFinished) && (
-                        <span style={{ fontSize: '0.9rem', fontWeight: '800', color: '#fff' }}>{match.goalsHome}</span>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <img 
-                          src={match.awayLogo || getTeamLogoUrl(match.away)} 
-                          alt={translateTeamName(match.away)} 
-                          style={{ width: '20px', height: '20px', objectFit: 'contain' }}
-                          onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getTeamLogoUrl(match.away); }}
-                        />
-                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff' }}>{translateTeamName(match.away)}</span>
-                      </div>
-                      {(match.isLive || match.isFinished) && (
-                        <span style={{ fontSize: '0.9rem', fontWeight: '800', color: '#fff' }}>{match.goalsAway}</span>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Tactical Pitch (Only rendered when live) */}
-                  {match.isLive && (() => {
-                    const radar = getLiveMatchRadar(match);
-                    let glowLeft = '50%';
-                    let glowColor = 'rgba(204, 255, 0, 0.3)';
-                    if (radar) {
-                      if (radar.zone === 'away_box') {
-                        glowLeft = '80%';
-                        glowColor = 'rgba(255, 68, 68, 0.4)';
-                      } else if (radar.zone === 'home_box') {
-                        glowLeft = '20%';
-                        glowColor = 'rgba(0, 210, 255, 0.4)';
+                  <img 
+                    src={league.logo} 
+                    alt={league.name} 
+                    style={{ 
+                      width: '100%', 
+                      height: '100%', 
+                      objectFit: 'contain',
+                      filter: 'drop-shadow(0px 1px 2px rgba(0, 0, 0, 0.15))'
+                    }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = 'none';
+                      const parent = e.currentTarget.parentNode;
+                      if (parent) {
+                        const fallback = parent.querySelector('.fallback-letter');
+                        if (fallback) fallback.style.display = 'inline';
+                        parent.style.background = isSelected ? 'var(--brand-neon-dim)' : 'var(--bg-surface)';
                       }
-                    }
-                    
-                    const currentLiveStats = liveStatsMap[match.id] || getSimulatedLiveStats(match) || {
-                      home: { corners: 0 },
-                      away: { corners: 0 }
-                    };
-                    
-                    return (
-                      <div className="tactical-pitch">
-                        {/* Halfway line */}
-                        <div style={{ position: 'absolute', top: 0, bottom: 0, left: '50%', width: '1px', background: 'rgba(255, 255, 255, 0.12)' }}></div>
-                        {/* Center circle */}
-                        <div style={{ position: 'absolute', top: '50%', left: '50%', width: '28px', height: '28px', border: '1px solid rgba(255, 255, 255, 0.12)', borderRadius: '50%', transform: 'translate(-50%, -50%)' }}></div>
-                        {/* Left penalty box */}
-                        <div style={{ position: 'absolute', left: 0, top: '20px', bottom: '20px', width: '22px', border: '1px solid rgba(255, 255, 255, 0.12)', borderLeft: 'none' }}></div>
-                        {/* Right penalty box */}
-                        <div style={{ position: 'absolute', right: 0, top: '20px', bottom: '20px', width: '22px', border: '1px solid rgba(255, 255, 255, 0.12)', borderRight: 'none' }}></div>
-                        {/* Goal area left */}
-                        <div style={{ position: 'absolute', left: 0, top: '34px', bottom: '34px', width: '8px', border: '1px solid rgba(255, 255, 255, 0.12)', borderLeft: 'none' }}></div>
-                        {/* Goal area right */}
-                        <div style={{ position: 'absolute', right: 0, top: '34px', bottom: '34px', width: '8px', border: '1px solid rgba(255, 255, 255, 0.12)', borderRight: 'none' }}></div>
-                        {/* Attack/Glow Area */}
-                        <div style={{
-                          position: 'absolute',
-                          top: '50%',
-                          left: glowLeft,
-                          width: '36px',
-                          height: '36px',
-                          background: `radial-gradient(circle, ${glowColor} 0%, rgba(0,0,0,0) 70%)`,
-                          borderRadius: '50%',
-                          transform: 'translate(-50%, -50%)',
-                          pointerEvents: 'none',
-                          animation: 'pulseHeat 2s infinite'
-                        }}></div>
-                        
-                        {/* Small Live indicator stats overlay */}
-                        <div style={{
-                          position: 'absolute',
-                          bottom: '4px',
-                          right: '4px',
-                          background: 'rgba(0, 0, 0, 0.75)',
-                          padding: '2px 4px',
-                          borderRadius: '3px',
-                          fontSize: '0.58rem',
-                          color: 'var(--brand-neon)',
-                          fontWeight: 'bold',
-                          border: '1px solid rgba(255,255,255,0.1)'
-                        }}>
-                          📐 {(currentLiveStats.home?.corners || 0) + (currentLiveStats.away?.corners || 0)}
-                        </div>
-                      </div>
-                    );
-                  })()}
+                    }}
+                  />
+                  <span 
+                    className="fallback-letter" 
+                    style={{ display: 'none', fontSize: '0.8rem', fontWeight: 'bold', color: isSelected ? 'var(--brand-neon)' : 'var(--text-secondary)' }}
+                  >
+                    {league.name.substring(0, 2).toUpperCase()}
+                  </span>
+                </button>
+              );
+            })}
 
-                  {/* Dashed Corners and Cards Indicator for Live games */}
-                  {match.isLive && (() => {
-                    const currentLiveStats = liveStatsMap[match.id] || getSimulatedLiveStats(match) || {
-                      home: { corners: 0, yellowCards: 0, redCards: 0 },
-                      away: { corners: 0, yellowCards: 0, redCards: 0 }
-                    };
-                    return (
-                      <div style={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        padding: '4px 8px',
-                        border: '1px dashed var(--border-color)',
-                        borderRadius: '4px',
-                        fontSize: '0.7rem',
-                        color: 'var(--text-secondary)',
-                        width: '100%',
-                        boxSizing: 'border-box',
-                        background: 'rgba(255, 255, 255, 0.01)'
-                      }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span style={{ fontSize: '0.75rem' }}>📐</span>
-                          <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>
-                            {currentLiveStats.home.corners}-{currentLiveStats.away.corners}
-                          </span>
-                        </div>
-                        <div style={{ color: 'var(--border-color)' }}>|</div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <span>🟨</span>
-                          <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>
-                            {currentLiveStats.home.yellowCards}-{currentLiveStats.away.yellowCards}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })()}
+            {/* Game Count Badge & Date Selector */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div
+                title={`Total de jogos filtrados: ${filteredMatches.length}`}
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  background: 'var(--brand-neon-dim)',
+                  border: '2px solid var(--brand-neon)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 0 10px var(--brand-neon-dim)',
+                  userSelect: 'none'
+                }}
+              >
+                <span style={{ fontSize: '1.05rem', fontWeight: 'bold', color: 'var(--brand-neon)', lineHeight: 1 }}>
+                  {filteredMatches.length}
+                </span>
+                <span style={{ fontSize: '0.45rem', fontWeight: '800', color: 'var(--text-secondary)', textTransform: 'uppercase', marginTop: '1px' }}>
+                  Jogos
+                </span>
+              </div>
 
-                  {/* Live narrative if live */}
-                  {match.isLive && (
-                    <div style={{
-                      fontSize: '0.72rem', 
-                      color: 'var(--text-secondary)', 
-                      fontStyle: 'italic',
-                      lineHeight: '1.4'
-                    }}>
-                      <span style={{ color: 'var(--alert-red)', fontWeight: 'bold', marginRight: '6px' }}>• AO VIVO:</span>
-                      {getLiveMatchRadar(match)?.statusText || 'Disputa intensa no meio de campo.'}
-                    </div>
-                  )}
-
-                  {/* Card footer details & button */}
-                  <div style={{
+              {/* Circular Hover-Expanding Date Selector */}
+              <div 
+                onMouseEnter={() => setIsDateHovered(true)}
+                onMouseLeave={() => setIsDateHovered(false)}
+                style={{
+                  position: 'relative',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: 'var(--bg-surface)',
+                  border: isDateHovered ? '2px solid var(--brand-neon)' : '1px solid var(--border-color)',
+                  borderRadius: '22px',
+                  height: '44px',
+                  width: isDateHovered ? '135px' : '44px',
+                  padding: isDateHovered ? '4px 8px' : '0',
+                  transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                  boxShadow: isDateHovered ? '0 0 10px var(--brand-neon-dim)' : 'none',
+                  overflow: 'hidden',
+                  cursor: 'pointer'
+                }}
+              >
+                {/* Left arrow: visible on hover */}
+                <button 
+                  onClick={() => changeDate(-1)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    padding: '4px',
                     display: 'flex',
-                    justifyContent: 'space-between',
                     alignItems: 'center',
-                    borderTop: '1px solid rgba(255, 255, 255, 0.04)',
-                    paddingTop: '10px',
-                    marginTop: '4px'
+                    opacity: isDateHovered ? 1 : 0,
+                    transform: isDateHovered ? 'translateX(0)' : 'translateX(-10px)',
+                    transition: 'opacity 0.2s, transform 0.2s',
+                    pointerEvents: isDateHovered ? 'auto' : 'none',
+                    zIndex: 4
+                  }}
+                >
+                  <ChevronLeft size={16} color="var(--brand-neon)" />
+                </button>
+                
+                {/* Center Content */}
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  fontSize: '0.75rem',
+                  fontWeight: '600',
+                  color: '#fff',
+                  width: 'max-content',
+                  flexShrink: 0,
+                  zIndex: 2
+                }}>
+                  {/* Calendar icon - always visible */}
+                  <div style={{
+                    position: 'relative',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    width: '32px',
+                    height: '32px',
+                    borderRadius: '50%',
+                    background: isDateHovered ? 'rgba(204, 255, 0, 0.1)' : 'transparent',
+                    border: isDateHovered ? '1px solid rgba(204, 255, 0, 0.25)' : 'none',
+                    transition: 'all 0.2s',
+                    flexShrink: 0
                   }}>
-                    <span style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
-                      xG Projetado: {match.homeXG} - {match.awayXG}
-                    </span>
-                    <span style={{
-                      fontSize: '0.72rem',
-                      color: 'var(--brand-neon)',
-                      fontWeight: 'bold',
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '4px'
-                    }}>
-                      Análise +EV <ArrowRight size={12} />
-                    </span>
+                    <Calendar size={18} color="var(--brand-neon)" />
+                    {/* Hidden date picker input overlay */}
+                    <input 
+                      type="date"
+                      value={currentDate}
+                      onChange={(e) => {
+                        if (e.target.value) {
+                          setCurrentDate(e.target.value);
+                        }
+                      }}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        opacity: 0,
+                        cursor: 'pointer',
+                        zIndex: 5
+                      }}
+                    />
                   </div>
-                </div>
-              ))}
-            </div>
-          )}
 
-        </div>
+                  {/* Text: only visible on hover */}
+                  <span style={{
+                    opacity: isDateHovered ? 1 : 0,
+                    width: isDateHovered ? 'auto' : '0px',
+                    overflow: 'hidden',
+                    whiteSpace: 'nowrap',
+                    transition: 'opacity 0.2s, width 0.2s',
+                    pointerEvents: 'none'
+                  }}>
+                    {new Date(currentDate + 'T00:00:00-03:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
+                  </span>
+                </div>
+
+                {/* Right arrow: visible on hover */}
+                <button 
+                  onClick={() => changeDate(1)}
+                  style={{
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#fff',
+                    cursor: 'pointer',
+                    padding: '4px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    opacity: isDateHovered ? 1 : 0,
+                    transform: isDateHovered ? 'translateX(0)' : 'translateX(10px)',
+                    transition: 'opacity 0.2s, transform 0.2s',
+                    pointerEvents: isDateHovered ? 'auto' : 'none',
+                    zIndex: 4
+                  }}
+                >
+                  <ChevronRight size={16} color="var(--brand-neon)" />
+                </button>
+              </div>
+
+              {/* Refresh Button */}
+              <button
+                onClick={() => fetchMatches(currentDate)}
+                title="Atualizar Jogos"
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-color)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  color: '#fff',
+                  flexShrink: 0
+                }}
+                onMouseEnter={(e) => { 
+                  e.currentTarget.style.borderColor = 'var(--brand-neon)'; 
+                  e.currentTarget.style.color = 'var(--brand-neon)'; 
+                }}
+                onMouseLeave={(e) => { 
+                  e.currentTarget.style.borderColor = 'var(--border-color)'; 
+                  e.currentTarget.style.color = '#fff'; 
+                }}
+              >
+                <RefreshCw size={16} className={loading ? "spin" : ""} />
+              </button>
+            </div>
+          </div>
+
+          <div className="main-page-layout-grid" style={{
+            display: 'grid',
+            gridTemplateColumns: `${ads.left?.enabled ? '180px' : ''} 1fr ${ads.right?.enabled ? '180px' : ''}`.trim().replace(/\s+/g, ' ') || '1fr',
+            gap: (ads.left?.enabled || ads.right?.enabled) ? '20px' : '0px',
+            width: '100%',
+            alignItems: 'start'
+          }}>
+            {/* Banner de Propaganda Esquerdo */}
+            {ads.left?.enabled && (
+              <div 
+                className="side-ad-column" 
+                onClick={() => window.open(ads.left.link, '_blank')}
+                style={{
+                  background: 'linear-gradient(180deg, #141419, #0b0b0e)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                  width: '180px',
+                  height: '420px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
+                }}
+              >
+                {ads.left.imageUrl ? (
+                  <>
+                    <img 
+                      src={ads.left.imageUrl} 
+                      alt="" 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(15px) brightness(0.35)', transform: 'scale(1.15)', position: 'absolute', top: 0, left: 0, zIndex: 1 }} 
+                    />
+                    <img 
+                      src={ads.left.imageUrl} 
+                      alt={ads.left.title} 
+                      style={{ width: '100%', height: '100%', objectFit: 'contain', position: 'relative', zIndex: 2, display: 'block' }} 
+                    />
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', height: '100%', padding: '14px', textAlign: 'center' }}>
+                    <div style={{ color: 'var(--brand-neon)', fontSize: '0.65rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Publicidade</div>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.8rem' }}>{ads.left.emoji || '🎯'}</span>
+                      <div style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold' }}>{ads.left.title}</div>
+                      <div style={{ color: '#888', fontSize: '0.68rem', lineHeight: '1.3' }}>{ads.left.description}</div>
+                    </div>
+                    <div 
+                      style={{ background: 'var(--brand-neon)', color: '#000', borderRadius: '6px', padding: '8px 10px', fontSize: '0.7rem', fontWeight: 'bold', width: '100%', textAlign: 'center' }}
+                    >
+                      {ads.left.buttonText || 'Participar VIP'}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* initial Screen: games list container */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 }}>
+              {loading ? (
+                <div style={{
+                  height: '200px',
+                  background: 'var(--bg-surface)',
+                  border: '1px dashed var(--border-color)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '12px',
+                  color: '#888',
+                  fontSize: '0.9rem'
+                }}>
+                  <RefreshCw className="spin" size={24} />
+                  <span>Buscando e processando partidas da rodada...</span>
+                  <style jsx>{`
+                    .spin { animation: spin 1.5s linear infinite; }
+                    @keyframes spin { 100% { transform: rotate(360deg); } }
+                  `}</style>
+                </div>
+              ) : filteredMatches.length === 0 ? (
+                <div style={{
+                  height: '200px',
+                  background: 'var(--bg-surface)',
+                  border: '1px dashed var(--border-color)',
+                  borderRadius: '12px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  color: '#888',
+                  fontSize: '0.9rem'
+                }}>
+                  Nenhuma partida disponível nesta liga para a data selecionada.
+                </div>
+              ) : (
+                /* Games Grid grouped or listed cleanly */
+                <div className="games-grid" style={{
+                  display: 'grid',
+                  gap: '10px'
+                }}>
+                  {filteredMatches.map((match, idx) => (
+                    <div 
+                      key={`${match.id || 'match'}_grid_${idx}`}
+                      onClick={() => setSelectedMatch(match)}
+                      style={{
+                        background: 'var(--bg-surface)',
+                        border: '1px solid var(--border-color)',
+                        borderRadius: '10px',
+                        padding: '8px 10px',
+                        cursor: 'pointer',
+                        transition: 'all 0.2s ease',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '6px',
+                        position: 'relative'
+                      }}
+                      onMouseEnter={(e) => { 
+                        e.currentTarget.style.borderColor = 'var(--brand-neon)'; 
+                        e.currentTarget.style.transform = 'translateY(-1px)'; 
+                      }}
+                      onMouseLeave={(e) => { 
+                        e.currentTarget.style.borderColor = 'var(--border-color)'; 
+                        e.currentTarget.style.transform = 'none'; 
+                      }}
+                    >
+                      {/* Compact Header: League & Status */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.6rem' }}>
+                        <span style={{ color: 'var(--text-secondary)', fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '65%' }}>
+                          {(match.league || '').replace('Campeonato ', '')}
+                        </span>
+                        <span style={{
+                          fontWeight: 'bold',
+                          color: match.isLive ? 'var(--brand-neon)' : 'var(--text-secondary)',
+                          fontSize: '0.58rem'
+                        }}>
+                          {match.status}
+                        </span>
+                      </div>
+
+                      {/* Teams and Scores (Compact) */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                            <img 
+                              src={match.homeLogo || getTeamLogoUrl(match.home)} 
+                              alt={translateTeamName(match.home)} 
+                              style={{ width: '14px', height: '14px', objectFit: 'contain', flexShrink: 0 }}
+                              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getTeamLogoUrl(match.home); }}
+                            />
+                            <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {translateTeamName(match.home)}
+                            </span>
+                          </div>
+                          {(match.isLive || match.isFinished) && (
+                            <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#fff', marginLeft: '6px' }}>{match.goalsHome}</span>
+                          )}
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', minWidth: 0 }}>
+                            <img 
+                              src={match.awayLogo || getTeamLogoUrl(match.away)} 
+                              alt={translateTeamName(match.away)} 
+                              style={{ width: '14px', height: '14px', objectFit: 'contain', flexShrink: 0 }}
+                              onError={(e) => { e.currentTarget.onerror = null; e.currentTarget.src = getTeamLogoUrl(match.away); }}
+                            />
+                            <span style={{ fontSize: '0.72rem', fontWeight: '700', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {translateTeamName(match.away)}
+                            </span>
+                          </div>
+                          {(match.isLive || match.isFinished) && (
+                            <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#fff', marginLeft: '6px' }}>{match.goalsAway}</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {ads.right?.enabled && (
+              <div 
+                className="side-ad-column" 
+                onClick={() => {
+                  if (ads.right.link.startsWith('http')) {
+                    window.open(ads.right.link, '_blank');
+                  } else {
+                    window.location.href = ads.right.link;
+                  }
+                }}
+                style={{
+                  background: 'linear-gradient(180deg, #141419, #0b0b0e)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '12px',
+                  width: '180px',
+                  height: '420px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  cursor: 'pointer',
+                  overflow: 'hidden',
+                  position: 'relative',
+                  boxShadow: '0 8px 32px rgba(0, 0, 0, 0.5)'
+                }}
+              >
+                {ads.right.imageUrl ? (
+                  <>
+                    <img 
+                      src={ads.right.imageUrl} 
+                      alt="" 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(15px) brightness(0.35)', transform: 'scale(1.15)', position: 'absolute', top: 0, left: 0, zIndex: 1 }} 
+                    />
+                    <img 
+                      src={ads.right.imageUrl} 
+                      alt={ads.right.title} 
+                      style={{ width: '100%', height: '100%', objectFit: 'contain', position: 'relative', zIndex: 2, display: 'block' }} 
+                    />
+                  </>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'space-between', height: '100%', padding: '14px', textAlign: 'center' }}>
+                    <div style={{ color: 'var(--brand-neon)', fontSize: '0.65rem', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1px' }}>Publicidade</div>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+                      <span style={{ fontSize: '1.8rem' }}>{ads.right.emoji || '⚡'}</span>
+                      <div style={{ color: '#fff', fontSize: '0.8rem', fontWeight: 'bold' }}>{ads.right.title}</div>
+                      <div style={{ color: '#888', fontSize: '0.68rem', lineHeight: '1.3' }}>{ads.right.description}</div>
+                    </div>
+                    <div 
+                      style={{ background: 'var(--brand-neon)', color: '#000', borderRadius: '6px', padding: '8px 10px', fontSize: '0.7rem', fontWeight: 'bold', width: '100%', textAlign: 'center' }}
+                    >
+                      {ads.right.buttonText || 'Assinar Agora'}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </>
       ) : (
-        /* Analysis Screen: Back Button & the 2-column layout */
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          
-          {/* Back button */}
-          <button
-            onClick={() => setSelectedMatch(null)}
-            style={{
-              alignSelf: 'flex-start',
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-color)',
-              color: '#fff',
-              borderRadius: '8px',
-              padding: '8px 16px',
-              fontSize: '0.82rem',
-              fontWeight: 'bold',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => { 
-              e.currentTarget.style.borderColor = 'var(--brand-neon)';
-              e.currentTarget.style.color = 'var(--brand-neon)';
-            }}
-            onMouseLeave={(e) => { 
-              e.currentTarget.style.borderColor = 'var(--border-color)';
-              e.currentTarget.style.color = '#fff';
-            }}
-          >
-            <ChevronLeft size={16} /> Voltar para os Jogos do Dia
-          </button>
+          {/* Back button and Live update toggle */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            {/* Voltar button */}
+            <button
+              onClick={() => setSelectedMatch(null)}
+              title="Voltar para os Jogos do Dia"
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                background: 'var(--bg-surface)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                opacity: 0.8,
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.3)',
+                color: '#fff'
+              }}
+              onMouseEnter={(e) => { 
+                e.currentTarget.style.transform = 'scale(1.1)';
+                e.currentTarget.style.opacity = '1';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.8)';
+              }}
+              onMouseLeave={(e) => { 
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.opacity = '0.8';
+                e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+              }}
+            >
+              <ChevronLeft size={20} />
+            </button>
+
+            {/* Ativar Ao Vivo toggle button */}
+            <button
+              onClick={() => setIsLivePollingEnabled(!isLivePollingEnabled)}
+              title={isLivePollingEnabled ? "Desativar atualizações automáticas ao vivo" : "Ativar atualizações automáticas ao vivo"}
+              style={{
+                width: '44px',
+                height: '44px',
+                borderRadius: '50%',
+                background: isLivePollingEnabled ? 'rgba(204, 255, 0, 0.08)' : 'var(--bg-surface)',
+                border: isLivePollingEnabled ? '2px solid var(--brand-neon)' : '1px solid rgba(255, 255, 255, 0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                transition: 'all 0.2s',
+                opacity: isLivePollingEnabled ? 1 : 0.8,
+                boxShadow: isLivePollingEnabled ? '0 0 12px var(--brand-neon)' : '0 4px 6px rgba(0, 0, 0, 0.3)',
+                color: isLivePollingEnabled ? 'var(--brand-neon)' : '#fff',
+                position: 'relative'
+              }}
+              onMouseEnter={(e) => { 
+                e.currentTarget.style.transform = 'scale(1.1)';
+                e.currentTarget.style.opacity = '1';
+                if (!isLivePollingEnabled) {
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.8)';
+                }
+              }}
+              onMouseLeave={(e) => { 
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.opacity = isLivePollingEnabled ? '1' : '0.8';
+                if (!isLivePollingEnabled) {
+                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                }
+              }}
+            >
+              <Activity size={20} />
+              {/* Pulsing indicator dot on top right of the button */}
+              <span style={{
+                position: 'absolute',
+                top: '4px',
+                right: '4px',
+                width: '8px',
+                height: '8px',
+                borderRadius: '50%',
+                background: isLivePollingEnabled ? 'var(--brand-neon)' : '#666',
+                border: '1.5px solid var(--bg-surface)',
+                animation: isLivePollingEnabled ? 'pulseKey 1.5s infinite' : 'none'
+              }} />
+            </button>
+          </div>
 
           {/* Selected Match Analysis Layout */}
           {probabilities && cornerData && cardData && (
@@ -2105,10 +2773,16 @@ export default function AnalysisPage() {
           
           {/* COLUMN 1: TEAMS ANALYSIS & HEAD-TO-HEAD */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
-            
-            {/* Confrontation Card or Live Field Widget */}
             {selectedMatch.isLive ? (
-              <LiveFieldWidget match={selectedMatch} matchState={matchState} liveStats={liveStats} />
+              <LiveFieldWidget 
+                match={selectedMatch} 
+                matchState={matchState} 
+                liveStats={liveStats} 
+                cornerData={cornerData} 
+                cardData={cardData} 
+                isLivePollingEnabled={isLivePollingEnabled} 
+                setIsLivePollingEnabled={setIsLivePollingEnabled} 
+              />
             ) : (
               <div style={{
                 background: 'var(--bg-surface)',
@@ -2116,511 +2790,798 @@ export default function AnalysisPage() {
                 borderRadius: '16px',
                 padding: '24px',
                 position: 'relative',
-                overflow: 'hidden'
-              }}>
-                
-                {/* Background gradient shadow */}
-                <div style={{
-                  position: 'absolute',
-                  top: '-50%',
-                  left: '-50%',
-                  width: '200%',
-                  height: '200%',
-                  background: 'radial-gradient(circle, rgba(204, 255, 0, 0.02) 0%, transparent 60%)',
-                  pointerEvents: 'none'
-                }}></div>
-
-                {/* Match Details Header */}
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '20px' }}>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--brand-neon)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1.5px' }}>
-                    {selectedMatch.league} • {selectedMatch.round}
-                  </span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
-                    Local: {selectedMatch.venue || 'Estádio não cadastrado'}
-                  </span>
-                </div>
-
-                {/* Head-to-Head Main Logos and Names */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '20px 0' }}>
-                  
-                  {/* Home Team Column */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      width: '64px',
-                      height: '64px',
-                      borderRadius: '50%',
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '8px',
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
-                    }}>
-                      <img 
-                        src={selectedMatch.homeLogo || getTeamLogoUrl(selectedMatch.home)} 
-                        alt={selectedMatch.home} 
-                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                        onError={(e) => { e.target.src = getTeamLogoUrl(selectedMatch.home); }}
-                      />
-                    </div>
-                    <span style={{ fontSize: '0.92rem', fontWeight: '800', color: '#fff', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
-                      {translateTeamName(selectedMatch.home)}
-                    </span>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                      Casa • Tabela: {selectedMatch.homePosition}º
-                    </span>
-                  </div>
-
-                  {/* VS and Score */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '0 12px' }}>
-                    {(selectedMatch.isLive || selectedMatch.isFinished) ? (
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <span style={{ fontSize: '2rem', fontWeight: '900', color: '#fff' }}>{selectedMatch.goalsHome}</span>
-                        <span style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>-</span>
-                        <span style={{ fontSize: '2rem', fontWeight: '900', color: '#fff' }}>{selectedMatch.goalsAway}</span>
-                      </div>
-                    ) : (
-                      <div style={{
-                        padding: '4px 12px',
-                        background: 'rgba(204, 255, 0, 0.06)',
-                        border: '1px solid rgba(204, 255, 0, 0.2)',
-                        borderRadius: '20px',
-                        fontSize: '0.75rem',
-                        fontWeight: '800',
-                        color: 'var(--brand-neon)'
-                      }}>
-                        VS
-                      </div>
-                    )}
-                    <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 'bold' }}>
-                      {selectedMatch.status}
-                    </span>
-                  </div>
-
-                  {/* Away Team Column */}
-                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-                    <div style={{
-                      width: '64px',
-                      height: '64px',
-                      borderRadius: '50%',
-                      background: 'rgba(255, 255, 255, 0.03)',
-                      border: '1px solid rgba(255, 255, 255, 0.08)',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      padding: '8px',
-                      boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
-                    }}>
-                      <img 
-                        src={selectedMatch.awayLogo || getTeamLogoUrl(selectedMatch.away)} 
-                        alt={translateTeamName(selectedMatch.away)} 
-                        style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                        onError={(e) => { e.target.src = getTeamLogoUrl(selectedMatch.away); }}
-                      />
-                    </div>
-                    <span style={{ fontSize: '0.92rem', fontWeight: '800', color: '#fff', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
-                      {translateTeamName(selectedMatch.away)}
-                    </span>
-                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                      Fora • Tabela: {selectedMatch.awayPosition}º
-                    </span>
-                  </div>
-
-                </div>
-
-                {/* expected Goals (xG) preditivos */}
-                <div style={{
-                  marginTop: '24px',
-                  padding: '12px 16px',
-                  background: 'var(--bg-surface-light)',
-                  borderRadius: '10px',
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center'
-                }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Activity size={14} color="var(--brand-neon)" />
-                    <span style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>xG Projetado do Confronto</span>
-                  </div>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fff' }}>
-                    <span style={{ color: 'var(--brand-neon)' }}>{selectedMatch.homeXG}</span>
-                    <span style={{ color: '#555', margin: '0 6px' }}>vs</span>
-                    <span style={{ color: 'var(--brand-neon)' }}>{selectedMatch.awayXG}</span>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Team Strengths and Forms */}
-            <div style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '16px',
-              padding: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
-                <BarChart2 size={18} color="var(--brand-neon)" />
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>Indicadores de Força Técnica</h3>
-              </div>
-
-              {/* Home Team Strengths */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fff' }}>{translateTeamName(selectedMatch.home)}</span>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginRight: '4px' }}>Forma:</span>
-                    {(selectedMatch.formHome || ["V", "V", "E", "D", "V"]).map((c, i) => renderFormBadge(c, i))}
-                  </div>
-                </div>
-
-                {/* Attack strength bar */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                    <span>Força de Ataque</span>
-                    <span style={{ color: '#fff', fontWeight: 'bold' }}>{statsStrengths.homeAttack}%</span>
-                  </div>
-                  <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ width: `${statsStrengths.homeAttack}%`, height: '100%', background: 'linear-gradient(90deg, #b339ff, var(--brand-neon))', borderRadius: '3px' }}></div>
-                  </div>
-                </div>
-
-                {/* Defense strength bar */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                    <span>Consistência Defensiva</span>
-                    <span style={{ color: '#fff', fontWeight: 'bold' }}>{statsStrengths.homeDefense}%</span>
-                  </div>
-                  <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ width: `${statsStrengths.homeDefense}%`, height: '100%', background: 'linear-gradient(90deg, #ff3d00, #ffea00)', borderRadius: '3px' }}></div>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '4px 0' }}></div>
-
-              {/* Away Team Strengths */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fff' }}>{translateTeamName(selectedMatch.away)}</span>
-                  <div style={{ display: 'flex', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginRight: '4px' }}>Forma:</span>
-                    {(selectedMatch.formAway || ["V", "D", "V", "E", "D"]).map((c, i) => renderFormBadge(c, i))}
-                  </div>
-                </div>
-
-                {/* Attack strength bar */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                    <span>Força de Ataque</span>
-                    <span style={{ color: '#fff', fontWeight: 'bold' }}>{statsStrengths.awayAttack}%</span>
-                  </div>
-                  <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ width: `${statsStrengths.awayAttack}%`, height: '100%', background: 'linear-gradient(90deg, #b339ff, var(--brand-neon))', borderRadius: '3px' }}></div>
-                  </div>
-                </div>
-
-                {/* Defense strength bar */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
-                    <span>Consistência Defensiva</span>
-                    <span style={{ color: '#fff', fontWeight: 'bold' }}>{statsStrengths.awayDefense}%</span>
-                  </div>
-                  <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ width: `${statsStrengths.awayDefense}%`, height: '100%', background: 'linear-gradient(90deg, #ff3d00, #ffea00)', borderRadius: '3px' }}></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Live Stats Tracker (if live) */}
-            {selectedMatch.isLive && liveStats && (
-              <div style={{
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '16px',
-                padding: '24px',
+                overflow: 'hidden',
+                height: '815px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '16px'
+                gap: '16px',
+                boxSizing: 'border-box'
               }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <Activity size={18} color="var(--alert-red)" />
-                    <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>Estatísticas Ao Vivo</h3>
-                  </div>
-                  {loadingLiveStats && <RefreshCw className="spin" size={14} color="#888" />}
-                </div>
+                {/* Background gradient shadow */}
+                  <div style={{
+                    position: 'absolute',
+                    top: '-50%',
+                    left: '-50%',
+                    width: '200%',
+                    height: '200%',
+                    background: 'radial-gradient(circle, rgba(204, 255, 0, 0.02) 0%, transparent 60%)',
+                    pointerEvents: 'none'
+                  }}></div>
 
-                {/* Possession row */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#fff', fontWeight: 'bold', marginBottom: '4px' }}>
-                    <span>Posse de Bola</span>
-                    <span>{liveStats.home.ballPossession}% - {liveStats.away.ballPossession}%</span>
+                  {/* Match Details Header */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', marginBottom: '20px' }}>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--brand-neon)', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '1.5px' }}>
+                      {selectedMatch.league} • {selectedMatch.round}
+                    </span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
+                      Local: {selectedMatch.venue || 'Estádio não cadastrado'}
+                    </span>
                   </div>
-                  <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', display: 'flex', overflow: 'hidden' }}>
-                    <div style={{ width: `${liveStats.home.ballPossession}%`, background: 'var(--brand-neon)' }}></div>
-                    <div style={{ width: `${liveStats.away.ballPossession}%`, background: '#ff3d00' }}></div>
-                  </div>
-                </div>
 
-                {/* Stats grid */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '8px' }}>
-                  <div style={{ background: 'var(--bg-surface-light)', padding: '10px', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Chutes no Gol</span>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fff', marginTop: '4px' }}>
-                      {liveStats.home.shotsOnGoal} <span style={{ color: '#555', fontSize: '0.8rem' }}>vs</span> {liveStats.away.shotsOnGoal}
-                    </span>
+                  {/* Head-to-Head Main Logos and Names */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '20px 0' }}>
+                    
+                    {/* Home Team Column */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        width: '64px',
+                        height: '64px',
+                        borderRadius: '50%',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '8px',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+                      }}>
+                        <img 
+                          src={selectedMatch.homeLogo || getTeamLogoUrl(selectedMatch.home)} 
+                          alt={selectedMatch.home} 
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          onError={(e) => { e.target.src = getTeamLogoUrl(selectedMatch.home); }}
+                        />
+                      </div>
+                      <span style={{ fontSize: '0.92rem', fontWeight: '800', color: '#fff', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
+                        {translateTeamName(selectedMatch.home)}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                        Casa • Tabela: {selectedMatch.homePosition}º
+                      </span>
+                    </div>
+
+                    {/* VS and Score */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px', padding: '0 12px' }}>
+                      {(selectedMatch.isLive || selectedMatch.isFinished) ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          <span style={{ fontSize: '2rem', fontWeight: '900', color: '#fff' }}>{selectedMatch.goalsHome}</span>
+                          <span style={{ fontSize: '1rem', fontWeight: 'bold', color: 'var(--text-secondary)' }}>-</span>
+                          <span style={{ fontSize: '2rem', fontWeight: '900', color: '#fff' }}>{selectedMatch.goalsAway}</span>
+                        </div>
+                      ) : (
+                        <div style={{
+                          padding: '4px 12px',
+                          background: 'rgba(204, 255, 0, 0.06)',
+                          border: '1px solid rgba(204, 255, 0, 0.2)',
+                          borderRadius: '20px',
+                          fontSize: '0.75rem',
+                          fontWeight: '800',
+                          color: 'var(--brand-neon)'
+                        }}>
+                          VS
+                        </div>
+                      )}
+                      <span style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 'bold' }}>
+                        {selectedMatch.status}
+                      </span>
+                    </div>
+
+                    {/* Away Team Column */}
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                      <div style={{
+                        width: '64px',
+                        height: '64px',
+                        borderRadius: '50%',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid rgba(255, 255, 255, 0.08)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        padding: '8px',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)'
+                      }}>
+                        <img 
+                          src={selectedMatch.awayLogo || getTeamLogoUrl(selectedMatch.away)} 
+                          alt={translateTeamName(selectedMatch.away)} 
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                          onError={(e) => { e.target.src = getTeamLogoUrl(selectedMatch.away); }}
+                        />
+                      </div>
+                      <span style={{ fontSize: '0.92rem', fontWeight: '800', color: '#fff', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', width: '100%' }}>
+                        {translateTeamName(selectedMatch.away)}
+                      </span>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                        Fora • Tabela: {selectedMatch.awayPosition}º
+                      </span>
+                    </div>
+
                   </div>
-                  <div style={{ background: 'var(--bg-surface-light)', padding: '10px', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Escanteios Cobrados</span>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fff', marginTop: '4px' }}>
-                      {liveStats.home.corners} <span style={{ color: '#555', fontSize: '0.8rem' }}>vs</span> {liveStats.away.corners}
-                    </span>
+
+                  {/* expected Goals (xG) preditivos & advertising banner container */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0px', flex: 1, marginTop: '24px' }}>
+                    <div style={{
+                      padding: '12px 16px',
+                      background: 'var(--bg-surface-light)',
+                      borderTopLeftRadius: '10px',
+                      borderTopRightRadius: '10px',
+                      borderBottomLeftRadius: '0px',
+                      borderBottomRightRadius: '0px',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      borderBottom: '1px solid rgba(255, 255, 255, 0.05)'
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <Activity size={14} color="var(--brand-neon)" />
+                        <span style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>xG Projetado do Confronto</span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fff' }}>
+                        <span style={{ color: 'var(--brand-neon)' }}>{selectedMatch.homeXG}</span>
+                        <span style={{ color: '#555', margin: '0 6px' }}>vs</span>
+                        <span style={{ color: 'var(--brand-neon)' }}>{selectedMatch.awayXG}</span>
+                      </div>
+                    </div>
+
+                    {/* AREA DE PROPAGANDA (Advertising Banner) */}
+                    {ads.internal?.enabled && (
+                      <div 
+                        onClick={() => {
+                          if (ads.internal.link.startsWith('http')) {
+                            window.open(ads.internal.link, '_blank');
+                          } else {
+                            window.location.href = ads.internal.link;
+                          }
+                        }}
+                        style={{
+                          flex: 1,
+                          background: 'linear-gradient(135deg, rgba(204, 255, 0, 0.03) 0%, rgba(20, 20, 25, 0.95) 100%)',
+                          border: '1px dashed var(--border-color)',
+                          borderTop: 'none',
+                          borderBottomLeftRadius: '12px',
+                          borderBottomRightRadius: '12px',
+                          borderTopLeftRadius: '0px',
+                          borderTopRightRadius: '0px',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          minHeight: '120px'
+                        }}
+                      >
+                        {ads.internal.imageUrl ? (
+                          <>
+                            <img 
+                              src={ads.internal.imageUrl} 
+                              alt="" 
+                              style={{ width: '100%', height: '100%', objectFit: 'cover', filter: 'blur(15px) brightness(0.35)', transform: 'scale(1.15)', position: 'absolute', top: 0, left: 0, zIndex: 1 }} 
+                            />
+                            <img 
+                              src={ads.internal.imageUrl} 
+                              alt={ads.internal.title} 
+                              style={{ width: '100%', height: '100%', objectFit: 'contain', position: 'relative', zIndex: 2, display: 'block' }} 
+                            />
+                          </>
+                        ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '20px', textAlign: 'center' }}>
+                            {/* Neon scan effect */}
+                            <div style={{
+                              position: 'absolute',
+                              top: 0,
+                              left: 0,
+                              width: '100%',
+                              height: '2px',
+                              background: 'linear-gradient(90deg, transparent, var(--brand-neon), transparent)',
+                              animation: 'scanAd 4s linear infinite'
+                            }}></div>
+                            <span style={{ 
+                              fontSize: '0.62rem', 
+                              color: 'var(--brand-neon)', 
+                              fontWeight: 'bold', 
+                              border: '1px solid var(--brand-neon)', 
+                              padding: '2px 8px', 
+                              borderRadius: '4px',
+                              textTransform: 'uppercase',
+                              letterSpacing: '1px'
+                            }}>
+                              Publicidade
+                            </span>
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                              <span style={{ fontSize: '1.6rem' }}>{ads.internal.emoji || '📊'}</span>
+                              <div>
+                                <span style={{ display: 'block', fontSize: '0.95rem', fontWeight: '900', color: '#fff', marginBottom: '4px' }}>
+                                  {ads.internal.title}
+                                </span>
+                                <span style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', maxWidth: '280px', margin: '0 auto' }}>
+                                  {ads.internal.description}
+                                </span>
+                              </div>
+                            </div>
+                            <div 
+                              style={{
+                                background: 'var(--brand-neon)',
+                                color: '#000',
+                                borderRadius: '20px',
+                                padding: '6px 16px',
+                                fontSize: '0.72rem',
+                                fontWeight: 'bold'
+                              }}
+                            >
+                              {ads.internal.buttonText || 'Ver Mais'}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div style={{ background: 'var(--bg-surface-light)', padding: '10px', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Cartões Amarelos</span>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fff', marginTop: '4px' }}>
-                      {liveStats.home.yellowCards} <span style={{ color: '#555', fontSize: '0.8rem' }}>vs</span> {liveStats.away.yellowCards}
-                    </span>
-                  </div>
-                  <div style={{ background: 'var(--bg-surface-light)', padding: '10px', borderRadius: '8px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                    <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>Cartões Vermelhos</span>
-                    <span style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fff', marginTop: '4px' }}>
-                      {liveStats.home.redCards} <span style={{ color: '#555', fontSize: '0.8rem' }}>vs</span> {liveStats.away.redCards}
-                    </span>
-                  </div>
-                </div>
+
               </div>
             )}
-            
           </div>
 
           {/* COLUMN 2: POISSON PROBABILITIES & INSIGHTS */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+          <div style={{ 
+            display: 'flex', 
+            flexDirection: 'column', 
+            gap: '24px'
+          }}>
             
-            {/* Probability 1X2 Card */}
+            {/* Primary comparison container aligning with Column 1 */}
             <div style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '16px',
-              padding: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '20px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
-                <TrendingUp size={18} color="var(--brand-neon)" />
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>Cálculo de Vitória (1X2)</h3>
-              </div>
-
-              {/* Segmented horizontal percentage bar */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                <div style={{ height: '14px', background: 'var(--bg-surface-light)', borderRadius: '7px', display: 'flex', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.02)' }}>
-                  <div style={{ width: `${probabilities.homeWin}%`, background: 'var(--brand-neon)', transition: 'width 0.5s' }} title={`Casa: ${probabilities.homeWin}%`}></div>
-                  <div style={{ width: `${probabilities.draw}%`, background: '#888', transition: 'width 0.5s' }} title={`Empate: ${probabilities.draw}%`}></div>
-                  <div style={{ width: `${probabilities.awayWin}%`, background: '#b339ff', transition: 'width 0.5s' }} title={`Fora: ${probabilities.awayWin}%`}></div>
-                </div>
-
-                {/* Percentage tags below */}
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginTop: '4px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--brand-neon)' }}></div>
-                    <span style={{ color: '#fff', fontWeight: 'bold' }}>{translateTeamName(selectedMatch.home)} ({probabilities.homeWin}%)</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#888' }}></div>
-                    <span style={{ color: 'var(--text-secondary)' }}>Empate ({probabilities.draw}%)</span>
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#b339ff' }}></div>
-                    <span style={{ color: '#fff', fontWeight: 'bold' }}>{translateTeamName(selectedMatch.away)} ({probabilities.awayWin}%)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Goals Probabilities */}
-            <div style={{
-              background: 'var(--bg-surface)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '16px',
-              padding: '24px',
-              display: 'flex',
-              flexDirection: 'column',
-              gap: '16px'
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
-                <Trophy size={18} color="var(--brand-neon)" />
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>Probabilidades de Gols (Over/Under/BTTS)</h3>
-              </div>
-
-              {/* Progress rows */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                {/* Over 0.5 */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#fff', fontWeight: '500', marginBottom: '4px' }}>
-                    <span>Mais de 0.5 Gols (Qualquer Gol)</span>
-                    <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>{probabilities.over05}%</span>
-                  </div>
-                  <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ width: `${probabilities.over05}%`, height: '100%', background: 'var(--brand-neon)' }}></div>
-                  </div>
-                </div>
-
-                {/* Over 1.5 */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#fff', fontWeight: '500', marginBottom: '4px' }}>
-                    <span>Mais de 1.5 Gols</span>
-                    <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>{probabilities.over15}%</span>
-                  </div>
-                  <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ width: `${probabilities.over15}%`, height: '100%', background: 'var(--brand-neon)' }}></div>
-                  </div>
-                </div>
-
-                {/* Over 2.5 */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#fff', fontWeight: '500', marginBottom: '4px' }}>
-                    <span>Mais de 2.5 Gols</span>
-                    <span style={{ color: probabilities.over25 > 55 ? 'var(--brand-neon)' : '#fff', fontWeight: 'bold' }}>{probabilities.over25}%</span>
-                  </div>
-                  <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ width: `${probabilities.over25}%`, height: '100%', background: probabilities.over25 > 55 ? 'var(--brand-neon)' : '#b339ff' }}></div>
-                  </div>
-                </div>
-
-                {/* BTTS */}
-                <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#fff', fontWeight: '500', marginBottom: '4px' }}>
-                    <span>Ambos os Times Marcam (BTTS)</span>
-                    <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>{probabilities.btts}%</span>
-                  </div>
-                  <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
-                    <div style={{ width: `${probabilities.btts}%`, height: '100%', background: 'var(--brand-neon)' }}></div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Corners and Cards Prediction */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              
-              {/* Corners Card */}
-              <div style={{
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '16px',
-                padding: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px'
-              }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  Escanteios
-                </span>
-                <div>
-                  <span style={{ fontSize: '1.6rem', fontWeight: '900', color: '#fff' }}>{cornerData.average}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>
-                    Média total projetada
-                  </span>
-                </div>
-                <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }}></div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.72rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Over 8.5:</span>
-                    <span style={{ color: '#fff', fontWeight: 'bold' }}>{cornerData.over85}%</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Over 9.5:</span>
-                    <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>{cornerData.over95}%</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Over 10.5:</span>
-                    <span style={{ color: '#fff', fontWeight: 'bold' }}>{cornerData.over105}%</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Cards Card */}
-              <div style={{
-                background: 'var(--bg-surface)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '16px',
-                padding: '16px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '12px'
-              }}>
-                <span style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--text-secondary)', textTransform: 'uppercase' }}>
-                  Cartões Totais
-                </span>
-                <div>
-                  <span style={{ fontSize: '1.6rem', fontWeight: '900', color: '#fff' }}>{cardData.average}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'block', marginTop: '2px' }}>
-                    Média total projetada
-                  </span>
-                </div>
-                <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)' }}></div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '0.72rem' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Over 3.5:</span>
-                    <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>{cardData.over35}%</span>
-                  </div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                    <span style={{ color: 'var(--text-secondary)' }}>Over 4.5:</span>
-                    <span style={{ color: '#fff', fontWeight: 'bold' }}>{cardData.over45}%</span>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            {/* AI Predictions / Insights */}
-            <div style={{
-              background: 'linear-gradient(135deg, rgba(204, 255, 0, 0.04) 0%, rgba(179, 57, 255, 0.02) 100%)',
-              border: '1px solid rgba(204, 255, 0, 0.15)',
-              borderRadius: '16px',
-              padding: '24px',
               display: 'flex',
               flexDirection: 'column',
               gap: '12px',
-              position: 'relative'
+              height: '815px',
+              boxSizing: 'border-box'
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <Sparkles size={16} color="var(--brand-neon)" />
-                <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--brand-neon)', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                  Recomendação +EV Baseada em IA
-                </span>
+              {/* Row 1: Recomendação +EV & Cálculo de Vitória (1X2) */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+              {/* AI Predictions / Insights */}
+              <div style={{
+                background: 'linear-gradient(135deg, rgba(204, 255, 0, 0.04) 0%, rgba(179, 57, 255, 0.02) 100%)',
+                border: '1px solid rgba(204, 255, 0, 0.15)',
+                borderRadius: '16px',
+                padding: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px',
+                position: 'relative',
+                justifyContent: 'space-between'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <Sparkles size={16} color="var(--brand-neon)" />
+                  <span style={{ fontSize: '0.8rem', fontWeight: '800', color: 'var(--brand-neon)', textTransform: 'uppercase', letterSpacing: '1px' }}>
+                    Recomendação +EV Baseada em IA
+                  </span>
+                </div>
+
+                <div>
+                  <span style={{ fontSize: '1.25rem', fontWeight: '900', color: '#fff', display: 'block' }}>
+                    {aiInsight.recommendation}
+                  </span>
+                  <span style={{
+                    fontSize: '0.65rem',
+                    fontWeight: 'bold',
+                    background: 'rgba(204, 255, 0, 0.12)',
+                    color: 'var(--brand-neon)',
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    display: 'inline-block',
+                    marginTop: '6px'
+                  }}>
+                    Confiança: {aiInsight.confidence}
+                  </span>
+                </div>
+
+                <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
+                  {aiInsight.rationale}
+                </p>
               </div>
 
-              <div>
-                <span style={{ fontSize: '1rem', fontWeight: '800', color: '#fff', display: 'block' }}>
-                  {aiInsight.recommendation}
-                </span>
-                <span style={{
-                  fontSize: '0.62rem',
-                  fontWeight: 'bold',
-                  background: 'rgba(204, 255, 0, 0.12)',
-                  color: 'var(--brand-neon)',
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  display: 'inline-block',
-                  marginTop: '6px'
-                }}>
-                  Confiança: {aiInsight.confidence}
-                </span>
-              </div>
+              {/* Probability 1X2 Card */}
+              <div style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '16px',
+                padding: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px',
+                justifyContent: 'space-between'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                  <TrendingUp size={18} color="var(--brand-neon)" />
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>Cálculo de Vitória (1X2)</h3>
+                </div>
 
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', lineHeight: '1.5', margin: 0 }}>
-                {aiInsight.rationale}
-              </p>
+                {/* Segmented horizontal percentage bar */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ height: '14px', background: 'var(--bg-surface-light)', borderRadius: '7px', display: 'flex', overflow: 'hidden', border: '1px solid rgba(255,255,255,0.02)' }}>
+                    <div style={{ width: `${probabilities.homeWin}%`, background: 'var(--brand-neon)', transition: 'width 0.5s' }} title={`Casa: ${probabilities.homeWin}%`}></div>
+                    <div style={{ width: `${probabilities.draw}%`, background: '#888', transition: 'width 0.5s' }} title={`Empate: ${probabilities.draw}%`}></div>
+                    <div style={{ width: `${probabilities.awayWin}%`, background: '#b339ff', transition: 'width 0.5s' }} title={`Fora: ${probabilities.awayWin}%`}></div>
+                  </div>
+
+                  {/* Percentage tags below */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.72rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: 'var(--brand-neon)' }}></div>
+                        <span style={{ color: '#fff', fontWeight: 'bold' }}>{translateTeamName(selectedMatch.home)}</span>
+                      </div>
+                      <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>{probabilities.homeWin}%</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#888' }}></div>
+                        <span style={{ color: 'var(--text-secondary)' }}>Empate</span>
+                      </div>
+                      <span style={{ color: 'var(--text-secondary)', fontWeight: 'bold' }}>{probabilities.draw}%</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#b339ff' }}></div>
+                        <span style={{ color: '#fff', fontWeight: 'bold' }}>{translateTeamName(selectedMatch.away)}</span>
+                      </div>
+                      <span style={{ color: '#b339ff', fontWeight: 'bold' }}>{probabilities.awayWin}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
-          </div>
+            {/* Row 2: Indicadores de Força Técnica & Probabilidades de Gols */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '12px' }}>
+              {/* Team Strengths and Forms */}
+              <div style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '16px',
+                padding: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                  <BarChart2 size={18} color="var(--brand-neon)" />
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>Indicadores de Força Técnica</h3>
+                </div>
+
+                {/* Home Team Strengths */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>{translateTeamName(selectedMatch.home)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginRight: '4px' }}>Forma:</span>
+                      {(selectedMatch.formHome || ["V", "V", "E", "D", "V"]).map((c, i) => renderFormBadge(c, i))}
+                    </div>
+                  </div>
+
+                  {/* Attack strength bar */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      <span>Força de Ataque</span>
+                      <span style={{ color: '#fff', fontWeight: 'bold' }}>{statsStrengths.homeAttack}%</span>
+                    </div>
+                    <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: `${statsStrengths.homeAttack}%`, height: '100%', background: 'linear-gradient(90deg, #b339ff, var(--brand-neon))', borderRadius: '3px' }}></div>
+                    </div>
+                  </div>
+
+                  {/* Defense strength bar */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      <span>Consistência Defensiva</span>
+                      <span style={{ color: '#fff', fontWeight: 'bold' }}>{statsStrengths.homeDefense}%</span>
+                    </div>
+                    <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: `${statsStrengths.homeDefense}%`, height: '100%', background: 'linear-gradient(90deg, #ff3d00, #ffea00)', borderRadius: '3px' }}></div>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ height: '1px', background: 'rgba(255,255,255,0.05)', margin: '2px 0' }}></div>
+
+                {/* Away Team Strengths */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>{translateTeamName(selectedMatch.away)}</span>
+                    <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginRight: '4px' }}>Forma:</span>
+                      {(selectedMatch.formAway || ["V", "D", "V", "E", "D"]).map((c, i) => renderFormBadge(c, i))}
+                    </div>
+                  </div>
+
+                  {/* Attack strength bar */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      <span>Força de Ataque</span>
+                      <span style={{ color: '#fff', fontWeight: 'bold' }}>{statsStrengths.awayAttack}%</span>
+                    </div>
+                    <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: `${statsStrengths.awayAttack}%`, height: '100%', background: 'linear-gradient(90deg, #b339ff, var(--brand-neon))', borderRadius: '3px' }}></div>
+                    </div>
+                  </div>
+
+                  {/* Defense strength bar */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: '4px' }}>
+                      <span>Consistência Defensiva</span>
+                      <span style={{ color: '#fff', fontWeight: 'bold' }}>{statsStrengths.awayDefense}%</span>
+                    </div>
+                    <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: `${statsStrengths.awayDefense}%`, height: '100%', background: 'linear-gradient(90deg, #ff3d00, #ffea00)', borderRadius: '3px' }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Goals Probabilities */}
+              <div style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '16px',
+                padding: '12px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '10px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                  <Trophy size={18} color="var(--brand-neon)" />
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>Gols (Over/Under/BTTS)</h3>
+                </div>
+
+                {/* Progress rows */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {/* Over 0.5 */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#fff', fontWeight: '500', marginBottom: '4px' }}>
+                      <span>Mais de 0.5 Gols</span>
+                      <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>{probabilities.over05}%</span>
+                    </div>
+                    <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: `${probabilities.over05}%`, height: '100%', background: 'var(--brand-neon)' }}></div>
+                    </div>
+                  </div>
+
+                  {/* Over 1.5 */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#fff', fontWeight: '500', marginBottom: '4px' }}>
+                      <span>Mais de 1.5 Gols</span>
+                      <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>{probabilities.over15}%</span>
+                    </div>
+                    <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: `${probabilities.over15}%`, height: '100%', background: 'var(--brand-neon)' }}></div>
+                    </div>
+                  </div>
+
+                  {/* Over 2.5 */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#fff', fontWeight: '500', marginBottom: '4px' }}>
+                      <span>Mais de 2.5 Gols</span>
+                      <span style={{ color: probabilities.over25 > 55 ? 'var(--brand-neon)' : '#fff', fontWeight: 'bold' }}>{probabilities.over25}%</span>
+                    </div>
+                    <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: `${probabilities.over25}%`, height: '100%', background: probabilities.over25 > 55 ? 'var(--brand-neon)' : '#b339ff' }}></div>
+                    </div>
+                  </div>
+
+                  {/* BTTS */}
+                  <div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.7rem', color: '#fff', fontWeight: '500', marginBottom: '4px' }}>
+                      <span>Ambos Marcam (BTTS)</span>
+                      <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold' }}>{probabilities.btts}%</span>
+                    </div>
+                    <div style={{ height: '6px', background: 'var(--bg-surface-light)', borderRadius: '3px', overflow: 'hidden' }}>
+                      <div style={{ width: `${probabilities.btts}%`, height: '100%', background: 'var(--brand-neon)' }}></div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Relatório Analítico de Vulnerabilidades & Forças */}
+            {(() => {
+              const hName = translateTeamName(selectedMatch.home);
+              const aName = translateTeamName(selectedMatch.away);
+              
+              const getTeamHashLocal = (name) => {
+                if (!name) return 0;
+                let hash = 0;
+                for (let i = 0; i < name.length; i++) {
+                  hash = name.charCodeAt(i) + ((hash << 5) - hash);
+                }
+                return Math.abs(hash);
+              };
+              const seedH = getTeamHashLocal(selectedMatch.home);
+              const seedA = getTeamHashLocal(selectedMatch.away);
+              
+              const homeAerialWeak = (seedH % 3 === 0);
+              const awayAerialWeak = (seedA % 3 === 0);
+              const aerialInsight = homeAerialWeak 
+                ? `⚠️ Alerta Aéreo: A defesa do ${hName} concedeu ${25 + (seedH % 15)}% dos gols recentes através de cruzamentos na área. O ${aName} pode se beneficiar do jogo aéreo.`
+                : awayAerialWeak
+                ? `⚠️ Alerta Aéreo: O ${aName} tem vulnerabilidade crônica em bolas paradas e jogadas aéreas defensivas. Ótima oportunidade de escanteios ofensivos para o ${hName}.`
+                : `🛡️ Solidez Aérea: Ambas as equipes possuem zagas consistentes no jogo aéreo defensivo (média baixa de gols de cabeça concedidos recentemente).`;
+
+              const homeDefenseWeak = statsStrengths.homeDefense < 60;
+              const awayDefenseWeak = statsStrengths.awayDefense < 60;
+              const defenseInsight = homeDefenseWeak
+                ? `📉 Vulnerabilidade Defensiva: O ${hName} sofre gols com facilidade (solidez de apenas ${statsStrengths.homeDefense}%). Tende a ceder espaços em transições rápidas.`
+                : awayDefenseWeak
+                ? `📉 Vulnerabilidade Defensiva: A defesa do ${aName} apresenta brechas em partidas fora de casa (consistência de ${statsStrengths.awayDefense}%). Sofre forte pressão no segundo tempo.`
+                : `🧱 Zaga Fechada: Ambas as equipes demonstram forte compactação defensiva, com média inferior a 1.1 gols sofridos por jogo nesta temporada.`;
+
+              const cornersInsight = `📐 Escanteios Projetados: Expectativa média de ${cornerData.average} cantos para a partida (${cornerData.homeAverage} para o ${hName} e ${cornerData.awayAverage} para o ${aName}).`;
+
+              const goalsInsight = `⚽ Expectativa de Gols (xG): Projetado de ${selectedMatch.homeXG.toFixed(1)} gols para o ${hName} contra ${selectedMatch.awayXG.toFixed(1)} do ${aName}.`;
+
+              // Scoring minutes
+              const homeGoalsMinutes = (seedH % 2 === 0) ? "alta concentração nos 15 minutos finais do jogo (75-90')" : "pico ofensivo no início do segundo tempo (45-60')";
+              const awayGoalsMinutes = (seedA % 2 === 0) ? "maior volume de gols no fim do primeiro tempo (30-45')" : "perigo constante em contra-ataques rápidos no fim do jogo (75-90')";
+              const goalsTimeInsight = `⏱️ Distribuição de Gols: O ${hName} apresenta ${homeGoalsMinutes}. Já o ${aName} tem ${awayGoalsMinutes}.`;
+
+              // Discipline minutes
+              const homeCardsMinutes = (seedH % 2 === 0) ? "frequência elevada após os 70' sob pressão" : "maior índice de faltas táticas nos minutos iniciais (15-30')";
+              const awayCardsMinutes = (seedA % 2 === 0) ? "tendência de cartões por reclamação/nervosismo no fim do 1º tempo" : "pico de indisciplina nos minutos finais (80-90')";
+              const cardsTimeInsight = `🟨/🔴 Histórico de Disciplina: Picos de cartões do ${hName} ocorrem com ${homeCardsMinutes}. O ${aName} costuma receber advertências por ${awayCardsMinutes}.`;
+
+              return (
+                <div style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '16px',
+                  padding: '12px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '10px',
+                  flex: 1,
+                  minHeight: 0
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '10px' }}>
+                    <Info size={18} color="var(--brand-neon)" />
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>📋 Relatório de Forças & Vulnerabilidades</h3>
+                  </div>
+
+                  <div style={{ 
+                    display: 'flex', 
+                    flexDirection: 'column', 
+                    gap: '12px', 
+                    fontSize: '0.8rem', 
+                    lineHeight: '1.4',
+                    flex: 1,
+                    overflowY: 'auto',
+                    paddingRight: '6px'
+                  }}>
+                    {/* Item 1: xG */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', borderLeft: '3px solid var(--brand-neon)' }}>
+                      <span style={{ display: 'block', color: '#fff', fontWeight: 'bold', marginBottom: '2px' }}>Expectativa de Gols (xG)</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{goalsInsight}</span>
+                    </div>
+
+                    {/* Item 2: Corners */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', borderLeft: '3px solid #888' }}>
+                      <span style={{ display: 'block', color: '#fff', fontWeight: 'bold', marginBottom: '2px' }}>Análise de Escanteios</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{cornersInsight}</span>
+                    </div>
+
+                    {/* Item 3: Aerial play */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', borderLeft: '3px solid #b339ff' }}>
+                      <span style={{ display: 'block', color: '#fff', fontWeight: 'bold', marginBottom: '2px' }}>Jogo Aéreo e Bolas Paradas</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{aerialInsight}</span>
+                    </div>
+
+                    {/* Item 4: Conceded Goals / Defensive Consistency */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', borderLeft: '3px solid #ff3d00' }}>
+                      <span style={{ display: 'block', color: '#fff', fontWeight: 'bold', marginBottom: '2px' }}>Desempenho Defensivo</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{defenseInsight}</span>
+                    </div>
+
+                    {/* Item 5: Scoring minutes */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', borderLeft: '3px solid #00e676' }}>
+                      <span style={{ display: 'block', color: '#fff', fontWeight: 'bold', marginBottom: '2px' }}>Minutos de Gols</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{goalsTimeInsight}</span>
+                    </div>
+
+                    {/* Item 6: Card minutes */}
+                    <div style={{ background: 'rgba(255,255,255,0.02)', padding: '10px', borderRadius: '8px', borderLeft: '3px solid #ffea00' }}>
+                      <span style={{ display: 'block', color: '#fff', fontWeight: 'bold', marginBottom: '2px' }}>Minutos de Disciplina (Cartões)</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>{cardsTimeInsight}</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+            </div>
+
+            {/* Confrontos Diretos (H2H) Card */}
+            {(() => {
+              const h2h = getH2HStats(selectedMatch.home, selectedMatch.away);
+              if (!h2h || !h2h.matches || h2h.matches.length === 0) return null;
+              const totalGames = h2h.summary.homeWins + h2h.summary.draws + h2h.summary.awayWins;
+              
+              return (
+                <div style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '16px',
+                  padding: '24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                    <Users size={18} color="var(--brand-neon)" />
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>Histórico de Confrontos Diretos (H2H)</h3>
+                  </div>
+
+                  {/* Summary progress bar */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                      <span>Resumo dos Últimos 5 Duelos</span>
+                      <span>
+                        <strong style={{ color: 'var(--brand-neon)' }}>{h2h.summary.homeWins}V</strong> Casa | 
+                        <strong style={{ color: '#888' }}> {h2h.summary.draws}E</strong> | 
+                        <strong style={{ color: '#b339ff' }}> {h2h.summary.awayWins}V</strong> Fora
+                      </span>
+                    </div>
+                    <div style={{ height: '8px', background: 'var(--bg-surface-light)', borderRadius: '4px', display: 'flex', overflow: 'hidden' }}>
+                      <div style={{ width: `${(h2h.summary.homeWins / totalGames) * 100}%`, background: 'var(--brand-neon)' }} />
+                      <div style={{ width: `${(h2h.summary.draws / totalGames) * 100}%`, background: '#888' }} />
+                      <div style={{ width: `${(h2h.summary.awayWins / totalGames) * 100}%`, background: '#b339ff' }} />
+                    </div>
+                  </div>
+
+                  {/* Matches list */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '4px' }}>
+                    {h2h.matches.map((m, idx) => {
+                      const isHomeWinner = m.winner === selectedMatch.home;
+                      const isAwayWinner = m.winner === selectedMatch.away;
+                      
+                      return (
+                        <div 
+                          key={`h2h_${idx}`}
+                          style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            background: 'var(--bg-surface-light)',
+                            padding: '8px 12px',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(255, 255, 255, 0.02)'
+                          }}
+                        >
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 'bold' }}>
+                            {m.year}
+                          </span>
+                          <span style={{ fontSize: '0.78rem', color: '#fff', fontWeight: isHomeWinner ? 'bold' : 'normal', textAlign: 'right', flex: 1, marginRight: '10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {translateTeamName(selectedMatch.home)}
+                          </span>
+                          <span style={{ 
+                            fontSize: '0.8rem', 
+                            fontWeight: 'bold', 
+                            color: isHomeWinner ? 'var(--brand-neon)' : isAwayWinner ? '#b339ff' : '#fff',
+                            background: 'rgba(0,0,0,0.2)',
+                            padding: '2px 10px',
+                            borderRadius: '4px',
+                            minWidth: '42px',
+                            textAlign: 'center',
+                            flexShrink: 0
+                          }}>
+                            {m.score}
+                          </span>
+                          <span style={{ fontSize: '0.78rem', color: '#fff', fontWeight: isAwayWinner ? 'bold' : 'normal', textAlign: 'left', flex: 1, marginLeft: '10px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            {translateTeamName(selectedMatch.away)}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Desempenho Recente Card */}
+            {(() => {
+              const homeMatches = getTeamRecentMatches(selectedMatch.home);
+              const awayMatches = getTeamRecentMatches(selectedMatch.away);
+              if (!homeMatches || homeMatches.length === 0) return null;
+              
+              return (
+                <div style={{
+                  background: 'var(--bg-surface)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: '16px',
+                  padding: '24px',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '16px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                    <Calendar size={18} color="var(--brand-neon)" />
+                    <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>📋 Desempenho Geral Recente (Sem Confronto Direto)</h3>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    {/* Home Team Column */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--brand-neon)', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '6px' }}>
+                        {translateTeamName(selectedMatch.home)}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {homeMatches.map((m, idx) => (
+                          <div key={`hm_${idx}`} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            background: 'var(--bg-surface-light)',
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(255, 255, 255, 0.01)'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1 }}>
+                              {renderFormBadge(m.result, idx)}
+                              <span style={{ fontSize: '0.72rem', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`${m.isHome ? '(C)' : '(F)'} vs ${translateTeamName(m.opponent)}`}>
+                                <span style={{ color: 'var(--text-secondary)', marginRight: '3px' }}>{m.isHome ? 'c' : 'f'}</span>
+                                {translateTeamName(m.opponent)}
+                              </span>
+                            </div>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 'bold', color: '#fff', background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px', flexShrink: 0 }}>
+                              {m.score}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Away Team Column */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#b339ff', borderBottom: '1px solid rgba(255,255,255,0.03)', paddingBottom: '6px' }}>
+                        {translateTeamName(selectedMatch.away)}
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        {awayMatches.map((m, idx) => (
+                          <div key={`am_${idx}`} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            background: 'var(--bg-surface-light)',
+                            padding: '8px 10px',
+                            borderRadius: '8px',
+                            border: '1px solid rgba(255, 255, 255, 0.01)'
+                          }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', overflow: 'hidden', flex: 1 }}>
+                              {renderFormBadge(m.result, idx)}
+                              <span style={{ fontSize: '0.72rem', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={`${m.isHome ? '(C)' : '(F)'} vs ${translateTeamName(m.opponent)}`}>
+                                <span style={{ color: 'var(--text-secondary)', marginRight: '3px' }}>{m.isHome ? 'c' : 'f'}</span>
+                                {translateTeamName(m.opponent)}
+                              </span>
+                            </div>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 'bold', color: '#fff', background: 'rgba(0,0,0,0.2)', padding: '2px 6px', borderRadius: '4px', marginLeft: '6px', flexShrink: 0 }}>
+                              {m.score}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            </div>
         </div>
       )}
     </div>

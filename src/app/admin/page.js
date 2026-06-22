@@ -7,7 +7,8 @@ import {
   ShieldCheck, ShieldAlert, Users, TrendingUp, DollarSign, ArrowUpRight, 
   Trash2, Plus, Sparkles, Filter, Search, Award, RefreshCw, BarChart2,
   Settings, Key, Tag, Layers, HelpCircle, Edit, Trophy,
-  Activity, Calendar, Target, Zap, UserPlus, Eye, Send, Clock
+  Activity, Calendar, Target, Zap, UserPlus, Eye, Send, Clock,
+  Save, Megaphone
 } from 'lucide-react';
 
 export default function AdminDashboard() {
@@ -54,6 +55,39 @@ export default function AdminDashboard() {
   const [cupons, setCupons] = useState([]);
   const [gastosCategorias, setGastosCategorias] = useState([]);
   const [funnelMetrics, setFunnelMetrics] = useState({ visitors: 10200, trials: 2450 });
+
+  // Configurações de Anúncios da A2score
+  const [adsConfig, setAdsConfig] = useState({
+    left: {
+      title: "A2 VIP Group",
+      description: "Acesso aos melhores sinais com ROI garantido.",
+      emoji: "🎯",
+      imageUrl: "",
+      link: "https://t.me/",
+      buttonText: "Participar VIP",
+      enabled: true
+    },
+    right: {
+      title: "Poisson Pro",
+      description: "Libere análises táticas completas sem limites.",
+      emoji: "⚡",
+      imageUrl: "",
+      link: "/pricing",
+      buttonText: "Assinar Agora",
+      enabled: true
+    },
+    internal: {
+      title: "A2 Palpites Premium",
+      description: "Acesse palpites exclusivos de nossos analistas.",
+      emoji: "📊",
+      imageUrl: "",
+      link: "/pricing",
+      buttonText: "Assinar VIP",
+      enabled: true
+    }
+  });
+
+  const [activeAdTab, setActiveAdTab] = useState('left'); // 'left' | 'right' | 'internal'
 
   const [loadingData, setLoadingData] = useState(true);
 
@@ -581,6 +615,13 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
           if (settings.company_info) {
             setCompanyInfo(prev => ({ ...prev, ...settings.company_info }));
           }
+          if (settings.a2score_ads) {
+            setAdsConfig(prev => ({
+              left: { ...prev.left, ...settings.a2score_ads.left },
+              right: { ...prev.right, ...settings.a2score_ads.right },
+              internal: { ...prev.internal, ...settings.a2score_ads.internal }
+            }));
+          }
           
           // Ligas ativas na aba palpites
           setLigasSaaS(settings.target_leagues || [
@@ -859,6 +900,24 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
     } catch (err) {
       console.error(err);
       showNotification('Erro de conexão/servidor ao remover administrador: ' + err.message, 'error');
+    }
+  };
+
+  const handleSaveAdsConfig = async () => {
+    try {
+      const res = await adminFetch('/api/admin/settings', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: 'a2score_ads', value: adsConfig })
+      });
+      if (res.ok) {
+        showNotification('Configuração de anúncios salva com sucesso!');
+      } else {
+        const data = await res.json().catch(() => ({}));
+        showNotification('Erro ao salvar anúncios: ' + (data.error || 'Erro desconhecido'), 'error');
+      }
+    } catch (err) {
+      showNotification('Erro: ' + err.message, 'error');
     }
   };
 
@@ -2807,6 +2866,220 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                   {isSavingSettings ? 'Salvando...' : '💾 Salvar Informações da Empresa'}
                 </button>
               </form>
+            </div>
+
+            {/* 7. Configuração de Anúncios (Central A2score) */}
+            <div className="glass-panel" style={{ padding: '20px' }}>
+              <h3 style={{ fontSize: '1.02rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.5px', margin: '0 0 16px 0', borderBottom: '1px dashed #222', paddingBottom: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Megaphone size={16} color="var(--brand-neon)" /> Banners de Publicidade (A2score)
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: '#888', lineHeight: 1.4, marginBottom: '16px' }}>
+                Gerencie textos, links e imagens dos banners de propaganda da **Central A2score**.
+              </p>
+
+              {/* Seletor de Banners */}
+              <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+                {['left', 'right', 'internal'].map((t) => (
+                  <button 
+                    key={t}
+                    type="button"
+                    onClick={() => setActiveAdTab(t)}
+                    style={{
+                      flex: 1,
+                      background: activeAdTab === t ? 'rgba(204,255,0,0.1)' : '#16161a',
+                      border: activeAdTab === t ? '1px solid var(--brand-neon)' : '1px solid #333',
+                      color: activeAdTab === t ? 'var(--brand-neon)' : '#888',
+                      padding: '8px 12px',
+                      borderRadius: '6px',
+                      fontSize: '0.78rem',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s',
+                      textAlign: 'center'
+                    }}
+                  >
+                    {t === 'left' ? 'Esquerdo (VIP)' : t === 'right' ? 'Direito (Pro)' : 'Interno Relatório'}
+                  </button>
+                ))}
+              </div>
+
+              {/* Form de Configuração do Banner Selecionado */}
+              {activeAdTab && (
+                <div style={{ background: '#111116', border: '1px solid #222', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '8px' }}>
+                    <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: 'var(--brand-neon)' }}>
+                      Configurar {activeAdTab === 'left' ? 'Banner Esquerdo (VIP)' : activeAdTab === 'right' ? 'Banner Direito (Pro)' : 'Banner Interno do Relatório'}
+                    </span>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '0.78rem' }}>
+                      <input 
+                        type="checkbox"
+                        checked={adsConfig[activeAdTab]?.enabled}
+                        onChange={(e) => {
+                          setAdsConfig({
+                            ...adsConfig,
+                            [activeAdTab]: { ...adsConfig[activeAdTab], enabled: e.target.checked }
+                          });
+                        }}
+                      />
+                      Ativo
+                    </label>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#888' }}>Emoji / Ícone (Se não usar Imagem)</span>
+                    <input 
+                      type="text"
+                      value={adsConfig[activeAdTab]?.emoji || ''}
+                      onChange={(e) => {
+                        setAdsConfig({
+                          ...adsConfig,
+                          [activeAdTab]: { ...adsConfig[activeAdTab], emoji: e.target.value }
+                        });
+                      }}
+                      style={{ background: '#16161a', border: '1px solid #333', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '0.8rem' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#888' }}>Imagem do Banner (Upload Local ou URL)</span>
+                    <input 
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            setAdsConfig(prev => ({
+                              ...prev,
+                              [activeAdTab]: { ...prev[activeAdTab], imageUrl: reader.result }
+                            }));
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      style={{ fontSize: '0.75rem', color: '#aaa', cursor: 'pointer', marginBottom: '4px' }}
+                    />
+                    <input 
+                      type="text"
+                      placeholder="Ou digite a URL da imagem..."
+                      value={adsConfig[activeAdTab]?.imageUrl && adsConfig[activeAdTab]?.imageUrl.startsWith('data:') ? '' : (adsConfig[activeAdTab]?.imageUrl || '')}
+                      onChange={(e) => {
+                        setAdsConfig({
+                          ...adsConfig,
+                          [activeAdTab]: { ...adsConfig[activeAdTab], imageUrl: e.target.value }
+                        });
+                      }}
+                      style={{ background: '#16161a', border: '1px solid #333', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '0.8rem' }}
+                    />
+                    {adsConfig[activeAdTab]?.imageUrl && (
+                      <div style={{ position: 'relative', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <img 
+                          src={adsConfig[activeAdTab].imageUrl} 
+                          alt="Previsualização" 
+                          style={{ maxWidth: '80px', maxHeight: '80px', borderRadius: '6px', border: '1px solid #333', objectFit: 'cover' }} 
+                        />
+                        <button 
+                          type="button"
+                          onClick={() => {
+                            setAdsConfig(prev => ({
+                              ...prev,
+                              [activeAdTab]: { ...prev[activeAdTab], imageUrl: '' }
+                            }));
+                          }}
+                          style={{ background: 'rgba(255, 77, 77, 0.15)', color: '#ff4d4d', border: '1px solid #ff4d4d', borderRadius: '4px', padding: '2px 8px', fontSize: '0.68rem', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                          Remover Imagem
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#888' }}>Título</span>
+                    <input 
+                      type="text"
+                      value={adsConfig[activeAdTab]?.title || ''}
+                      onChange={(e) => {
+                        setAdsConfig({
+                          ...adsConfig,
+                          [activeAdTab]: { ...adsConfig[activeAdTab], title: e.target.value }
+                        });
+                      }}
+                      style={{ background: '#16161a', border: '1px solid #333', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '0.8rem' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#888' }}>Descrição</span>
+                    <textarea 
+                      rows={2}
+                      value={adsConfig[activeAdTab]?.description || ''}
+                      onChange={(e) => {
+                        setAdsConfig({
+                          ...adsConfig,
+                          [activeAdTab]: { ...adsConfig[activeAdTab], description: e.target.value }
+                        });
+                      }}
+                      style={{ background: '#16161a', border: '1px solid #333', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '0.8rem', resize: 'vertical' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#888' }}>Texto do Botão</span>
+                    <input 
+                      type="text"
+                      value={adsConfig[activeAdTab]?.buttonText || ''}
+                      onChange={(e) => {
+                        setAdsConfig({
+                          ...adsConfig,
+                          [activeAdTab]: { ...adsConfig[activeAdTab], buttonText: e.target.value }
+                        });
+                      }}
+                      style={{ background: '#16161a', border: '1px solid #333', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '0.8rem' }}
+                    />
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#888' }}>Link de Destino</span>
+                    <input 
+                      type="text"
+                      value={adsConfig[activeAdTab]?.link || ''}
+                      onChange={(e) => {
+                        setAdsConfig({
+                          ...adsConfig,
+                          [activeAdTab]: { ...adsConfig[activeAdTab], link: e.target.value }
+                        });
+                      }}
+                      style={{ background: '#16161a', border: '1px solid #333', color: '#fff', padding: '8px', borderRadius: '6px', fontSize: '0.8rem' }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => handleSaveAdsConfig()}
+                style={{
+                  background: 'var(--brand-neon)',
+                  color: '#000',
+                  border: 'none',
+                  borderRadius: '6px',
+                  padding: '10px 24px',
+                  fontWeight: 'bold',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  width: '100%',
+                  marginTop: '16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 15px rgba(204, 255, 0, 0.15)'
+                }}
+              >
+                <Save size={16} /> Salvar Configurações de Anúncios
+              </button>
             </div>
 
           </div>

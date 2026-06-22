@@ -85,7 +85,7 @@ export default function AppContent({ children }) {
   }
 
   // Lista de rotas públicas
-  const publicPaths = ['/', '/login', '/redefinir-senha', '/faq', '/quem-somos', '/pricing'];
+  const publicPaths = ['/', '/login', '/redefinir-senha', '/faq', '/quem-somos', '/pricing', '/jogo-responsavel'];
   const isPublicPath = publicPaths.includes(pathname);
 
   // Páginas públicas para usuários NÃO logados (sem sidebar)

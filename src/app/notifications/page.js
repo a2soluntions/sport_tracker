@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { useAuth } from '../../context/AuthContext';
 
 export default function NotificationsPage() {
-  const { user } = useAuth();
+  const { user, isTrialActive } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [hasUpdate, setHasUpdate] = useState(false);
@@ -205,6 +205,64 @@ export default function NotificationsPage() {
     }
   };
 
+  if (!user) {
+    return null;
+  }
+
+  if (!isTrialActive()) {
+    return (
+      <div style={{
+        padding: '40px 24px',
+        textAlign: 'center',
+        background: '#111116',
+        border: '2px solid rgba(255, 68, 68, 0.3)',
+        borderRadius: '16px',
+        maxWidth: '600px',
+        margin: '60px auto',
+        boxShadow: '0 0 30px rgba(255, 68, 68, 0.05)',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#fff'
+      }}>
+        <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔒</div>
+        <h3 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fff', textTransform: 'uppercase' }}>
+          Seu Teste Grátis de 7 Dias Expirou!
+        </h3>
+        <p style={{ color: '#aaa', fontSize: '0.9rem', marginTop: '12px', lineHeight: 1.5 }}>
+          O período de avaliação gratuita da sua Central de Alertas +EV acabou. Assine agora o plano PRO por apenas **R$ 19,90/mês** para liberar acesso instantâneo e ilimitado.
+        </p>
+        
+        <div style={{ margin: '30px 0', borderTop: '1px dashed #222', borderBottom: '1px dashed #222', padding: '16px 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ color: 'var(--brand-neon)', fontSize: '1.8rem', fontWeight: 900 }}>PRO</div>
+              <div style={{ color: '#888', fontSize: '0.78rem', marginTop: '4px' }}>R$ 19,90 / mês</div>
+            </div>
+            <div>
+              <div style={{ color: '#0088cc', fontSize: '1.8rem', fontWeight: 900 }}>TELEGRAM VIP</div>
+              <div style={{ color: '#888', fontSize: '0.78rem', marginTop: '4px' }}>R$ 9,90 / mês</div>
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={() => window.location.href = '/pricing'}
+          style={{
+            background: 'var(--brand-neon)',
+            color: '#000',
+            border: 'none',
+            padding: '14px 28px',
+            borderRadius: '8px',
+            fontWeight: 'bold',
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            boxShadow: '0 4px 15px rgba(204, 255, 0, 0.2)'
+          }}
+        >
+          Assinar Agora
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div style={{ padding: '20px', maxWidth: '1000px', margin: '0 auto', width: '100%' }}>
       <header style={{ marginBottom: '30px', borderBottom: '1px solid #222', paddingBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
@@ -262,8 +320,8 @@ export default function NotificationsPage() {
         <div className="glass-panel" style={{
           background: 'linear-gradient(135deg, rgba(204, 255, 0, 0.08) 0%, rgba(0,0,0,0) 80%)',
           border: '1px solid var(--brand-neon)',
-          borderRadius: '12px',
-          padding: '20px',
+          borderRadius: '100px',
+          padding: '20px 40px',
           marginBottom: '24px',
           display: 'flex',
           justifyContent: 'space-between',
@@ -273,8 +331,8 @@ export default function NotificationsPage() {
           boxShadow: '0 8px 32px rgba(204, 255, 0, 0.05)'
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-            <div style={{ width: '40px', height: '40px', background: 'rgba(204, 255, 0, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-neon)' }}>
-              <Zap size={20} />
+            <div style={{ width: '44px', height: '44px', background: 'rgba(204, 255, 0, 0.15)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--brand-neon)', flexShrink: 0 }}>
+              <Zap size={22} />
             </div>
             <div>
               <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 'bold', color: '#fff' }}>Nova Versão Disponível</h3>
@@ -289,8 +347,8 @@ export default function NotificationsPage() {
               background: 'var(--brand-neon)',
               border: 'none',
               color: '#000',
-              padding: '10px 20px',
-              borderRadius: '8px',
+              padding: '10px 24px',
+              borderRadius: '24px',
               fontWeight: 'bold',
               fontSize: '0.85rem',
               cursor: 'pointer',
@@ -319,8 +377,10 @@ export default function NotificationsPage() {
           `}</style>
         </div>
       ) : notifications.length === 0 ? (
-        <div className="glass-panel" style={{ padding: '40px', textAlign: 'center', color: '#888' }}>
-          <AlertCircle size={40} color="#555" style={{ marginBottom: '16px' }} />
+        <div className="glass-panel" style={{ padding: '40px', textAlign: 'center', color: '#888', borderRadius: '100px', border: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ width: '60px', height: '60px', background: 'rgba(255,255,255,0.03)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto' }}>
+            <AlertCircle size={32} color="#555" />
+          </div>
           <h3 style={{ color: '#fff', margin: '0 0 8px 0', fontSize: '1.1rem' }}>Nenhum Alerta Recente</h3>
           <p style={{ margin: 0, fontSize: '0.85rem' }}>Nenhum sinal matemático foi registrado no sistema nas últimas horas. Fique de olho!</p>
         </div>
@@ -332,22 +392,33 @@ export default function NotificationsPage() {
               className="glass-panel" 
               style={{ 
                 display: 'flex', 
-                gap: '16px', 
-                padding: '20px', 
-                borderLeft: '4px solid var(--brand-neon)',
+                alignItems: 'center',
+                gap: '20px', 
+                padding: '16px 32px', 
+                border: '1px solid rgba(204, 255, 0, 0.15)',
+                borderRadius: '100px',
                 background: '#111115',
                 boxShadow: '0 4px 20px rgba(0,0,0,0.2)'
               }}
             >
-              <div style={{ paddingTop: '2px' }}>
-                <CheckCircle2 color="var(--brand-neon)" size={22} />
+              <div style={{ 
+                width: '40px', 
+                height: '40px', 
+                background: 'rgba(204, 255, 0, 0.1)', 
+                borderRadius: '50%', 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                flexShrink: 0 
+              }}>
+                <CheckCircle2 color="var(--brand-neon)" size={20} />
               </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '8px', marginBottom: '8px' }}>
-                  <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 'bold', color: '#fff' }}>{notif.title}</h3>
-                  <span style={{ fontSize: '0.78rem', color: '#666', fontFamily: 'monospace' }}>{notif.time}</span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '12px', marginBottom: '4px' }}>
+                  <h3 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{notif.title}</h3>
+                  <span style={{ fontSize: '0.75rem', color: '#666', fontFamily: 'monospace', flexShrink: 0 }}>{notif.time}</span>
                 </div>
-                <p style={{ margin: 0, color: '#aaa', fontSize: '0.85rem', lineHeight: '1.5' }}>
+                <p style={{ margin: 0, color: '#aaa', fontSize: '0.82rem', lineHeight: '1.4', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                   {notif.message}
                 </p>
               </div>

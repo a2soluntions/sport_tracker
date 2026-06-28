@@ -985,7 +985,8 @@ export default function RelatorioApostasPage() {
            ELEMENTOS EXCLUSIVOS DE IMPRESSÃO — ocultos na tela
         ======================================== */
         .print-header,
-        .print-kpi-grid {
+        .print-kpi-grid,
+        .pie-legend-print {
           display: none;
         }
 

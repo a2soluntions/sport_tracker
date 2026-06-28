@@ -1154,36 +1154,49 @@ export default function RelatorioApostasPage() {
           .backtest-charts-grid {
             display: flex !important;
             flex-direction: column !important;
-            gap: 8px !important;
+            gap: 14px !important;
             margin-bottom: 16px !important;
-            overflow: visible !important;
           }
-          /* O wrapper define a área visível do gráfico (sem as labels) */
+          /*
+           * CORREÇÃO DEFINITIVA DE SOBREPOSIÇÃO:
+           * overflow:hidden no painel clipa o SVG do Recharts.
+           * A altura 190px acomoda o gráfico (155px) + labels do eixo X
+           * dentro do SVG (margin.bottom=20 garante que ficam no SVG).
+           */
+          .responsive-chart-panel {
+            page-break-inside: avoid !important;
+            overflow: hidden !important;
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
+          }
           .responsive-chart-wrapper {
             width: 100% !important;
-            height: 155px !important;
-            min-height: 155px !important;
-            overflow: visible !important;
+            height: 190px !important;
+            min-height: 190px !important;
+            max-height: 190px !important;
+            overflow: hidden !important;
             position: relative !important;
             display: block !important;
           }
-          /* padding-bottom acomoda as labels do eixo X que "vazam" para fora do SVG */
-          .responsive-chart-panel {
-            page-break-inside: avoid !important;
-            overflow: visible !important;
-            margin-bottom: 0 !important;
-            padding-bottom: 38px !important;
+          /* Clipa o SVG e o div do ResponsiveContainer também */
+          .responsive-chart-wrapper > div,
+          .responsive-chart-wrapper svg {
+            overflow: hidden !important;
+            max-height: 190px !important;
           }
-          /* O último painel (Acertos vs Perdas) tem menos overflow — sem xAxis */
-          .responsive-chart-panel:last-child {
-            padding-bottom: 18px !important;
+          /* Oculta a div da legenda do Recharts na impressão (ela vaza fora do SVG) */
+          .recharts-legend-wrapper {
+            display: none !important;
           }
-          /* Grid de gráficos precisa de espaço extra no final antes da tabela */
-          .backtest-charts-grid + * {
-            margin-top: 12px !important;
+          /* Legenda textual do pizza — visível apenas na impressão */
+          .pie-legend-print {
+            display: flex !important;
+            flex-direction: column !important;
+            justify-content: center !important;
+            min-width: 120px !important;
           }
 
-          /* ---- Tabela de apostas ---- */
+
           table {
             border-collapse: collapse !important;
             width: 100% !important;
@@ -1625,47 +1638,69 @@ export default function RelatorioApostasPage() {
             </div>
 
             {/* Wins vs Losses Pie Chart */}
-            <div className="glass-panel responsive-chart-panel" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div className="glass-panel responsive-chart-panel" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               <h2 style={{ fontSize: '1rem', fontWeight: 'bold', margin: 0, color: '#ccc', borderBottom: '1px solid #222', paddingBottom: '8px' }}>
                 Acertos vs Perdas
               </h2>
-              <div className="responsive-chart-wrapper">
-                {mounted ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={[
-                          { name: 'Acertos', value: stats.greens, color: 'var(--brand-neon)' },
-                          { name: 'Perdas', value: stats.reds, color: '#ff003c' },
-                          { name: 'Pendentes', value: stats.pending, color: '#FFC107' }
-                        ].filter(item => item.value > 0)}
-                        cx="50%"
-                        cy="42%"
-                        innerRadius={28}
-                        outerRadius={46}
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {[
-                          { name: 'Acertos', value: stats.greens, color: 'var(--brand-neon)' },
-                          { name: 'Perdas', value: stats.reds, color: '#ff003c' },
-                          { name: 'Pendentes', value: stats.pending, color: '#FFC107' }
-                        ].filter(item => item.value > 0).map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip 
-                        contentStyle={{ backgroundColor: '#141419', border: '1px solid #333', borderRadius: '8px' }}
-                        itemStyle={{ color: '#fff' }}
-                      />
-                      <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '0.85rem', color: '#ccc', paddingTop: '4px' }} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#666' }}>
-                    Carregando gráfico...
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div className="responsive-chart-wrapper" style={{ flex: '1' }}>
+                  {mounted ? (
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Pie
+                          data={[
+                            { name: 'Acertos', value: stats.greens, color: 'var(--brand-neon)' },
+                            { name: 'Perdas', value: stats.reds, color: '#ff003c' },
+                            { name: 'Pendentes', value: stats.pending, color: '#FFC107' }
+                          ].filter(item => item.value > 0)}
+                          cx="50%"
+                          cy="50%"
+                          innerRadius={28}
+                          outerRadius={46}
+                          paddingAngle={5}
+                          dataKey="value"
+                        >
+                          {[
+                            { name: 'Acertos', value: stats.greens, color: 'var(--brand-neon)' },
+                            { name: 'Perdas', value: stats.reds, color: '#ff003c' },
+                            { name: 'Pendentes', value: stats.pending, color: '#FFC107' }
+                          ].filter(item => item.value > 0).map((entry, index) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip 
+                          contentStyle={{ backgroundColor: '#141419', border: '1px solid #333', borderRadius: '8px' }}
+                          itemStyle={{ color: '#fff' }}
+                        />
+                        <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '0.85rem', color: '#ccc', paddingTop: '4px' }} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100%', color: '#666' }}>
+                      Carregando gráfico...
+                    </div>
+                  )}
+                </div>
+                {/* Legenda textual visivel apenas na impressao (a div do recharts fica oculta) */}
+                <div className="pie-legend-print" style={{ minWidth: '130px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', fontSize: '9pt' }}>
+                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ccff00', display: 'inline-block' }}></span>
+                    <span>Acertos: <strong>{stats.greens}</strong></span>
                   </div>
-                )}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', fontSize: '9pt' }}>
+                    <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#ff003c', display: 'inline-block' }}></span>
+                    <span>Perdas: <strong>{stats.reds}</strong></span>
+                  </div>
+                  {stats.pending > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '9pt' }}>
+                      <span style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#FFC107', display: 'inline-block' }}></span>
+                      <span>Pendentes: <strong>{stats.pending}</strong></span>
+                    </div>
+                  )}
+                  <div style={{ marginTop: '10px', fontSize: '9pt', color: '#555', borderTop: '1px solid #ddd', paddingTop: '6px' }}>
+                    Taxa: <strong>{stats.hitRate.toFixed(1)}%</strong>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

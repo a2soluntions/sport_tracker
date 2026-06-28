@@ -1154,22 +1154,33 @@ export default function RelatorioApostasPage() {
           .backtest-charts-grid {
             display: flex !important;
             flex-direction: column !important;
-            gap: 12px !important;
-            margin-bottom: 12px !important;
+            gap: 8px !important;
+            margin-bottom: 16px !important;
             overflow: visible !important;
           }
+          /* O wrapper define a área visível do gráfico (sem as labels) */
           .responsive-chart-wrapper {
             width: 100% !important;
-            height: 150px !important;
-            min-height: 150px !important;
+            height: 155px !important;
+            min-height: 155px !important;
             overflow: visible !important;
             position: relative !important;
+            display: block !important;
           }
+          /* padding-bottom acomoda as labels do eixo X que "vazam" para fora do SVG */
           .responsive-chart-panel {
             page-break-inside: avoid !important;
             overflow: visible !important;
             margin-bottom: 0 !important;
-            padding-bottom: 6px !important;
+            padding-bottom: 38px !important;
+          }
+          /* O último painel (Acertos vs Perdas) tem menos overflow — sem xAxis */
+          .responsive-chart-panel:last-child {
+            padding-bottom: 18px !important;
+          }
+          /* Grid de gráficos precisa de espaço extra no final antes da tabela */
+          .backtest-charts-grid + * {
+            margin-top: 12px !important;
           }
 
           /* ---- Tabela de apostas ---- */
@@ -1578,7 +1589,7 @@ export default function RelatorioApostasPage() {
               <div className="responsive-chart-wrapper">
                 {mounted ? (
                   <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={chartData} margin={{ top: 10, right: 10, left: 25, bottom: 0 }}>
+                    <LineChart data={chartData} margin={{ top: 10, right: 10, left: 25, bottom: 20 }}>
                       <defs>
                         <linearGradient id="splitColor" x1="0" y1="0" x2="0" y2="1">
                           <stop offset={off} stopColor="var(--brand-neon)" stopOpacity={1} />
@@ -1629,9 +1640,9 @@ export default function RelatorioApostasPage() {
                           { name: 'Pendentes', value: stats.pending, color: '#FFC107' }
                         ].filter(item => item.value > 0)}
                         cx="50%"
-                        cy="50%"
-                        innerRadius={35}
-                        outerRadius={55}
+                        cy="42%"
+                        innerRadius={28}
+                        outerRadius={46}
                         paddingAngle={5}
                         dataKey="value"
                       >
@@ -1647,7 +1658,7 @@ export default function RelatorioApostasPage() {
                         contentStyle={{ backgroundColor: '#141419', border: '1px solid #333', borderRadius: '8px' }}
                         itemStyle={{ color: '#fff' }}
                       />
-                      <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '0.85rem', color: '#ccc', paddingTop: '10px' }} />
+                      <Legend verticalAlign="bottom" iconType="circle" wrapperStyle={{ fontSize: '0.85rem', color: '#ccc', paddingTop: '4px' }} />
                     </PieChart>
                   </ResponsiveContainer>
                 ) : (

@@ -982,9 +982,10 @@ export default function RelatorioApostasPage() {
         }
 
         /* ========================================
-           CABEÇALHO DE IMPRESSÃO
+           ELEMENTOS EXCLUSIVOS DE IMPRESSÃO — ocultos na tela
         ======================================== */
-        .print-header {
+        .print-header,
+        .print-kpi-grid {
           display: none;
         }
 
@@ -1145,27 +1146,34 @@ export default function RelatorioApostasPage() {
           }
 
           /* ---- Texto geral ---- */
-          h1, h2, h3, p, div, span, td, th, label, li {
+          h1, h2, h3, p, td, th, label, li {
             color: #1a1a1a !important;
-            background: transparent !important;
           }
 
           /* ---- Gráficos ---- */
           .backtest-charts-grid {
             display: flex !important;
             flex-direction: column !important;
-            gap: 16px !important;
-            margin-bottom: 16px !important;
-            page-break-inside: avoid !important;
+            gap: 28px !important;
+            margin-bottom: 20px !important;
+            overflow: visible !important;
           }
           .responsive-chart-wrapper {
             width: 100% !important;
-            height: 200px !important;
+            height: 220px !important;
+            min-height: 220px !important;
             overflow: visible !important;
+            position: relative !important;
           }
           .responsive-chart-panel {
             page-break-inside: avoid !important;
             overflow: visible !important;
+            margin-bottom: 0 !important;
+            padding-bottom: 12px !important;
+          }
+          /* Forçar quebra de página antes do 2º gráfico (Acertos vs Perdas) */
+          .responsive-chart-panel:nth-child(2) {
+            page-break-before: always !important;
           }
 
           /* ---- Tabela de apostas ---- */

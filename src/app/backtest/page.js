@@ -978,32 +978,137 @@ export default function RelatorioApostasPage() {
       <style dangerouslySetInnerHTML={{ __html: `
         @page {
           size: A4 portrait;
-          margin: 15mm 15mm 15mm 15mm;
+          margin: 12mm 12mm 12mm 12mm;
         }
+
+        /* ========================================
+           CABEÇALHO DE IMPRESSÃO
+        ======================================== */
+        .print-header {
+          display: none;
+        }
+
         @media print {
-          html, body, .app-container, .main-content, .table-responsive-container, 
-          [class*="app-container"], [class*="main-content"], [class*="app_container"], [class*="main_content"] {
+          /* ---- Reset geral ---- */
+          html, body,
+          .app-container, .main-content, .table-responsive-container,
+          [class*="app-container"], [class*="main-content"],
+          [class*="app_container"], [class*="main_content"] {
             overflow: visible !important;
             height: auto !important;
             min-height: auto !important;
             max-height: none !important;
+            background: #fff !important;
           }
           body {
             background: #ffffff !important;
-            color: #000000 !important;
-            font-size: 11pt !important;
+            color: #1a1a1a !important;
+            font-size: 10pt !important;
+            font-family: 'Segoe UI', Arial, sans-serif !important;
             padding: 0 !important;
             margin: 0 !important;
           }
-          header, button, select, nav, aside, .no-print,
-          [class*="mobileHeader"], [class*="bottomNav"], [class*="sidebar"] {
+
+          /* ---- Ocultar elementos da UI ---- */
+          header, button, select, nav, aside,
+          .no-print,
+          [class*="mobileHeader"],
+          [class*="bottomNav"],
+          [class*="sidebar"],
+          [class*="Sidebar"],
+          [class*="filterBar"],
+          [class*="pagination"] {
             display: none !important;
             height: 0 !important;
-            padding: 0 !important;
-            margin: 0 !important;
-            position: absolute !important;
+            overflow: hidden !important;
             visibility: hidden !important;
           }
+
+          /* ---- Cabeçalho de impressão ---- */
+          .print-header {
+            display: flex !important;
+            justify-content: space-between !important;
+            align-items: center !important;
+            border-bottom: 2px solid #1a1a1a !important;
+            padding-bottom: 10px !important;
+            margin-bottom: 18px !important;
+          }
+          .print-header-logo {
+            font-size: 18pt !important;
+            font-weight: 900 !important;
+            color: #1a1a1a !important;
+            letter-spacing: -0.5px !important;
+          }
+          .print-header-logo span {
+            color: #5a9e00 !important;
+          }
+          .print-header-info {
+            text-align: right !important;
+            font-size: 8.5pt !important;
+            color: #444 !important;
+            line-height: 1.5 !important;
+          }
+          .print-header-info strong {
+            display: block !important;
+            font-size: 10pt !important;
+            color: #1a1a1a !important;
+          }
+
+          /* ---- Título do relatório ---- */
+          .print-report-title {
+            font-size: 14pt !important;
+            font-weight: 700 !important;
+            color: #1a1a1a !important;
+            margin: 0 0 16px 0 !important;
+            padding-bottom: 6px !important;
+            border-bottom: 1px solid #ddd !important;
+          }
+
+          /* ---- KPI Cards circulares → cards retangulares limpos ---- */
+          .kpi-circle-wrapper {
+            display: none !important;
+          }
+          .print-kpi-grid {
+            display: grid !important;
+            grid-template-columns: repeat(4, 1fr) !important;
+            gap: 10px !important;
+            margin-bottom: 18px !important;
+          }
+          .print-kpi-card {
+            display: flex !important;
+            flex-direction: column !important;
+            align-items: center !important;
+            justify-content: center !important;
+            text-align: center !important;
+            border: 1.5px solid #e2e8f0 !important;
+            border-radius: 8px !important;
+            padding: 12px 8px !important;
+            background: #fafafa !important;
+            page-break-inside: avoid !important;
+          }
+          .print-kpi-label {
+            font-size: 7pt !important;
+            color: #666 !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.8px !important;
+            font-weight: 600 !important;
+            margin-bottom: 4px !important;
+          }
+          .print-kpi-value {
+            font-size: 14pt !important;
+            font-weight: 800 !important;
+            color: #1a1a1a !important;
+            margin-bottom: 2px !important;
+            line-height: 1.2 !important;
+          }
+          .print-kpi-value.positive { color: #2d7a00 !important; }
+          .print-kpi-value.negative { color: #c0392b !important; }
+          .print-kpi-sub {
+            font-size: 7.5pt !important;
+            color: #888 !important;
+          }
+
+          /* ---- Área principal e painéis ---- */
           .main-content {
             padding: 0 !important;
             margin: 0 !important;
@@ -1017,59 +1122,122 @@ export default function RelatorioApostasPage() {
             width: 100% !important;
             max-width: 100% !important;
           }
-          /* Grid de KPIs lado a lado na impressão */
-          .grid-responsive-cards {
-            display: grid !important;
-            grid-template-columns: repeat(4, 1fr) !important;
-            gap: 12px !important;
-            margin-bottom: 20px !important;
+
+          /* ---- Glass panels → bordas simples ---- */
+          .glass-panel, [class*="glass-panel"] {
+            background: #ffffff !important;
+            color: #1a1a1a !important;
+            border: 1px solid #dde1e7 !important;
+            box-shadow: none !important;
+            backdrop-filter: none !important;
+            border-radius: 8px !important;
+            padding: 10px 12px !important;
           }
-          /* Gráficos um abaixo do outro na impressão para evitar sobreposição */
+
+          /* ---- Títulos de seção ---- */
+          h2 {
+            font-size: 11pt !important;
+            color: #1a1a1a !important;
+            border-bottom: 1px solid #e0e0e0 !important;
+            padding-bottom: 4px !important;
+            margin-bottom: 8px !important;
+            margin-top: 0 !important;
+          }
+
+          /* ---- Texto geral ---- */
+          h1, h2, h3, p, div, span, td, th, label, li {
+            color: #1a1a1a !important;
+            background: transparent !important;
+          }
+
+          /* ---- Gráficos ---- */
           .backtest-charts-grid {
             display: flex !important;
             flex-direction: column !important;
-            gap: 20px !important;
-            margin-bottom: 20px !important;
-            page-break-inside: avoid;
+            gap: 16px !important;
+            margin-bottom: 16px !important;
+            page-break-inside: avoid !important;
           }
           .responsive-chart-wrapper {
             width: 100% !important;
-            height: 250px !important;
+            height: 200px !important;
+            overflow: visible !important;
           }
-          .glass-panel {
-            background: #ffffff !important;
-            color: #000000 !important;
-            border: 1px solid #e2e8f0 !important;
-            box-shadow: none !important;
-            border-radius: 8px !important;
-            padding: 12px !important;
-            -webkit-print-color-adjust: exact !important;
-            print-color-adjust: exact !important;
+          .responsive-chart-panel {
+            page-break-inside: avoid !important;
+            overflow: visible !important;
           }
-          h1, h2, h3, p, div, span, td, th {
-            color: #000000 !important;
+
+          /* ---- Tabela de apostas ---- */
+          table {
+            border-collapse: collapse !important;
+            width: 100% !important;
+            page-break-inside: auto !important;
+            font-size: 8.5pt !important;
           }
-          /* Forçar cores de gráficos na impressão */
+          thead tr {
+            page-break-inside: avoid !important;
+            background: #f1f5f9 !important;
+          }
+          tr {
+            page-break-inside: avoid !important;
+            page-break-after: auto !important;
+          }
+          th {
+            background: #f1f5f9 !important;
+            color: #1a1a1a !important;
+            font-weight: 700 !important;
+            padding: 7px 8px !important;
+            border-bottom: 2px solid #cbd5e1 !important;
+            text-align: left !important;
+            font-size: 8pt !important;
+            text-transform: uppercase !important;
+            letter-spacing: 0.5px !important;
+          }
+          td {
+            padding: 6px 8px !important;
+            border-bottom: 1px solid #e8ecf0 !important;
+            vertical-align: middle !important;
+          }
+          tr:nth-child(even) td {
+            background: #f8fafc !important;
+          }
+
+          /* ---- Badges de resultado (GREEN/RED) ---- */
+          [data-result="green"], [data-result="GREEN"] {
+            background: #dcfce7 !important;
+            color: #166534 !important;
+            border-radius: 4px !important;
+            padding: 2px 6px !important;
+            font-weight: 700 !important;
+            font-size: 8pt !important;
+          }
+          [data-result="red"], [data-result="RED"] {
+            background: #fee2e2 !important;
+            color: #991b1b !important;
+            border-radius: 4px !important;
+            padding: 2px 6px !important;
+            font-weight: 700 !important;
+            font-size: 8pt !important;
+          }
+
+          /* ---- Rodapé de página ---- */
+          .print-footer {
+            display: block !important;
+            position: fixed !important;
+            bottom: 0 !important;
+            width: 100% !important;
+            font-size: 7.5pt !important;
+            color: #999 !important;
+            text-align: center !important;
+            border-top: 1px solid #e0e0e0 !important;
+            padding-top: 4px !important;
+          }
+
+          /* ---- Forçar cores SVG/charts ---- */
           * {
             -webkit-print-color-adjust: exact !important;
             print-color-adjust: exact !important;
-          }
-          table {
-            border-collapse: collapse;
-            width: 100% !important;
-            page-break-inside: auto;
-          }
-          tr {
-            page-break-inside: avoid;
-            page-break-after: auto;
-          }
-          th, td {
-            border-bottom: 1px solid #e2e8f0 !important;
-            padding: 8px !important;
-          }
-          th {
-            background-color: #f8fafc !important;
-            font-weight: bold !important;
           }
         }
       `}} />
@@ -1211,8 +1379,46 @@ export default function RelatorioApostasPage() {
 
             return (
               <>
-                {/* KPI Cards */}
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'center', marginBottom: '32px' }}>
+                {/* === CABEÇALHO EXCLUSIVO PARA IMPRESSÃO === */}
+                <div className="print-header">
+                  <div className="print-header-logo">
+                    A2<span>Sport</span>Trackers
+                  </div>
+                  <div className="print-header-info">
+                    <strong>Relatório de Apostas</strong>
+                    {user?.email && <span>{user.email}</span>}<br/>
+                    <span>{new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                  </div>
+                </div>
+
+                {/* === KPI GRID EXCLUSIVO PARA IMPRESSÃO (cards limpos) === */}
+                <div className="print-kpi-grid">
+                  <div className="print-kpi-card">
+                    <div className="print-kpi-label">Resultado Líquido</div>
+                    <div className={`print-kpi-value ${isProfitable ? 'positive' : 'negative'}`}>
+                      {isProfitable ? '+' : ''}R$ {stats.netProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div className="print-kpi-sub">{stats.roi >= 0 ? '+' : ''}{stats.roi.toFixed(1)}% ROI</div>
+                  </div>
+                  <div className="print-kpi-card">
+                    <div className="print-kpi-label">Volume Apostado</div>
+                    <div className="print-kpi-value">R$ {stats.totalInvested.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</div>
+                    <div className="print-kpi-sub">{stats.pendingInvested > 0 ? `R$ ${stats.pendingInvested.toFixed(0)} pend.` : 'Zero pendentes'}</div>
+                  </div>
+                  <div className="print-kpi-card">
+                    <div className="print-kpi-label">Taxa de Acerto</div>
+                    <div className="print-kpi-value">{stats.hitRate.toFixed(1)}%</div>
+                    <div className="print-kpi-sub">{stats.greens}G / {stats.reds}R / {stats.pending}P</div>
+                  </div>
+                  <div className="print-kpi-card">
+                    <div className="print-kpi-label">Total de Entradas</div>
+                    <div className="print-kpi-value">{stats.totalBets}</div>
+                    <div className="print-kpi-sub">Apostas cadastradas</div>
+                  </div>
+                </div>
+
+                {/* KPI Cards circulares (tela) — ocultos na impressão */}
+                <div className="kpi-circle-wrapper" style={{ display: 'flex', flexWrap: 'wrap', gap: '20px', justifyContent: 'center', marginBottom: '32px' }}>
                   
                   {/* 1. Resultado Líquido */}
                   <div style={{ 
@@ -1587,6 +1793,7 @@ export default function RelatorioApostasPage() {
                           <span 
                             onClick={() => handleToggleStatus(tx)}
                             title="Clique para alternar o resultado da aposta (GREEN / RED / PENDENTE)"
+                            data-result={isGain ? 'GREEN' : isLoss ? 'RED' : 'PENDENTE'}
                             style={{ 
                               padding: '4px 10px', 
                               borderRadius: '20px', 

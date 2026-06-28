@@ -294,42 +294,67 @@ export default function LandingPage() {
         display: 'flex',
         justifyContent: 'space-between',
         alignItems: 'center',
-        padding: '20px 5%',
-        background: 'rgba(9, 9, 11, 0.8)',
+        padding: '16px 5%',
+        background: 'rgba(9, 9, 11, 0.9)',
         backdropFilter: 'blur(12px)',
         borderBottom: '1px solid #1f1f23',
         position: 'sticky',
         top: 0,
         zIndex: 1000,
-        width: '100%'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Zap size={24} color="var(--brand-neon)" fill="var(--brand-neon)" />
-          <span style={{ fontWeight: 900, fontSize: '1.25rem', letterSpacing: '-0.5px' }}>
-            a2sport<span style={{ color: 'var(--brand-neon)' }}>trackers</span>
-          </span>
-        </div>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: '24px' }}>
-          <Link href="/jogo-responsavel" style={{ color: '#a1a1aa', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 500, transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#fff'} onMouseLeave={(e) => e.target.style.color = '#a1a1aa'}>Jogo Responsável</Link>
-          <Link href="/faq" style={{ color: '#a1a1aa', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 500, transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#fff'} onMouseLeave={(e) => e.target.style.color = '#a1a1aa'}>FAQ</Link>
-          <Link href="/quem-somos" style={{ color: '#a1a1aa', textDecoration: 'none', fontSize: '0.9rem', fontWeight: 500, transition: 'color 0.2s' }} onMouseEnter={(e) => e.target.style.color = '#fff'} onMouseLeave={(e) => e.target.style.color = '#a1a1aa'}>Quem Somos</Link>
+        width: '100%',
+        flexDirection: 'column',
+        gap: '12px'
+      }} className="responsive-landing-nav">
+        {/* Logo and Menu block containing links and button */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          width: '100%',
+          flexWrap: 'wrap',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <Zap size={24} color="var(--brand-neon)" fill="var(--brand-neon)" />
+            <span style={{ fontWeight: 900, fontSize: '1.25rem', letterSpacing: '-0.5px' }}>
+              a2sport<span style={{ color: 'var(--brand-neon)' }}>trackers</span>
+            </span>
+          </div>
+
           <Link href="/login" style={{
-            background: 'transparent',
-            border: '1px solid #3f3f46',
-            color: '#fff',
-            padding: '8px 16px',
+            background: 'var(--brand-neon)',
+            border: 'none',
+            color: '#000',
+            padding: '6px 16px',
             borderRadius: '6px',
             fontSize: '0.85rem',
             fontWeight: 'bold',
             textDecoration: 'none',
-            transition: 'all 0.2s'
+            transition: 'all 0.2s',
+            boxShadow: '0 0 15px rgba(204, 255, 0, 0.2)',
+            whiteSpace: 'nowrap'
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = '#fff'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = '#3f3f46'; }}
+          onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.9'; }}
+          onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; }}
           >
             Entrar
           </Link>
+        </div>
+
+        {/* Links row */}
+        <div style={{ 
+          display: 'flex', 
+          alignItems: 'center', 
+          gap: '20px',
+          justifyContent: 'center',
+          width: '100%',
+          flexWrap: 'wrap',
+          borderTop: '1px solid rgba(255,255,255,0.03)',
+          paddingTop: '8px'
+        }}>
+          <Link href="/jogo-responsavel" style={{ color: '#a1a1aa', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 500, transition: 'color 0.2s', whiteSpace: 'nowrap' }} onMouseEnter={(e) => e.target.style.color = '#fff'} onMouseLeave={(e) => e.target.style.color = '#a1a1aa'}>Jogo Responsável</Link>
+          <Link href="/faq" style={{ color: '#a1a1aa', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 500, transition: 'color 0.2s', whiteSpace: 'nowrap' }} onMouseEnter={(e) => e.target.style.color = '#fff'} onMouseLeave={(e) => e.target.style.color = '#a1a1aa'}>FAQ</Link>
+          <Link href="/quem-somos" style={{ color: '#a1a1aa', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 500, transition: 'color 0.2s', whiteSpace: 'nowrap' }} onMouseEnter={(e) => e.target.style.color = '#fff'} onMouseLeave={(e) => e.target.style.color = '#a1a1aa'}>Quem Somos</Link>
         </div>
       </nav>
 
@@ -447,29 +472,30 @@ export default function LandingPage() {
           {/* Stats - Borderless & Clean */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: '1fr 1fr',
-            gap: '40px 30px',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+            gap: '30px 20px',
+            width: '100%'
           }}>
             <div>
-              <span style={{ fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '1.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '6px', height: '6px', background: 'var(--brand-neon)', borderRadius: '50%' }}></span>
+              <span style={{ fontSize: '0.72rem', color: '#71717a', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '1.2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '6px', height: '6px', background: 'var(--brand-neon)', borderRadius: '50%', flexShrink: 0 }}></span>
                 Taxa de Acerto Geral
               </span>
-              <div style={{ fontSize: '3rem', fontWeight: 900, color: 'var(--brand-neon)', marginTop: '8px', textShadow: '0 0 30px rgba(204, 255, 0, 0.25)', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+              <div style={{ fontSize: 'clamp(1.8rem, 8vw, 2.6rem)', fontWeight: 900, color: 'var(--brand-neon)', marginTop: '8px', textShadow: '0 0 30px rgba(204, 255, 0, 0.25)', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', lineHeight: 1.1 }}>
                 {dbStats.winRate}
               </div>
-              <span style={{ fontSize: '0.75rem', color: '#52525b', display: 'block', marginTop: '4px' }}>Base: {dbStats.totalBets} palpites</span>
+              <span style={{ fontSize: '0.7rem', color: '#52525b', display: 'block', marginTop: '4px' }}>Base: {dbStats.totalBets} palpites</span>
             </div>
 
             <div>
-              <span style={{ fontSize: '0.75rem', color: '#71717a', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '1.5px', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                <span style={{ width: '6px', height: '6px', background: '#00ff88', borderRadius: '50%' }}></span>
+              <span style={{ fontSize: '0.72rem', color: '#71717a', textTransform: 'uppercase', fontWeight: 800, letterSpacing: '1.2px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <span style={{ width: '6px', height: '6px', background: '#00ff88', borderRadius: '50%', flexShrink: 0 }}></span>
                 ROI (Retorno Geral)
               </span>
-              <div style={{ fontSize: '3rem', fontWeight: 900, color: '#00ff88', marginTop: '8px', textShadow: '0 0 30px rgba(0, 255, 136, 0.25)', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif' }}>
+              <div style={{ fontSize: 'clamp(1.8rem, 8vw, 2.6rem)', fontWeight: 900, color: '#00ff88', marginTop: '8px', textShadow: '0 0 30px rgba(0, 255, 136, 0.25)', fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif', lineHeight: 1.1 }}>
                 {dbStats.roi}
               </div>
-              <span style={{ fontSize: '0.75rem', color: '#52525b', display: 'block', marginTop: '4px' }}>Média ponderada no mercado</span>
+              <span style={{ fontSize: '0.7rem', color: '#52525b', display: 'block', marginTop: '4px' }}>Média no mercado</span>
             </div>
 
             <div>

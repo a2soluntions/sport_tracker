@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import Sidebar from '../components/Sidebar';
 import LoginPage from './login/page';
 import CookieConsent from '../components/CookieConsent';
+import SupportChat from '../components/SupportChat';
 import { Loader2 } from 'lucide-react';
 
 export default function AppContent({ children }) {
@@ -93,6 +94,7 @@ export default function AppContent({ children }) {
     return (
       <div style={{ width: '100%', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
         {children}
+        <SupportChat />
         <CookieConsent />
       </div>
     );
@@ -103,6 +105,7 @@ export default function AppContent({ children }) {
     return (
       <>
         <LoginPage />
+        <SupportChat />
         <CookieConsent />
       </>
     );
@@ -113,6 +116,7 @@ export default function AppContent({ children }) {
     return (
       <>
         {children}
+        <SupportChat />
         <CookieConsent />
       </>
     );
@@ -126,6 +130,7 @@ export default function AppContent({ children }) {
         {children}
       </main>
 
+      <SupportChat />
       <CookieConsent />
     </div>
   );

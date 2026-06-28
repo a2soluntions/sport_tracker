@@ -133,13 +133,8 @@ export default function SettingsPage() {
       }
     }
 
-    const isAdminUser = user && (user.role === 'admin' || user.role === 'super_admin' || user.email === 'a2soluntions@gmail.com');
     if (user) {
-      if (isAdminUser) {
-        loadDatabaseSettings();
-      } else {
-        loadUserSettings();
-      }
+      loadUserSettings();
     } else {
       setLoadingConfig(false);
     }
@@ -155,43 +150,7 @@ export default function SettingsPage() {
 
     const isAdminUser = user && (user.role === 'admin' || user.role === 'super_admin' || user.email === 'a2soluntions@gmail.com');
 
-    if (isAdminUser) {
-      // Salvar localmente
-      try {
-        localStorage.setItem('ev_tracker_settings', JSON.stringify(config));
-      } catch (e) {}
-
-      // Salvar no Supabase via API administrativa
-      if (supabase) {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session?.access_token) {
-            const res = await fetch('/api/admin/settings', {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${session.access_token}`
-              },
-              body: JSON.stringify({ key: 'ev_tracker_settings', value: config })
-            });
-            if (res.ok) {
-              fetchSuccess = true;
-            } else {
-              const data = await res.json().catch(() => ({}));
-              errorMsg = data.error || `Erro HTTP ${res.status}`;
-            }
-          } else {
-            errorMsg = 'Nenhuma sessão ativa encontrada. Faça login novamente.';
-          }
-        } catch (err) {
-          console.warn("Erro ao salvar configurações no banco:", err);
-          errorMsg = err.message || 'Erro de rede/servidor.';
-        }
-      } else {
-        errorMsg = 'Cliente do banco de dados não inicializado.';
-      }
-    } else {
-      // Salvar configurações pessoais do usuário comum no Supabase
+      // Salvar configurações pessoais de banca e alertas na tabela user_settings para todos os usuários
       if (supabase && user) {
         try {
           const { error } = await supabase
@@ -222,10 +181,7 @@ export default function SettingsPage() {
           console.warn("Erro ao salvar configurações pessoais no banco:", err);
           errorMsg = err.message || 'Erro ao salvar no banco de dados.';
         }
-      } else {
-        errorMsg = 'Você precisa estar logado para salvar as configurações.';
       }
-    }
 
     setSaving(false);
     if (fetchSuccess) {

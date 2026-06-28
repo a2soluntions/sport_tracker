@@ -19,7 +19,7 @@ const getOverCornersProbability = (lambda, line) => {
   return isNaN(p) ? 0.5 : p;
 };
 
-const analisarMelhorOpcao = (game, initialValue) => {
+const analisarMelhorOpcao = (game, initialValue, customRiskPct = 0.05) => {
   const stats = game.stats;
   if (!stats) return { market: 'N/A', selection: 'Sem palpite', prob: 0, odd: 1.0, amount: 0, percentage: 0 };
   
@@ -116,7 +116,7 @@ const analisarMelhorOpcao = (game, initialValue) => {
   const p = best.prob;
   const q = 1 - p;
   const kellyPct = b > 0 ? Math.max(0, (p * b - q) / b) * 0.25 : 0.02;
-  const safeKellyPct = Math.min(0.05, kellyPct);
+  const safeKellyPct = Math.min(customRiskPct, kellyPct);
   
   const recommendedAmount = Math.max(10, initialValue * safeKellyPct);
   
@@ -235,25 +235,62 @@ const getOpponentName = (teamName, index, seed) => {
   return filtered[(seed + index) % filtered.length];
 };
 
+// Tabela de força para gerar forma consistente com o sistema de xG
+const PALPITES_TEAM_STRENGTH = {
+  'Argentina': 2.3, 'France': 2.2, 'England': 2.1, 'Spain': 2.2, 'Brazil': 2.1,
+  'Portugal': 2.1, 'Belgium': 1.9, 'Germany': 2.0, 'Netherlands': 2.0, 'Italy': 1.8,
+  'Croatia': 1.7, 'Uruguay': 1.8, 'Colombia': 1.7, 'Morocco': 1.6, 'Switzerland': 1.6,
+  'Denmark': 1.6, 'Mexico': 1.6, 'Japan': 1.6, 'South Korea': 1.5, 'Senegal': 1.5,
+  'Ecuador': 1.4, 'Poland': 1.5, 'Turkey': 1.5, 'Serbia': 1.5, 'Ukraine': 1.5,
+  'Scotland': 1.4, 'Australia': 1.4, 'Wales': 1.4, 'Nigeria': 1.4, 'Egypt': 1.4,
+  'Chile': 1.4, 'Romania': 1.3, 'Slovakia': 1.3, 'Iran': 1.3, 'Saudi Arabia': 1.3,
+  'Tunisia': 1.3, 'Cameroon': 1.3, 'Ghana': 1.3, 'Algeria': 1.3, 'Paraguay': 1.3,
+  'Canada': 1.3, 'Venezuela': 1.2, 'Peru': 1.3, 'Iraq': 1.2, 'Qatar': 1.2,
+  'Costa Rica': 1.2, 'Jordan': 1.1, 'Bolivia': 1.1, 'Panama': 1.1, 'Honduras': 1.1,
+  'UAE': 1.1, 'Jamaica': 1.1, 'New Zealand': 1.1, 'Syria': 1.1, 'El Salvador': 1.0,
+  'Guatemala': 1.0, 'Palestine': 1.0, 'Oman': 1.0, 'Bahrain': 1.0, 'Kuwait': 1.0,
+  // Clubes Brasileiros
+  'Flamengo': 1.9, 'Palmeiras': 1.8, 'Atletico Mineiro': 1.7, 'Atlético-MG': 1.7,
+  'Sao Paulo': 1.6, 'São Paulo': 1.6, 'Fluminense': 1.6, 'Corinthians': 1.5,
+  'Internacional': 1.6, 'Gremio': 1.5, 'Grêmio': 1.5, 'Santos': 1.4, 'Botafogo': 1.5,
+  'Bahia': 1.4, 'Cruzeiro': 1.5, 'Bragantino': 1.4, 'Red Bull Bragantino': 1.4,
+  'Vasco': 1.3, 'Vasco da Gama': 1.3, 'Fortaleza': 1.4, 'Ceara': 1.3, 'Ceará': 1.3,
+  'Athletico-PR': 1.4, 'Athletico PR': 1.4, 'Goias': 1.2, 'Goiás': 1.2,
+  'America Mineiro': 1.3, 'América-MG': 1.3, 'Cuiaba': 1.2, 'Cuiabá': 1.2,
+  // Clubes Europeus
+  'Manchester City': 2.4, 'Real Madrid': 2.3, 'Bayern Munich': 2.3, 'Liverpool': 2.2,
+  'Barcelona': 2.2, 'Arsenal': 2.0, 'Chelsea': 1.9, 'Manchester United': 1.9,
+  'PSG': 2.1, 'Bayer Leverkusen': 1.9, 'Borussia Dortmund': 1.9, 'Inter': 1.9,
+  'Atletico Madrid': 1.8, 'Atletico de Madrid': 1.8, 'Atletico Madrid': 1.8,
+  'Napoli': 1.8, 'Benfica': 1.8, 'PSV': 1.8, 'RB Leipzig': 1.8, 'Juventus': 1.7,
+  'AC Milan': 1.7, 'Sporting CP': 1.7, 'Ajax': 1.7, 'Feyenoord': 1.7, 'Monaco': 1.7,
+  'Porto': 1.7, 'Tottenham': 1.8, 'Marseille': 1.6, 'Lyon': 1.6, 'Galatasaray': 1.6,
+};
+
+const getPalpitesTeamStrength = (teamName) => {
+  if (!teamName) return 1.3;
+  if (PALPITES_TEAM_STRENGTH[teamName] !== undefined) return PALPITES_TEAM_STRENGTH[teamName];
+  const upper = teamName.toUpperCase();
+  for (const [key, val] of Object.entries(PALPITES_TEAM_STRENGTH)) {
+    if (upper.includes(key.toUpperCase()) || key.toUpperCase().includes(upper)) return val;
+  }
+  // Fallback: hash estável para times desconhecidos, range conservador
+  let h = 0;
+  for (let i = 0; i < teamName.length; i++) h = teamName.charCodeAt(i) + ((h << 5) - h);
+  h = Math.abs(h);
+  return 1.0 + ((h % 7) / 10); // 1.0–1.6
+};
+
 const getTeamForm = (teamName, position) => {
+  const strength = getPalpitesTeamStrength(teamName);
   const seed = getTeamHash(teamName);
   const form = [];
-  
-  let pWin = 0.35;
-  let pDraw = 0.30;
-  
-  const parsedPos = parseInt(position) || 10;
-  
-  if (parsedPos <= 5) {
-    pWin = 0.55;
-    pDraw = 0.25;
-  } else if (parsedPos <= 12) {
-    pWin = 0.40;
-    pDraw = 0.30;
-  } else {
-    pWin = 0.20;
-    pDraw = 0.30;
-  }
+
+  // Probabilidades de vitória baseadas na força real do time
+  // Times fortes (≥2.0): ~60% vitória; Times medianos (1.5): ~40%; Times fracos (≤1.2): ~20%
+  const pWin = Math.max(0.15, Math.min(0.70, (strength - 1.0) / 1.5));
+  const pDraw = 0.22;
+  // pLoss = 1 - pWin - pDraw
   
   for (let i = 0; i < 5; i++) {
     const gameSeed = (seed + i * 43) % 100;
@@ -1192,24 +1229,56 @@ export default function PalpitesPage() {
 
 
 
-  // Carregar Valor Inicial e Risco do LocalStorage
+  // Carregar Valor Inicial e Risco do Supabase ou LocalStorage
   useEffect(() => {
     if (!user) return;
-    const userBancaKey = `ev_tracker_banca_initial_value_${user.id}`;
-    const savedInitial = localStorage.getItem(userBancaKey);
-    if (savedInitial) {
-      setInitialValue(parseFloat(savedInitial));
-    } else {
-      setInitialValue(1000);
-    }
+    const loadConfig = async () => {
+      const userBancaKey = `ev_tracker_banca_initial_value_${user.id}`;
+      const userRiskKey = `ev_tracker_max_risk_pct_${user.id}`;
+      
+      let initialVal = 1000;
+      let riskVal = 0.05;
 
-    const userRiskKey = `ev_tracker_max_risk_pct_${user.id}`;
-    const savedRisk = localStorage.getItem(userRiskKey);
-    if (savedRisk) {
-      setRiskPct(parseFloat(savedRisk));
-    } else {
-      setRiskPct(0.05);
-    }
+      if (supabase) {
+        try {
+          const { data, error } = await supabase
+            .from('user_settings')
+            .select('*')
+            .eq('id', user.id)
+            .maybeSingle();
+          if (data) {
+            if (data.banca) {
+              initialVal = parseFloat(data.banca);
+              localStorage.setItem(userBancaKey, initialVal.toString());
+            }
+            const savedRiskLocal = localStorage.getItem(userRiskKey);
+            if (savedRiskLocal) {
+              riskVal = parseFloat(savedRiskLocal);
+            }
+          } else {
+            const savedInitial = localStorage.getItem(userBancaKey);
+            if (savedInitial) initialVal = parseFloat(savedInitial);
+            const savedRisk = localStorage.getItem(userRiskKey);
+            if (savedRisk) riskVal = parseFloat(savedRisk);
+          }
+        } catch (err) {
+          console.warn('[Palpites] Erro ao carregar configurações pessoais:', err);
+          const savedInitial = localStorage.getItem(userBancaKey);
+          if (savedInitial) initialVal = parseFloat(savedInitial);
+          const savedRisk = localStorage.getItem(userRiskKey);
+          if (savedRisk) riskVal = parseFloat(savedRisk);
+        }
+      } else {
+        const savedInitial = localStorage.getItem(userBancaKey);
+        if (savedInitial) initialVal = parseFloat(savedInitial);
+        const savedRisk = localStorage.getItem(userRiskKey);
+        if (savedRisk) riskVal = parseFloat(savedRisk);
+      }
+
+      setInitialValue(initialVal);
+      setRiskPct(riskVal);
+    };
+    loadConfig();
   }, [user?.id]);
 
   // Recalcular saldo da banca sempre que transactions ou initialValue mudar
@@ -2238,17 +2307,37 @@ export default function PalpitesPage() {
               game.goalsAway || 0
             );
 
-            // Analisar melhor opção (vitoria, gols, escanteios, cartões) e injetar no stats
+            // Analisar melhor opção (vitoria, gols, escanteios, cartões) e obter odd justa teórica
             const gameObj = { ...game, stats };
-            const analyzed = analisarMelhorOpcao(gameObj, initialValue);
+            const analyzedRaw = analisarMelhorOpcao(gameObj, banca || initialValue || 1000, riskPct);
             
+            // Buscar cotações reais das casas para ver se há valor real (+EV) e calcular Kelly real
+            const fairOddVal = analyzedRaw.prob ? (1 / analyzedRaw.prob).toFixed(2) : '2.00';
+            const bmOdds = getBookmakerOdds(game.home + game.away, analyzedRaw.selection, fairOddVal);
+            const bestBmOdd = bmOdds.find(o => o.isBest)?.odd || Number(fairOddVal);
+
+            // Recalcular com a odd real do mercado para calcular a stake correta no Critério de Kelly
+            const marketMultiplier = bestBmOdd - 1;
+            const probabilityWin = analyzedRaw.prob;
+            const probabilityLoss = 1 - probabilityWin;
+            
+            let kellyFraction = riskPct || 0.05; // Utilizar a porcentagem de risco padrão configurada pelo usuário como base
+            if (marketMultiplier > 0) {
+              const fraction = (marketMultiplier * probabilityWin - probabilityLoss) / marketMultiplier;
+              // Usar metade de Kelly (como feito nos sinais) ou Fractional Kelly (1/4) dependendo do edge
+              kellyFraction = Math.max(0.005, fraction / 2); 
+            }
+            
+            const safeKelly = Math.min(riskPct || 0.05, kellyFraction);
+            const finalRecommendedStake = Math.max(1.0, Math.round((banca || initialValue || 1000) * safeKelly * 100) / 100);
+
             stats.bestTip = {
-              market: analyzed.market,
-              selection: analyzed.selection,
-              prob: analyzed.prob,
-              odd: analyzed.odd,
-              recommendedAmount: analyzed.amount,
-              recommendedPercentage: analyzed.percentage
+              market: analyzedRaw.market,
+              selection: analyzedRaw.selection,
+              prob: analyzedRaw.prob,
+              odd: analyzedRaw.odd,
+              recommendedAmount: finalRecommendedStake,
+              recommendedPercentage: safeKelly * 100
             };
 
             return { ...game, stats };
@@ -2270,7 +2359,7 @@ export default function PalpitesPage() {
     };
 
     fetchFixtures();
-  }, [selectedLeague, selectedDate, activeLeagues, initialValue]);
+  }, [selectedLeague, selectedDate, JSON.stringify(activeLeagues), initialValue, banca, riskPct]);
 
   // === MOTOR DE ENVIO AUTOMÁTICO ===
   useEffect(() => {

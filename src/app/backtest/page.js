@@ -250,7 +250,7 @@ const formatOddMobile = (odd) => {
 };
 
 export default function RelatorioApostasPage() {
-  const { user } = useAuth();
+  const { user, isTrialActive } = useAuth();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [sending, setSending] = useState(false);
@@ -902,6 +902,59 @@ export default function RelatorioApostasPage() {
       <div style={{ padding: '48px', color: 'var(--brand-neon)', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', justifyContent: 'center', minHeight: '400px' }}>
         <span className="sync-pulse" style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>Carregando dados das apostas...</span>
         <p style={{ color: '#888', fontSize: '0.9rem' }}>Buscando transações e sincronizando com Supabase.</p>
+      </div>
+    );
+  }
+
+  if (!isTrialActive()) {
+    return (
+      <div style={{
+        padding: '40px 24px',
+        textAlign: 'center',
+        background: '#111116',
+        border: '2px solid rgba(255, 68, 68, 0.3)',
+        borderRadius: '16px',
+        maxWidth: '600px',
+        margin: '60px auto',
+        boxShadow: '0 0 30px rgba(255, 68, 68, 0.05)',
+        fontFamily: 'system-ui, sans-serif',
+        color: '#fff'
+      }}>
+        <div style={{ fontSize: '3rem', marginBottom: '16px' }}>🔒</div>
+        <h3 style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fff', textTransform: 'uppercase' }}>
+          Área Exclusiva Para Assinantes!
+        </h3>
+        <p style={{ color: '#aaa', fontSize: '0.9rem', marginTop: '12px', lineHeight: 1.5 }}>
+          A Central de Previsões e Estatísticas A2score é uma ferramenta premium. Assine agora o plano PRO por apenas <strong>R$ 19,90/mês</strong> para ter acesso ilimitado.
+        </p>
+        <div style={{ margin: '30px 0', borderTop: '1px dashed #222', borderBottom: '1px dashed #222', padding: '16px 0' }}>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '40px', flexWrap: 'wrap' }}>
+            <div>
+              <div style={{ color: 'var(--brand-neon)', fontSize: '1.8rem', fontWeight: 900 }}>PRO</div>
+              <div style={{ color: '#888', fontSize: '0.78rem', marginTop: '4px' }}>R$ 19,90 / mês</div>
+            </div>
+            <div>
+              <div style={{ color: '#0088cc', fontSize: '1.8rem', fontWeight: 900 }}>TELEGRAM VIP</div>
+              <div style={{ color: '#888', fontSize: '0.78rem', marginTop: '4px' }}>R$ 9,90 / mês</div>
+            </div>
+          </div>
+        </div>
+        <button
+          onClick={() => window.location.href = '/pricing'}
+          style={{
+            background: 'var(--brand-neon)',
+            color: '#000',
+            border: 'none',
+            padding: '14px 28px',
+            borderRadius: '8px',
+            fontWeight: 'bold',
+            fontSize: '0.95rem',
+            cursor: 'pointer',
+            boxShadow: '0 4px 15px rgba(204, 255, 0, 0.2)'
+          }}
+        >
+          Assinar Agora
+        </button>
       </div>
     );
   }

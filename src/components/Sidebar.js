@@ -159,10 +159,10 @@ export default function Sidebar() {
 
   const planStyle = getPlanStyles(user?.plan, user?.role, user?.coupon_code);
   const trialDays = getTrialDaysLeft();
+  const isTrialActive = user?.plan === 'gratis' && !user?.coupon_code && user?.role !== 'admin' && user?.role !== 'super_admin';
 
   return (
     <>
-      {/* Mobile Top Header (only visible on mobile) */}
       <div className={styles.mobileHeader}>
         <div className={styles.mobileLogo}>
           <Zap size={20} className={styles.logoIcon} strokeWidth={2.5} />
@@ -170,55 +170,53 @@ export default function Sidebar() {
         </div>
 
         {user && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             {(user.role === 'super_admin' || user.role === 'admin') && (
-              <Link href="/admin" style={{
+              <Link href="/admin" title="Administração" style={{
                 color: 'var(--brand-neon)',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '4px',
                 textDecoration: 'none',
-                fontSize: '0.75rem',
-                fontWeight: 'bold',
-                marginRight: '8px',
                 background: 'rgba(204, 255, 0, 0.05)',
                 border: '1px solid rgba(204, 255, 0, 0.2)',
-                padding: '2px 8px',
+                padding: '4px 8px',
                 borderRadius: '4px'
               }}>
-                <ShieldCheck size={12} /> Admin
+                <ShieldCheck size={16} />
               </Link>
             )}
-            <Link href="/pricing" style={{
+            <Link href="/pricing" title={planStyle.label} style={{
               background: planStyle.bg,
               color: planStyle.color,
               border: planStyle.border,
-              padding: '2px 8px',
+              padding: '4px 8px',
               borderRadius: '4px',
               fontSize: '0.65rem',
               fontWeight: 'bold',
-              textDecoration: 'none'
+              textDecoration: 'none',
+              textTransform: 'uppercase'
             }}>
-              {planStyle.label}
+              ★ PRO
             </Link>
             <button 
               onClick={handleLogout}
-              style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', padding: '4px' }}
+              style={{ background: 'transparent', border: 'none', color: '#ff4d4d', cursor: 'pointer', padding: '4px', display: 'flex', alignItems: 'center' }}
               title="Sair"
             >
-              <LogOut size={16} />
+              <LogOut size={18} />
             </button>
           </div>
         )}
       </div>
 
-      {/* Sidebar Container (Desktop only) */}
       <aside className={styles.sidebar}>
         <div className={styles.logo} style={{ marginBottom: '32px' }}>
           <div className={styles.logoIconWrapper}>
             <Zap size={24} className={styles.logoIcon} strokeWidth={2.5} />
           </div>
-          <span className={styles.logoText}>a2sport<span style={{ color: 'var(--brand-neon)' }}>trackers</span></span>
+          <span className={styles.sidebarLogoText} style={{ fontSize: '1.4rem', fontWeight: 800, color: '#fff' }}>
+            a2sport<span style={{ color: 'var(--brand-neon)' }}>trackers</span>
+          </span>
         </div>
         
         <nav className={styles.nav}>
@@ -278,110 +276,61 @@ export default function Sidebar() {
           </Link>
         </nav>
 
-        {/* Rodapé: Perfil e Sessão SaaS */}
         {user && (
-          <div style={{
-            marginTop: 'auto',
-            paddingTop: '20px',
-            borderTop: '1px solid rgba(255, 255, 255, 0.05)',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '12px'
-          }}>
-            {/* Bloco de Info do Usuário */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-              {/* Avatar Redondo */}
+          <div style={{ marginTop: 'auto', paddingTop: '24px', borderTop: '1px solid rgba(255,255,255,0.05)', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
               <div style={{
-                width: '38px',
-                height: '38px',
+                width: '40px',
+                height: '40px',
                 borderRadius: '50%',
-                background: (user.plan === 'vip' || user.plan === 'vitalicio' || user.role === 'super_admin') ? '#b339ff' : user.plan === 'pro' ? 'var(--brand-neon)' : '#222',
-                color: (user.plan === 'gratis' && user.role !== 'admin' && user.role !== 'super_admin') ? '#888' : '#000',
+                background: 'linear-gradient(135deg, var(--brand-neon) 0%, #00ff88 100%)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 fontWeight: 'bold',
-                fontSize: '0.9rem',
-                border: '1px solid ' + ((user.plan === 'vip' || user.plan === 'vitalicio' || user.role === 'super_admin') ? '#b339ff' : user.plan === 'pro' ? 'var(--brand-neon)' : '#333'),
-                flexShrink: 0
+                color: '#000',
+                fontSize: '1rem',
+                boxShadow: '0 4px 10px rgba(0, 255, 170, 0.2)'
               }}>
-                {user.name ? user.name.substring(0, 2).toUpperCase() : 'US'}
+                {user.email ? user.email.substring(0, 2).toUpperCase() : 'U'}
               </div>
-              {/* Nome e Plano */}
-              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0, flex: 1 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
                 <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: '#fff', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {user.name}
+                  {user.email}
                 </span>
-                <span style={{
-                  background: planStyle.bg,
-                  color: planStyle.color,
-                  border: planStyle.border,
-                  padding: '2px 6px',
-                  borderRadius: '4px',
-                  fontSize: '0.62rem',
+                <span style={{ 
+                  fontSize: '0.68rem', 
+                  color: planStyle.color, 
                   fontWeight: 'bold',
-                  alignSelf: 'flex-start',
-                  marginTop: '4px'
+                  display: 'inline-block',
+                  marginTop: '2px'
                 }}>
                   {planStyle.label}
                 </span>
               </div>
             </div>
 
-             {/* Contador de Trial */}
-            {user.plan === 'gratis' && !user.coupon_code && user.role !== 'admin' && user.role !== 'super_admin' && (
-              <div style={{
-                background: 'rgba(255, 152, 0, 0.05)',
-                border: '1px dashed rgba(255, 152, 0, 0.2)',
-                borderRadius: '6px',
-                padding: '8px 10px',
-                fontSize: '0.75rem',
-                color: '#ff9800',
-                fontWeight: 'bold',
-                textAlign: 'center'
-              }}>
-                Trial: {trialDays} {trialDays === 1 ? 'dia restante' : 'dias restantes'}
-              </div>
-            )}
-
-            {/* Ações */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {user.plan === 'gratis' && !user.coupon_code && user.role !== 'admin' && user.role !== 'super_admin' && (
-                <Link href="/pricing" style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '6px',
-                  background: 'var(--brand-neon)',
-                  color: '#000',
-                  padding: '8px',
-                  borderRadius: '6px',
-                  fontSize: '0.78rem',
-                  fontWeight: 'bold',
-                  textDecoration: 'none',
-                  textAlign: 'center',
-                  boxShadow: '0 2px 8px rgba(204, 255, 0, 0.1)'
-                }}>
-                  <ArrowUpCircle size={14} />
-                  <span>Fazer Upgrade</span>
-                </Link>
+              {isTrialActive && trialDays !== null && (
+                <div style={{ fontSize: '0.75rem', color: '#888', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--brand-neon)' }}></span>
+                  <span>Período de teste: <strong>{trialDays} {trialDays === 1 ? 'dia' : 'dias'} restante(s)</strong></span>
+                </div>
               )}
-
-              <button
+              <button 
                 onClick={handleLogout}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: 'transparent',
-                  border: 'none',
-                  color: '#888',
-                  padding: '6px 0',
-                  fontSize: '0.78rem',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  alignSelf: 'flex-start',
-                  transition: 'color 0.2s'
+                style={{ 
+                  background: 'transparent', 
+                  border: 'none', 
+                  color: '#888', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '8px', 
+                  fontSize: '0.78rem', 
+                  fontWeight: 'bold', 
+                  cursor: 'pointer', 
+                  alignSelf: 'flex-start', 
+                  transition: 'color 0.2s' 
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.color = '#ff4d4d'}
                 onMouseLeave={(e) => e.currentTarget.style.color = '#888'}
@@ -390,44 +339,41 @@ export default function Sidebar() {
                 <span>Encerrar Sessão</span>
               </button>
             </div>
-
           </div>
         )}
       </aside>
 
-      {/* Mobile Bottom Navigation Bar */}
       <nav className={styles.bottomNav}>
-        <Link href="/dashboard" className={`${styles.bottomNavItem} ${pathname === '/dashboard' ? styles.bottomNavItemActive : ''}`}>
-          <Zap size={18} className={styles.bottomNavIcon} />
-          <span>Alertas</span>
-        </Link>
-        <Link href="/calculator" className={`${styles.bottomNavItem} ${pathname === '/calculator' ? styles.bottomNavItemActive : ''}`}>
+        {user && (user.role === 'admin' || user.role === 'super_admin') ? (
+          <Link href="/admin" className={`${styles.bottomNavItem} ${pathname === '/admin' ? styles.bottomNavItemActive : ''}`} title="Admin">
+            <ShieldCheck size={20} className={styles.bottomNavIcon} color="var(--brand-neon)" />
+          </Link>
+        ) : (
+          <Link href="/dashboard" className={`${styles.bottomNavItem} ${pathname === '/dashboard' ? styles.bottomNavItemActive : ''}`} title="Alertas">
+            <Zap size={20} className={styles.bottomNavIcon} />
+          </Link>
+        )}
+        <Link href="/calculator" className={`${styles.bottomNavItem} ${pathname === '/calculator' ? styles.bottomNavItemActive : ''}`} title="A2score">
           <img 
             src="/a2logo.jpg" 
-            alt="" 
-            style={{ width: '18px', height: '18px', borderRadius: '4px', objectFit: 'cover', marginBottom: '4px' }} 
+            alt="A2score" 
+            style={{ width: '20px', height: '20px', borderRadius: '4px', objectFit: 'cover' }} 
           />
-          <span>A2score</span>
         </Link>
-        <Link href="/palpites" className={`${styles.bottomNavItem} ${pathname === '/palpites' ? styles.bottomNavItemActive : ''}`}>
-          <Trophy size={18} className={styles.bottomNavIcon} />
-          <span>Palpites</span>
+        <Link href="/palpites" className={`${styles.bottomNavItem} ${pathname === '/palpites' ? styles.bottomNavItemActive : ''}`} title="Palpites">
+          <Trophy size={20} className={styles.bottomNavIcon} />
         </Link>
-        <Link href="/backtest" className={`${styles.bottomNavItem} ${pathname === '/backtest' ? styles.bottomNavItemActive : ''}`}>
-          <TrendingUp size={18} className={styles.bottomNavIcon} />
-          <span>Relatório</span>
+        <Link href="/backtest" className={`${styles.bottomNavItem} ${pathname === '/backtest' ? styles.bottomNavItemActive : ''}`} title="Relatório">
+          <TrendingUp size={20} className={styles.bottomNavIcon} />
         </Link>
-        <Link href="/banca" className={`${styles.bottomNavItem} ${pathname === '/banca' ? styles.bottomNavItemActive : ''}`}>
-          <PiggyBank size={18} className={styles.bottomNavIcon} />
-          <span>Carteira</span>
+        <Link href="/banca" className={`${styles.bottomNavItem} ${pathname === '/banca' ? styles.bottomNavItemActive : ''}`} title="Carteira">
+          <PiggyBank size={20} className={styles.bottomNavIcon} />
         </Link>
-        <Link href="/notifications" className={`${styles.bottomNavItem} ${pathname === '/notifications' ? styles.bottomNavItemActive : ''}`}>
-          <Bell size={18} className={`${styles.bottomNavIcon} ${hasUpdate || hasNewAlert ? 'bell-blink' : ''}`} />
-          <span>Notif.</span>
+        <Link href="/notifications" className={`${styles.bottomNavItem} ${pathname === '/notifications' ? styles.bottomNavItemActive : ''}`} title="Notificações">
+          <Bell size={20} className={`${styles.bottomNavIcon} ${hasUpdate || hasNewAlert ? 'bell-blink' : ''}`} />
         </Link>
-        <Link href="/settings" className={`${styles.bottomNavItem} ${pathname === '/settings' ? styles.bottomNavItemActive : ''}`}>
-          <Settings size={18} className={styles.bottomNavIcon} />
-          <span>Config.</span>
+        <Link href="/settings" className={`${styles.bottomNavItem} ${pathname === '/settings' ? styles.bottomNavItemActive : ''}`} title="Configurações">
+          <Settings size={20} className={styles.bottomNavIcon} />
         </Link>
       </nav>
     </>

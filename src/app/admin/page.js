@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabaseClient';
 import { 
   ShieldCheck, ShieldAlert, Users, TrendingUp, DollarSign, ArrowUpRight, 
   Trash2, Plus, Sparkles, Filter, Search, Award, RefreshCw, BarChart2,
-  Settings, Key, Tag, Layers, HelpCircle, Edit, Trophy,
+  Settings, Key, Tag, Layers, HelpCircle, Edit, Trophy, CheckCircle, Check,
   Activity, Calendar, Target, Zap, UserPlus, Eye, Send, Clock,
   Save, Megaphone
 } from 'lucide-react';
@@ -87,6 +87,25 @@ export default function AdminDashboard() {
     }
   });
 
+  const parseExpenseMetadata = (categoryStr) => {
+    if (!categoryStr) return { name: 'Geral', type: 'fixed', dueDate: '', paidStatus: 'pending' };
+    const parts = categoryStr.split('|');
+    if (parts.length >= 3) {
+      return {
+        name: parts[0],
+        type: parts[1], // 'fixed' | 'one-time'
+        dueDate: parts[2], // YYYY-MM-DD
+        paidStatus: parts[3] || 'pending' // 'paid' | 'pending'
+      };
+    }
+    return {
+      name: categoryStr,
+      type: 'fixed',
+      dueDate: '',
+      paidStatus: 'pending'
+    };
+  };
+
   const [activeAdTab, setActiveAdTab] = useState('left'); // 'left' | 'right' | 'internal'
 
   const [loadingData, setLoadingData] = useState(true);
@@ -115,15 +134,78 @@ export default function AdminDashboard() {
   // Modal States para Editar Gasto/Despesa
   const [showEditExpenseModal, setShowEditExpenseModal] = useState(false);
   const [showResetConfirmModal, setShowResetConfirmModal] = useState(false);
+  const [showDeleteUserModal, setShowDeleteUserModal] = useState(false);
+  const [userToDelete, setUserToDelete] = useState(null);
   const [editingExpense, setEditingExpense] = useState(null);
   const [editExpenseName, setEditExpenseName] = useState('');
   const [editExpenseValue, setEditExpenseValue] = useState('');
   const [editExpenseCategory, setEditExpenseCategory] = useState('Outros');
+  const [editExpenseType, setEditExpenseType] = useState('fixed'); // 'fixed' | 'one-time'
+  const [editExpenseVencimento, setEditExpenseVencimento] = useState(''); // YYYY-MM-DD
+  const [editExpensePaid, setEditExpensePaid] = useState('pending'); // 'paid' | 'pending'
 
   // --- OUTROS ESTADOS AUXILIARES ---
   const [novoGastoNome, setNovoGastoNome] = useState('');
   const [novoGastoValor, setNovoGastoValor] = useState('');
   const [novoGastoCat, setNovoGastoCat] = useState('Outros');
+  const [novoGastoTipo, setNovoGastoTipo] = useState('fixed'); // 'fixed' | 'one-time'
+  const [novoGastoVencimento, setNovoGastoVencimento] = useState(''); // YYYY-MM-DD
+  const [filtroDespesasTipo, setFiltroDespesasTipo] = useState('todos'); // 'todos' | 'fixed' | 'one-time' | 'vencidos'
+
+  const processedGastos = useMemo(() => {
+    return gastos.map(g => {
+      const meta = parseExpenseMetadata(g.category);
+      
+      let statusVencimento = 'em_dia';
+      let diasDiferenca = null;
+      
+      if (meta.paidStatus === 'paid') {
+        statusVencimento = 'pago';
+      } else if (meta.dueDate) {
+        const hoje = new Date();
+        hoje.setHours(0, 0, 0, 0);
+        const venc = new Date(meta.dueDate + 'T00:00:00-03:00');
+        venc.setHours(0, 0, 0, 0);
+        
+        const diffTime = venc.getTime() - hoje.getTime();
+        diasDiferenca = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diasDiferenca < 0) {
+          statusVencimento = 'atrasado';
+        } else if (diasDiferenca === 0) {
+          statusVencimento = 'vencendo_hoje';
+        } else if (diasDiferenca <= 3) {
+          statusVencimento = 'proximo';
+        }
+      } else {
+        statusVencimento = 'sem_data';
+      }
+      
+      return {
+        ...g,
+        metaName: meta.name,
+        metaType: meta.type,
+        metaDueDate: meta.dueDate,
+        metaPaidStatus: meta.paidStatus,
+        statusVencimento,
+        diasDiferenca
+      };
+    });
+  }, [gastos]);
+
+  const filteredGastos = useMemo(() => {
+    return processedGastos.filter(g => {
+      if (filtroDespesasTipo === 'todos') return true;
+      if (filtroDespesasTipo === 'fixed') return g.metaType === 'fixed';
+      if (filtroDespesasTipo === 'one-time') return g.metaType === 'one-time';
+      if (filtroDespesasTipo === 'vencidos') return g.statusVencimento === 'atrasado';
+      return true;
+    });
+  }, [processedGastos, filtroDespesasTipo]);
+
+  const alertasVencimentoCount = useMemo(() => {
+    return processedGastos.filter(g => g.statusVencimento === 'atrasado').length;
+  }, [processedGastos]);
 
   const [searchUser, setSearchUser] = useState('');
   const [planFilter, setPlanFilter] = useState('todos');
@@ -160,6 +242,29 @@ export default function AdminDashboard() {
   const [filterDate, setFilterDate] = useState('');
   const [filterLeague, setFilterLeague] = useState('');
   const [sortEV, setSortEV] = useState(false);
+
+  // Filtros de Precisão / Refinamento para Despacho Manual
+  const [maxOdd, setMaxOdd] = useState(5.0);
+  const [minRealProb, setMinRealProb] = useState(20); // Mínimo 20% probabilidade real
+  const [hideAnomalies, setHideAnomalies] = useState(true); // Ocultar EVs irreais > 100%
+
+  const filteredOpportunities = useMemo(() => {
+    return opportunities.filter(opp => {
+      // Probabilidade real baseada na odd justa (100 / odd_justa)
+      const prob = opp.odd_justa > 0 ? (100 / opp.odd_justa) : 0;
+      
+      // Filtro 1: Limitar Odd Máxima (evita super zebras)
+      if (opp.odd_oferecida > maxOdd) return false;
+      
+      // Filtro 2: Mínimo de probabilidade real (evita risco excessivo)
+      if (prob < minRealProb) return false;
+      
+      // Filtro 3: Ocultar anomalias matemáticas de EV > 100%
+      if (hideAnomalies && opp.vantagem_ev_porcentagem > 100) return false;
+      
+      return true;
+    });
+  }, [opportunities, maxOdd, minRealProb, hideAnomalies]);
 
   // Configurações do Robô de Sinais (saas_settings)
   const [botEnabled, setBotEnabled] = useState(true);
@@ -422,6 +527,15 @@ export default function AdminDashboard() {
     setIsVipSending(false);
     setSelectedBets([]);
     showNotification(`Envio concluído: ${successCount} enviadas, ${failCount} falhas.`, successCount > 0 ? 'success' : 'error');
+
+    // Alerta nativo para confirmação clara e inequívoca
+    if (successCount > 0 && failCount === 0) {
+      alert(`✅ Sucesso! Dica(s) enviada(s) com sucesso para o Telegram VIP! (${successCount} enviada${successCount > 1 ? 's' : ''})`);
+    } else if (successCount > 0 && failCount > 0) {
+      alert(`⚠️ Envio parcial concluído: ${successCount} enviada${successCount > 1 ? 's' : ''} com sucesso, ${failCount} falha${failCount > 1 ? 's' : ''}.`);
+    } else if (failCount > 0) {
+      alert(`❌ Erro no envio: Falha ao enviar dica(s) para o Telegram. (${failCount} falha${failCount > 1 ? 's' : ''})`);
+    }
   };
 
   const [broadcastChannel, setBroadcastChannel] = useState('vip'); // 'vip' | 'free' | 'radar_ev'
@@ -1103,10 +1217,11 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
     e.preventDefault();
     if (!novoGastoNome || !novoGastoValor || isNaN(parseFloat(novoGastoValor))) return;
     
+    const serializedCategory = `${novoGastoCat}|${novoGastoTipo}|${novoGastoVencimento || ''}|pending`;
     const newGPayload = {
       name: novoGastoNome.trim(),
       value: parseFloat(novoGastoValor),
-      category: novoGastoCat
+      category: serializedCategory
     };
 
     try {
@@ -1120,6 +1235,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
         setGastos(prev => [...prev, data.expense]);
         setNovoGastoNome('');
         setNovoGastoValor('');
+        setNovoGastoVencimento('');
         showNotification('Despesa registrada com sucesso!');
       } else {
         showNotification('Erro ao registrar despesa', 'error');
@@ -1151,11 +1267,12 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
     e.preventDefault();
     if (!editingExpense || !editExpenseName || !editExpenseValue || isNaN(parseFloat(editExpenseValue))) return;
 
+    const serializedCategory = `${editExpenseCategory}|${editExpenseType}|${editExpenseVencimento || ''}|${editExpensePaid}`;
     const editPayload = {
       id: editingExpense.id,
       name: editExpenseName.trim(),
       value: parseFloat(editExpenseValue),
-      category: editExpenseCategory
+      category: serializedCategory
     };
 
     try {
@@ -1176,6 +1293,37 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
     } catch (err) {
       console.error(err);
       showNotification('Erro de conexão/servidor ao atualizar despesa: ' + err.message, 'error');
+    }
+  };
+
+  const handleMarkAsPaid = async (gasto) => {
+    const meta = parseExpenseMetadata(gasto.category);
+    const newStatus = meta.paidStatus === 'paid' ? 'pending' : 'paid';
+    
+    const serializedCategory = `${meta.name}|${meta.type}|${meta.dueDate || ''}|${newStatus}`;
+    const editPayload = {
+      id: gasto.id,
+      name: gasto.name,
+      value: gasto.value,
+      category: serializedCategory
+    };
+
+    try {
+      const res = await adminFetch('/api/admin/expenses', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(editPayload)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setGastos(prev => prev.map(g => g.id === gasto.id ? data.expense : g));
+        showNotification(newStatus === 'paid' ? 'Despesa marcada como PAGA! ✅' : 'Despesa marcada como PENDENTE! ⏳');
+      } else {
+        showNotification('Erro ao alterar status de pagamento', 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão ao alterar status de pagamento: ' + err.message, 'error');
     }
   };
 
@@ -1300,6 +1448,36 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
       // Reverter alteração otimista
       setUsersBase(prev => prev.map(u => u.id === id ? { ...u, plan: userToUpdate.plan } : u));
       showNotification('Erro ao atualizar plano no Supabase: ' + e.message, 'error');
+    }
+  };
+
+  const handleDeleteUser = (id, userName) => {
+    setUserToDelete({ id, name: userName });
+    setShowDeleteUserModal(true);
+  };
+
+  const executeDeleteUser = async () => {
+    if (!userToDelete) return;
+    const { id, name } = userToDelete;
+
+    try {
+      const res = await adminFetch(`/api/admin/users?userId=${id}`, {
+        method: 'DELETE',
+      });
+
+      if (res.ok) {
+        setUsersBase(prev => prev.filter(u => u.id !== id));
+        showNotification(`Usuário ${name} excluído com sucesso!`);
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        showNotification('Erro ao excluir usuário: ' + (errData.error || res.statusText), 'error');
+      }
+    } catch (err) {
+      console.error(err);
+      showNotification('Erro de conexão ao excluir usuário: ' + err.message, 'error');
+    } finally {
+      setShowDeleteUserModal(false);
+      setUserToDelete(null);
     }
   };
 
@@ -1794,6 +1972,63 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
               </button>
             </h3>
 
+            {/* Abas de Filtros de Gastos */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '14px', borderBottom: '1px solid #222', paddingBottom: '10px', flexWrap: 'wrap' }}>
+              {[
+                { id: 'todos', label: 'Todos' },
+                { id: 'fixed', label: 'Gastos Fixos' },
+                { id: 'one-time', label: 'Pagos Únicos' },
+                { id: 'vencidos', label: 'Atrasados ⚠️', badge: alertasVencimentoCount }
+              ].map(tab => (
+                <button
+                  key={tab.id}
+                  onClick={() => setFiltroDespesasTipo(tab.id)}
+                  style={{
+                    background: filtroDespesasTipo === tab.id ? 'rgba(255, 152, 0, 0.12)' : 'transparent',
+                    border: '1px solid ' + (filtroDespesasTipo === tab.id ? '#ff9800' : '#333'),
+                    color: filtroDespesasTipo === tab.id ? '#ff9800' : '#aaa',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    fontSize: '0.78rem',
+                    cursor: 'pointer',
+                    fontWeight: 'bold',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'all 0.2s'
+                  }}
+                  type="button"
+                >
+                  {tab.label}
+                  {tab.badge > 0 && (
+                    <span style={{ background: 'var(--alert-red)', color: '#fff', fontSize: '0.65rem', padding: '1px 6px', borderRadius: '10px' }}>
+                      {tab.badge}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Alerta de Despesa Atrasada */}
+            {alertasVencimentoCount > 0 && (
+              <div style={{
+                background: 'rgba(255, 77, 77, 0.12)',
+                border: '1px solid rgba(255, 77, 77, 0.3)',
+                color: 'var(--alert-red)',
+                padding: '10px 14px',
+                borderRadius: '6px',
+                marginBottom: '16px',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '8px',
+                fontWeight: 'bold'
+              }}>
+                <ShieldAlert size={16} />
+                <span>Atenção: Você possui {alertasVencimentoCount} despesa{alertasVencimentoCount > 1 ? 's' : ''} com vencimento atrasado!</span>
+              </div>
+            )}
+
             <form onSubmit={handleAddGasto} style={{
               display: 'flex',
               flexWrap: 'wrap',
@@ -1860,6 +2095,45 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                   <option key={cat} value={cat}>{cat}</option>
                 ))}
               </select>
+
+              <select
+                value={novoGastoTipo}
+                onChange={(e) => setNovoGastoTipo(e.target.value)}
+                style={{
+                  flex: 1,
+                  minWidth: '90px',
+                  background: '#111',
+                  border: '1px solid #333',
+                  color: '#aaa',
+                  padding: '6px 8px',
+                  borderRadius: '4px',
+                  fontSize: '0.82rem',
+                  cursor: 'pointer'
+                }}
+              >
+                <option value="fixed">Gasto Fixo</option>
+                <option value="one-time">Pago Único</option>
+              </select>
+
+              <input 
+                type="date" 
+                value={novoGastoVencimento}
+                onChange={(e) => setNovoGastoVencimento(e.target.value)}
+                style={{
+                  flex: 1.2,
+                  minWidth: '120px',
+                  background: '#111',
+                  border: '1px solid #333',
+                  color: '#aaa',
+                  padding: '5px 8px',
+                  borderRadius: '4px',
+                  fontSize: '0.82rem',
+                  outline: 'none',
+                  cursor: 'text'
+                }}
+                title="Data de Vencimento"
+              />
+
               <button type="submit" style={{
                 background: '#ff9800',
                 color: '#000',
@@ -1882,67 +2156,142 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                 <thead>
                   <tr style={{ borderBottom: '1px solid #333', color: '#888', textAlign: 'left' }}>
                     <th style={{ padding: '8px 4px' }}>Item</th>
+                    <th style={{ padding: '8px 4px' }}>Tipo</th>
+                    <th style={{ padding: '8px 4px' }}>Vencimento</th>
                     <th style={{ padding: '8px 4px' }}>Categoria</th>
                     <th style={{ padding: '8px 4px', textAlign: 'right' }}>Valor</th>
                     <th style={{ padding: '8px 4px', textAlign: 'center', width: '80px' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {gastos.map(g => (
-                    <tr key={g.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
-                      <td style={{ padding: '10px 4px', fontWeight: 'bold' }}>{g.name}</td>
-                      <td style={{ padding: '10px 4px' }}>
-                        <span style={{
-                          background: '#222',
-                          color: '#aaa',
-                          padding: '2px 6px',
-                          borderRadius: '4px',
-                          fontSize: '0.7rem'
-                        }}>
-                          {g.category}
-                        </span>
-                      </td>
-                      <td style={{ padding: '10px 4px', textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace', color: '#ff9800' }}>
-                        R$ {parseFloat(g.value || 0).toFixed(2)}
-                      </td>
-                      <td style={{ padding: '10px 4px', textAlign: 'center' }}>
-                        <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
-                          <button 
-                            onClick={() => {
-                              setEditingExpense(g);
-                              setEditExpenseName(g.name);
-                              setEditExpenseValue(g.value.toString());
-                              setEditExpenseCategory(g.category);
-                              setShowEditExpenseModal(true);
-                            }}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: '#00d2ff',
-                              cursor: 'pointer',
-                              padding: '4px'
-                            }}
-                            title="Editar Despesa"
-                          >
-                            <Edit size={14} />
-                          </button>
-                          <button 
-                            onClick={() => handleRemoveGasto(g.id)}
-                            style={{
-                              background: 'transparent',
-                              border: 'none',
-                              color: '#ff4d4d',
-                              cursor: 'pointer',
-                              padding: '4px'
-                            }}
-                            title="Remover Despesa"
-                          >
-                            <Trash2 size={14} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {filteredGastos.map(g => {
+                    // Formata a data de vencimento amigavelmente
+                    let vencFormatado = '-';
+                    let labelAlerta = null;
+                    let corAlerta = '#aaa';
+
+                    if (g.metaPaidStatus === 'paid') {
+                      labelAlerta = 'PAGO ✅';
+                      corAlerta = '#00e676';
+                      if (g.metaDueDate) {
+                        const [ano, mes, dia] = g.metaDueDate.split('-');
+                        vencFormatado = `${dia}/${mes}`;
+                      }
+                    } else if (g.metaDueDate) {
+                      const [ano, mes, dia] = g.metaDueDate.split('-');
+                      vencFormatado = `${dia}/${mes}`;
+                      
+                      if (g.statusVencimento === 'atrasado') {
+                        labelAlerta = 'ATRASADO ⚠️';
+                        corAlerta = 'var(--alert-red)';
+                      } else if (g.statusVencimento === 'vencendo_hoje') {
+                        labelAlerta = 'HOJE ⏰';
+                        corAlerta = '#ff9800';
+                      } else if (g.statusVencimento === 'proximo') {
+                        labelAlerta = 'EM BREVE ⏳';
+                        corAlerta = '#ffc107';
+                      }
+                    }
+
+                    return (
+                      <tr key={g.id} style={{ borderBottom: '1px solid rgba(255,255,255,0.03)' }}>
+                        <td style={{ padding: '10px 4px', fontWeight: 'bold' }}>{g.name}</td>
+                        <td style={{ padding: '10px 4px' }}>
+                          <span style={{
+                            background: g.metaType === 'fixed' ? 'rgba(179, 57, 255, 0.12)' : 'rgba(0, 210, 255, 0.12)',
+                            color: g.metaType === 'fixed' ? '#b339ff' : '#00d2ff',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontSize: '0.68rem',
+                            fontWeight: 'bold',
+                            border: '1px solid ' + (g.metaType === 'fixed' ? 'rgba(179, 57, 255, 0.3)' : 'rgba(0, 210, 255, 0.3)')
+                          }}>
+                            {g.metaType === 'fixed' ? 'FIXO' : 'ÚNICO'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 4px', color: corAlerta, fontWeight: labelAlerta ? 'bold' : 'normal' }}>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                            <span>{vencFormatado}</span>
+                            {labelAlerta && (
+                              <span style={{ fontSize: '0.62rem', letterSpacing: '0.3px' }}>
+                                {labelAlerta}
+                              </span>
+                            )}
+                          </div>
+                        </td>
+                        <td style={{ padding: '10px 4px' }}>
+                          <span style={{
+                            background: '#222',
+                            color: '#aaa',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            fontSize: '0.7rem'
+                          }}>
+                            {g.metaName}
+                          </span>
+                        </td>
+                        <td style={{ padding: '10px 4px', textAlign: 'right', fontWeight: 'bold', fontFamily: 'monospace', color: '#ff9800' }}>
+                          R$ {parseFloat(g.value || 0).toFixed(2)}
+                        </td>
+                        <td style={{ padding: '10px 4px', textAlign: 'center' }}>
+                          <div style={{ display: 'flex', justifyContent: 'center', gap: '8px' }}>
+                            <button 
+                              onClick={() => handleMarkAsPaid(g)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: g.metaPaidStatus === 'paid' ? '#00e676' : '#555',
+                                cursor: 'pointer',
+                                padding: '4px',
+                                transition: 'color 0.2s'
+                              }}
+                              title={g.metaPaidStatus === 'paid' ? "Marcar como Pendente" : "Marcar como Pago (Confirmar Pagamento)"}
+                              onMouseEnter={(e) => { if (g.metaPaidStatus !== 'paid') e.currentTarget.style.color = '#00e676'; }}
+                              onMouseLeave={(e) => { if (g.metaPaidStatus !== 'paid') e.currentTarget.style.color = '#555'; }}
+                            >
+                              <CheckCircle size={14} />
+                            </button>
+                            <button 
+                              onClick={() => {
+                                const meta = parseExpenseMetadata(g.category);
+                                setEditingExpense(g);
+                                setEditExpenseName(g.name);
+                                setEditExpenseValue(g.value.toString());
+                                setEditExpenseCategory(meta.name);
+                                setEditExpenseType(meta.type);
+                                setEditExpenseVencimento(meta.dueDate);
+                                setEditExpensePaid(meta.paidStatus || 'pending');
+                                setShowEditExpenseModal(true);
+                              }}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#00d2ff',
+                                cursor: 'pointer',
+                                padding: '4px'
+                              }}
+                              title="Editar Despesa"
+                            >
+                              <Edit size={14} />
+                            </button>
+                            <button 
+                              onClick={() => handleRemoveGasto(g.id)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#ff4d4d',
+                                cursor: 'pointer',
+                                padding: '4px'
+                              }}
+                              title="Remover Despesa"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -2005,7 +2354,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                     <th style={{ padding: '8px 4px' }}>Nome / E-mail</th>
                     <th style={{ padding: '8px 4px' }}>Plano</th>
                     <th style={{ padding: '8px 4px' }}>Cupom</th>
-                    <th style={{ padding: '8px 4px', textAlign: 'center' }}>Promover</th>
+                    <th style={{ padding: '8px 4px', textAlign: 'center' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -2090,30 +2439,51 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                           </select>
                         </td>
                         <td style={{ padding: '10px 4px', textAlign: 'center' }}>
-                          <button
-                            onClick={() => handleToggleUserPlan(u.id)}
-                            style={{
-                              background: 'transparent',
-                              border: '1px solid rgba(255,255,255,0.1)',
-                              borderRadius: '4px',
-                              color: 'var(--brand-neon)',
-                              padding: '4px 8px',
-                              cursor: 'pointer',
-                              fontSize: '0.7rem',
-                              fontWeight: 'bold',
-                              transition: 'all 0.2s'
-                            }}
-                            onMouseEnter={(e) => {
-                              e.currentTarget.style.background = 'var(--brand-neon)';
-                              e.currentTarget.style.color = '#000';
-                            }}
-                            onMouseLeave={(e) => {
-                              e.currentTarget.style.background = 'transparent';
-                              e.currentTarget.style.color = 'var(--brand-neon)';
-                            }}
-                          >
-                            Alterar ⚡
-                          </button>
+                          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px' }}>
+                            <button
+                              onClick={() => handleToggleUserPlan(u.id)}
+                              style={{
+                                background: 'transparent',
+                                border: '1px solid rgba(255,255,255,0.1)',
+                                borderRadius: '4px',
+                                color: 'var(--brand-neon)',
+                                padding: '4px 8px',
+                                cursor: 'pointer',
+                                fontSize: '0.7rem',
+                                fontWeight: 'bold',
+                                transition: 'all 0.2s'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = 'var(--brand-neon)';
+                                e.currentTarget.style.color = '#000';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = 'transparent';
+                                e.currentTarget.style.color = 'var(--brand-neon)';
+                              }}
+                              title="Alterar Plano do Usuário"
+                            >
+                              Alterar ⚡
+                            </button>
+                            <button
+                              onClick={() => handleDeleteUser(u.id, u.name)}
+                              style={{
+                                background: 'transparent',
+                                border: 'none',
+                                color: '#ff4d4d',
+                                cursor: 'pointer',
+                                padding: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                transition: 'transform 0.2s'
+                              }}
+                              title="Excluir Usuário Permanentemente"
+                              onMouseEnter={(e) => { e.currentTarget.style.transform = 'scale(1.15)'; }}
+                              onMouseLeave={(e) => { e.currentTarget.style.transform = 'scale(1)'; }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     );})
@@ -3343,6 +3713,42 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                 </div>
               </div>
 
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Tipo de Gasto</label>
+                  <select 
+                    value={editExpenseType} 
+                    onChange={(e) => setEditExpenseType(e.target.value)}
+                    style={{ width: '100%', background: '#16161a', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 'bold', height: '40px' }}
+                  >
+                    <option value="fixed">Gasto Fixo</option>
+                    <option value="one-time">Pago Único</option>
+                  </select>
+                </div>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Vencimento</label>
+                  <input 
+                    type="date"
+                    value={editExpenseVencimento}
+                    onChange={(e) => setEditExpenseVencimento(e.target.value)}
+                    style={{ width: '100%', background: '#16161a', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', outline: 'none', height: '40px' }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <label style={{ fontSize: '0.8rem', color: '#888', fontWeight: 'bold' }}>Status do Pagamento</label>
+                <select 
+                  value={editExpensePaid} 
+                  onChange={(e) => setEditExpensePaid(e.target.value)}
+                  style={{ width: '100%', background: '#16161a', border: '1px solid #333', color: '#fff', padding: '10px', borderRadius: '8px', fontSize: '0.9rem', cursor: 'pointer', fontWeight: 'bold', height: '40px' }}
+                >
+                  <option value="pending">Pendente (Não Pago)</option>
+                  <option value="paid">Pago</option>
+                </select>
+              </div>
+
               <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '10px', borderTop: '1px solid #222', paddingTop: '16px' }}>
                 <button 
                   type="button"
@@ -3478,6 +3884,89 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                 }}
               >
                 Zerar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Confirmação para Excluir Usuário */}
+      {showDeleteUserModal && userToDelete && (
+        <div style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          backgroundColor: 'rgba(0, 0, 0, 0.75)',
+          backdropFilter: 'blur(5px)',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 10000,
+          animation: 'fadeIn 0.2s ease-out',
+          color: '#fff',
+          fontFamily: 'system-ui, sans-serif'
+        }}>
+          <div className="glass-panel" style={{
+            width: '90%',
+            maxWidth: '400px',
+            background: 'linear-gradient(135deg, #111115, #14141d)',
+            border: '1px solid #333',
+            borderTop: '4px solid var(--alert-red)',
+            padding: '24px',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '16px',
+            boxShadow: '0 10px 40px rgba(0,0,0,0.8)',
+            borderRadius: '12px'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 'bold', color: '#fff', margin: 0, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <ShieldAlert size={18} color="var(--alert-red)" /> Excluir Usuário
+              </h3>
+              <button 
+                onClick={() => { setShowDeleteUserModal(false); setUserToDelete(null); }}
+                style={{ background: 'transparent', border: 'none', color: '#666', cursor: 'pointer', fontSize: '1.1rem', fontWeight: 'bold' }}
+              >
+                ✕
+              </button>
+            </div>
+            
+            <p style={{ fontSize: '0.88rem', color: '#aaa', margin: 0, lineHeight: 1.5 }}>
+              Tem certeza que deseja excluir permanentemente o usuário <strong style={{ color: '#fff' }}>{userToDelete.name}</strong>? Esta ação não poderá ser desfeita.
+            </p>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '10px', marginTop: '10px' }}>
+              <button 
+                onClick={() => { setShowDeleteUserModal(false); setUserToDelete(null); }}
+                style={{
+                  background: '#222',
+                  border: '1px solid #333',
+                  color: '#ccc',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '0.82rem'
+                }}
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={executeDeleteUser}
+                style={{
+                  background: 'var(--alert-red)',
+                  color: '#fff',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '6px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '0.82rem'
+                }}
+              >
+                Confirmar Exclusão
               </button>
             </div>
           </div>
@@ -4603,8 +5092,66 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                   </button>
                 )}
               </div>
+
+              {/* Filtros de Precisão / Refinamento */}
+              <div style={{ 
+                width: '100%', 
+                display: 'flex', 
+                alignItems: 'center', 
+                gap: '16px', 
+                padding: '12px 16px', 
+                background: '#111116', 
+                border: '1px solid #222', 
+                borderRadius: '8px', 
+                marginTop: '12px',
+                flexWrap: 'wrap',
+                fontSize: '0.82rem'
+              }}>
+                <span style={{ color: 'var(--brand-neon)', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Target size={14} /> Refinamento de Precisão (+EV):
+                </span>
+                
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: '#aaa' }}>Odd Máxima:</span>
+                  <input 
+                    type="number" 
+                    step="0.5" 
+                    min="1.1" 
+                    max="50" 
+                    value={maxOdd} 
+                    onChange={(e) => setMaxOdd(parseFloat(e.target.value) || 5.0)}
+                    style={{ width: '60px', background: '#16161a', border: '1px solid #333', color: '#fff', padding: '4px 8px', borderRadius: '4px', textAlign: 'center', outline: 'none' }}
+                  />
+                  <span style={{ color: '#666', fontSize: '0.75rem' }}>(Oculta super zebras)</span>
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ color: '#aaa' }}>Probabilidade Mínima:</span>
+                  <input 
+                    type="number" 
+                    step="5" 
+                    min="0" 
+                    max="100" 
+                    value={minRealProb} 
+                    onChange={(e) => setMinRealProb(parseInt(e.target.value) || 20)}
+                    style={{ width: '60px', background: '#16161a', border: '1px solid #333', color: '#fff', padding: '4px 8px', borderRadius: '4px', textAlign: 'center', outline: 'none' }}
+                  />
+                  <span style={{ color: '#fff' }}>%</span>
+                  <span style={{ color: '#666', fontSize: '0.75rem' }}>(Filtra risco alto)</span>
+                </div>
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', color: '#aaa', marginLeft: 'auto' }}>
+                  <input 
+                    type="checkbox" 
+                    checked={hideAnomalies} 
+                    onChange={(e) => setHideAnomalies(e.target.checked)}
+                    style={{ cursor: 'pointer' }}
+                  />
+                  Ocultar Anomalias (EV &gt; 100%)
+                </label>
+              </div>
               
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '12px' }}>
                 {selectedBets.length > 0 && (
                   <button
                     onClick={handleDispatchSelected}
@@ -4636,9 +5183,9 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                 <RefreshCw size={24} className="spin" color="var(--brand-neon)" />
                 <span>Carregando oportunidades da base de dados...</span>
               </div>
-            ) : opportunities.length === 0 ? (
+            ) : filteredOpportunities.length === 0 ? (
               <div style={{ padding: '40px 0', textAlign: 'center', color: '#666' }}>
-                Nenhuma aposta detectada recente no banco de dados.
+                Nenhuma aposta com os filtros de precisão ativos.
               </div>
             ) : (
               <div>
@@ -4649,10 +5196,10 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                         <th style={{ padding: '10px 8px', width: '30px' }}>
                           <input 
                             type="checkbox"
-                            checked={opportunities.length > 0 && selectedBets.length === opportunities.length}
+                            checked={filteredOpportunities.length > 0 && selectedBets.length === filteredOpportunities.length}
                             onChange={(e) => {
                               if (e.target.checked) {
-                                setSelectedBets(opportunities.map(o => o.id));
+                                setSelectedBets(filteredOpportunities.map(o => o.id));
                               } else {
                                 setSelectedBets([]);
                               }
@@ -4669,7 +5216,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                       </tr>
                     </thead>
                     <tbody>
-                      {opportunities.map(opp => {
+                      {filteredOpportunities.map(opp => {
                         const isSelected = selectedBets.includes(opp.id);
                         const isLive = opp.campeonato && opp.campeonato.startsWith('[LIVE|');
 
@@ -4681,6 +5228,23 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                           minute: '2-digit'
                         });
                         
+                        
+                        // Extrai a data real da partida se estiver prefixada no campeonato ex: "[27/06 16:00] Serie B"
+                        let dataExibicao = dataFormatada;
+                        let campeonatoExibicao = opp.campeonato || 'Desconhecido';
+                        
+                        if (opp.campeonato && opp.campeonato.startsWith('[')) {
+                          const fechoIdx = opp.campeonato.indexOf(']');
+                          if (fechoIdx > 1) {
+                            const conteudo = opp.campeonato.substring(1, fechoIdx);
+                            // Garante que não é uma tag de jogo ao vivo
+                            if (!conteudo.startsWith('LIVE|')) {
+                              dataExibicao = conteudo;
+                              campeonatoExibicao = opp.campeonato.substring(fechoIdx + 1).trim();
+                            }
+                          }
+                        }
+
                         let resColor = '#888';
                         let resBg = '#222';
                         let labelStatus = opp.resultado;
@@ -4727,11 +5291,11 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                               />
                             </td>
                             <td style={{ padding: '10px 8px', color: '#666', fontSize: '0.75rem', fontFamily: 'monospace' }}>
-                              {dataFormatada}
+                              {dataExibicao}
                             </td>
                             <td style={{ padding: '10px 8px' }}>
                               <div style={{ fontWeight: 'bold', color: '#fff' }}>{opp.confronto}</div>
-                              <div style={{ fontSize: '0.72rem', color: '#666' }}>{opp.campeonato}</div>
+                              <div style={{ fontSize: '0.72rem', color: '#666' }}>{campeonatoExibicao}</div>
                             </td>
                             <td style={{ padding: '10px 8px', color: '#aaa' }}>{opp.mercado}</td>
                             <td style={{ padding: '10px 8px', textAlign: 'center', fontWeight: 'bold', color: 'var(--brand-neon)' }}>

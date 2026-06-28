@@ -1140,11 +1140,41 @@ input[type=number] {
   animation: bellBlink 1.2s infinite ease-in-out;
 }
 
+/* Chatbot de Suporte - Keyframes & Animations */
+@keyframes pulseGlow {
+  0% { box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4), 0 0 0 0px rgba(255, 152, 0, 0.2); }
+  70% { box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4), 0 0 0 8px rgba(255, 152, 0, 0); }
+  100% { box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4), 0 0 0 0px rgba(255, 152, 0, 0); }
+}
 
+@keyframes pulseGreen {
+  0% { box-shadow: 0 4px 12px rgba(0, 230, 118, 0.3), 0 0 0 0px rgba(0, 230, 118, 0.2); }
+  70% { box-shadow: 0 4px 12px rgba(0, 230, 118, 0.3), 0 0 0 8px rgba(0, 230, 118, 0); }
+  100% { box-shadow: 0 4px 12px rgba(0, 230, 118, 0.3), 0 0 0 0px rgba(0, 230, 118, 0); }
+}
 
+@keyframes chatBounce {
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1.0); }
+}
 
+.chat-dot {
+  width: 6px;
+  height: 6px;
+  background: #ff9800;
+  border-radius: 50%;
+  animation: chatBounce 1.4s infinite ease-in-out;
+}
 
+.chat-dot:nth-child(2) {
+  animation-delay: 0.2s;
+}
 
+.chat-dot:nth-child(3) {
+  animation-delay: 0.4s;
+}
 
-
-
+@keyframes chatSlideIn {
+  from { transform: translateY(30px) scale(0.95); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}

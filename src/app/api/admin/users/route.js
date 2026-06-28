@@ -112,3 +112,40 @@ export async function PATCH(request) {
     return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
   }
 }
+
+// DELETE /api/admin/users — Deletar perfil de um usuário
+export async function DELETE(request) {
+  try {
+    if (!await verifyAdmin(request)) {
+      return NextResponse.json({ error: 'Acesso não autorizado' }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+
+    if (!userId) {
+      return NextResponse.json({ error: 'userId obrigatório' }, { status: 400 });
+    }
+
+    const client = getAdminSupabase();
+    if (!client) {
+      return NextResponse.json({ error: 'Erro de Configuração' }, { status: 500 });
+    }
+
+    // Remover da tabela profiles do Supabase
+    const { error } = await client
+      .from('profiles')
+      .delete()
+      .eq('id', userId);
+
+    if (error) {
+      console.error('[Admin API] Erro ao deletar perfil:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('[Admin API] Erro interno:', err);
+    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+  }
+}

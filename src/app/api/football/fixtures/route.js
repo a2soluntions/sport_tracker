@@ -6,7 +6,189 @@ const API_HOST = 'https://v3.football.api-sports.io';
 
 // Caches
 const cache = { fixtures: {}, stats: {} };
-const CACHE_DURATION_FIXTURES = 5 * 60 * 1000; 
+const CACHE_DURATION_FIXTURES = 5 * 60 * 1000;
+
+// ==========================================
+// TABELA DE FORÇA DOS TIMES (xG base)
+// Baseado em ranking FIFA / desempenho real
+// xG = gols esperados por jogo (~1.0 fraco, 2.5 forte)
+// ==========================================
+const TEAM_STRENGTH = {
+  // Seleções - Top tier (xG ~2.0–2.5)
+  'Argentina': 2.3,
+  'France': 2.2,
+  'England': 2.1,
+  'Spain': 2.2,
+  'Brazil': 2.1,
+  'Portugal': 2.1,
+  'Belgium': 1.9,
+  'Germany': 2.0,
+  'Netherlands': 2.0,
+  'Italy': 1.8,
+  'Croatia': 1.7,
+  'Uruguay': 1.8,
+  'Colombia': 1.7,
+  'Morocco': 1.6,
+  'Switzerland': 1.6,
+  'Denmark': 1.6,
+  'Austria': 1.5,
+  'Mexico': 1.6,
+  'USA': 1.5,
+  'Japan': 1.6,
+  'South Korea': 1.5,
+  'Senegal': 1.5,
+  'Ecuador': 1.4,
+  'Wales': 1.4,
+  'Serbia': 1.5,
+  'Ukraine': 1.5,
+  'Hungary': 1.4,
+  'Poland': 1.5,
+  'Turkey': 1.5,
+  'Czech Republic': 1.4,
+  'Romania': 1.3,
+  'Slovakia': 1.3,
+  'Scotland': 1.4,
+  'Australia': 1.4,
+  'Iran': 1.3,
+  'Saudi Arabia': 1.3,
+  'Qatar': 1.2,
+  'Tunisia': 1.3,
+  'Cameroon': 1.3,
+  'Ghana': 1.3,
+  'Nigeria': 1.4,
+  'Egypt': 1.4,
+  'Algeria': 1.3,
+  'Ivory Coast': 1.3,
+  'Canada': 1.3,
+  'Costa Rica': 1.2,
+  'Paraguay': 1.3,
+  'Chile': 1.4,
+  'Peru': 1.3,
+  'Bolivia': 1.1,
+  'Venezuela': 1.2,
+  'Panama': 1.1,
+  'Honduras': 1.1,
+  'El Salvador': 1.0,
+  'Guatemala': 1.0,
+  'Jordan': 1.1,
+  'Iraq': 1.2,
+  'Syria': 1.1,
+  'Palestine': 1.0,
+  'Oman': 1.0,
+  'Bahrain': 1.0,
+  'UAE': 1.1,
+  'Kuwait': 1.0,
+  'New Zealand': 1.1,
+  'Jamaica': 1.1,
+  'Haiti': 1.0,
+  'Cuba': 1.0,
+  'Trinidad and Tobago': 1.1,
+  'Curacao': 1.0,
+  // Clubes - Elite (xG ~1.8–2.5)
+  'Manchester City': 2.4,
+  'Real Madrid': 2.3,
+  'Bayern Munich': 2.3,
+  'Liverpool': 2.2,
+  'Barcelona': 2.2,
+  'Arsenal': 2.0,
+  'Chelsea': 1.9,
+  'Manchester United': 1.9,
+  'Tottenham': 1.8,
+  'Atletico Madrid': 1.8,
+  'Inter': 1.9,
+  'Napoli': 1.8,
+  'Juventus': 1.7,
+  'AC Milan': 1.7,
+  'Borussia Dortmund': 1.9,
+  'PSG': 2.1,
+  'Bayer Leverkusen': 1.9,
+  'RB Leipzig': 1.8,
+  'Sevilla': 1.6,
+  'Villarreal': 1.6,
+  'Real Sociedad': 1.6,
+  'Fiorentina': 1.5,
+  'Lazio': 1.6,
+  'Roma': 1.6,
+  'Marseille': 1.6,
+  'Lyon': 1.6,
+  'Monaco': 1.7,
+  'Porto': 1.7,
+  'Benfica': 1.8,
+  'Sporting CP': 1.7,
+  'Ajax': 1.7,
+  'PSV': 1.8,
+  'Feyenoord': 1.7,
+  'Galatasaray': 1.6,
+  'Fenerbahce': 1.5,
+  'Celtic': 1.5,
+  'Rangers': 1.4,
+  'Shakhtar Donetsk': 1.5,
+  'Dynamo Kyiv': 1.4,
+  // Clubes Brasileiros
+  'Flamengo': 1.9,
+  'Palmeiras': 1.8,
+  'Atletico Mineiro': 1.7,
+  'Sao Paulo': 1.6,
+  'Fluminense': 1.6,
+  'Corinthians': 1.5,
+  'Internacional': 1.6,
+  'Gremio': 1.5,
+  'Santos': 1.4,
+  'Botafogo': 1.5,
+  'Bahia': 1.4,
+  'Cruzeiro': 1.5,
+  'Atletico Goianiense': 1.3,
+  'Red Bull Bragantino': 1.4,
+  'Vasco da Gama': 1.3,
+  'Fortaleza': 1.4,
+  'Ceara': 1.3,
+  'Sport Recife': 1.2,
+  'America Mineiro': 1.3,
+  'Cuiaba': 1.2,
+  'Goias': 1.2,
+};
+
+/**
+ * Retorna o xG base de um time pela tabela de força.
+ * Se o time não for encontrado, usa um fallback baseado em hash estável
+ * mas com range ajustado para ser mais realista (1.0-1.6 para times desconhecidos).
+ */
+function getTeamBaseXG(teamName) {
+  if (!teamName) return 1.2;
+  
+  // Busca exata
+  if (TEAM_STRENGTH[teamName] !== undefined) return TEAM_STRENGTH[teamName];
+  
+  // Busca parcial (case-insensitive)
+  const upper = teamName.toUpperCase();
+  for (const [key, val] of Object.entries(TEAM_STRENGTH)) {
+    if (upper.includes(key.toUpperCase()) || key.toUpperCase().includes(upper)) {
+      return val;
+    }
+  }
+  
+  // Fallback: hash estável com range conservador (1.0-1.6) para times desconhecidos
+  let h = 0;
+  const s = upper;
+  for (let i = 0; i < s.length; i++) {
+    h = s.charCodeAt(i) + ((h << 5) - h);
+  }
+  h = Math.abs(h);
+  return Math.round((1.0 + ((h % 7) / 10)) * 10) / 10; // range 1.0-1.6
+}
+
+/**
+ * Calcula xG de confronto considerando força do time vs força do adversário.
+ * Fórmula: xG = força_base * 0.85 * (1 + diferença_de_nível * 0.08)
+ * Times mais fortes geram mais xG contra times mais fracos, e menos vs times fortes.
+ * Range: 0.5 – 2.8 (realista para futebol de alto nível)
+ */
+function calcMatchXG(teamName, opponentName) {
+  const teamStr = getTeamBaseXG(teamName);
+  const oppStr = getTeamBaseXG(opponentName);
+  const xg = teamStr * 0.85 * (1 + (teamStr - oppStr) * 0.08);
+  return Math.max(0.5, Math.min(2.8, Math.round(xg * 10) / 10));
+}
 
 // Helper: classifica a data do jogo em relação a hoje (timezone de Brasília)
 function getDayCategory(rawDate) {
@@ -368,9 +550,9 @@ export async function GET(request) {
         const isLive = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT'].includes(m.fixture.status.short);
         let statusLabel = isLive ? `Em Andamento ⚽ ${m.fixture.status.elapsed}'` : isFinished ? 'Finalizado' : 'Não Iniciado';
 
-        const hashSeed = Math.abs(Number(m.fixture.id) || 0);
-        const homeXG = Math.round((0.9 + ((hashSeed % 15) / 10)) * 10) / 10;
-        const awayXG = Math.round((0.9 + (((hashSeed + 7) % 15) / 10)) * 10) / 10;
+        // xG calculado com base na força real de cada time (tabela TEAM_STRENGTH + fator do adversário)
+        const homeXG = calcMatchXG(m.teams.home.name, m.teams.away.name);
+        const awayXG = calcMatchXG(m.teams.away.name, m.teams.home.name);
 
         const dateObj = new Date(m.fixture.date);
         const localDateStr = dateObj.toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: 'short' }).replace('.', '');
@@ -551,14 +733,35 @@ export async function GET(request) {
       const isLive = ['1H', 'HT', '2H', 'ET', 'BT', 'P', 'SUSP', 'INT'].includes(m.fixture.status.short);
       let statusLabel = isLive ? `Em Andamento ⚽ ${m.fixture.status.elapsed}'` : isFinished ? 'Finalizado' : 'Não Iniciado';
 
-      // Calcular xG dinâmico usando estatísticas da classificação
+      // Calcular xG dinâmico usando estatísticas da classificação (dados reais)
+      // com fallback para tabela de força quando sem dados de standing
       const homeTeamName = m.teams.home.name;
       const awayTeamName = m.teams.away.name;
-      const homeStats = teamStats[homeTeamName] || { goalsFor: 1.4, goalsAgainst: 1.2, position: '-' };
-      const awayStats = teamStats[awayTeamName] || { goalsFor: 1.2, goalsAgainst: 1.4, position: '-' };
 
-      const homeXG = Math.round(((homeStats.goalsFor + awayStats.goalsAgainst) / 2) * 10) / 10;
-      const awayXG = Math.round(((awayStats.goalsFor + homeStats.goalsAgainst) / 2) * 10) / 10;
+      const homeStats = teamStats[homeTeamName] || null;
+      const awayStats = teamStats[awayTeamName] || null;
+
+      let homeXG, awayXG;
+      if (homeStats && awayStats) {
+        // Ambos os times têm dados de classificação: usar xG baseado em gols reais
+        homeXG = Math.round(((homeStats.goalsFor + awayStats.goalsAgainst) / 2) * 10) / 10;
+        awayXG = Math.round(((awayStats.goalsFor + homeStats.goalsAgainst) / 2) * 10) / 10;
+      } else if (homeStats) {
+        // Apenas time da casa tem dados reais; visitante usa tabela de força
+        homeXG = Math.round(homeStats.goalsFor * 10) / 10;
+        awayXG = calcMatchXG(awayTeamName, homeTeamName);
+      } else if (awayStats) {
+        // Apenas time visitante tem dados reais; casa usa tabela de força
+        homeXG = calcMatchXG(homeTeamName, awayTeamName);
+        awayXG = Math.round(awayStats.goalsFor * 10) / 10;
+      } else {
+        // Nenhum time tem dados de standing: usar tabela de força para ambos
+        homeXG = calcMatchXG(homeTeamName, awayTeamName);
+        awayXG = calcMatchXG(awayTeamName, homeTeamName);
+      }
+
+      const homeStatsPos = homeStats ? homeStats.position : '-';
+      const awayStatsPos = awayStats ? awayStats.position : '-';
 
       // Timezone-aware date formatting (Brazil timezone)
       const dateObj = new Date(m.fixture.date);
@@ -602,8 +805,8 @@ export async function GET(request) {
         isFinished,
         minute: m.fixture.status.elapsed || 0,
         venue: m.fixture.venue?.name || '',
-        homePosition: homeStats.position,
-        awayPosition: awayStats.position
+        homePosition: homeStatsPos,
+        awayPosition: awayStatsPos
       };
     });
 

@@ -76,6 +76,70 @@ const calculateMatchProbabilities = (homeXG, awayXG) => {
   };
 };
 
+// Tabela de força dos times para gerar forma consistente com o sistema de xG
+const CALC_TEAM_STRENGTH = {
+  'Argentina': 2.3, 'France': 2.2, 'England': 2.1, 'Spain': 2.2, 'Brazil': 2.1,
+  'Portugal': 2.1, 'Belgium': 1.9, 'Germany': 2.0, 'Netherlands': 2.0, 'Italy': 1.8,
+  'Croatia': 1.7, 'Uruguay': 1.8, 'Colombia': 1.7, 'Morocco': 1.6, 'Switzerland': 1.6,
+  'Denmark': 1.6, 'Mexico': 1.6, 'Japan': 1.6, 'South Korea': 1.5, 'Senegal': 1.5,
+  'Ecuador': 1.4, 'Poland': 1.5, 'Turkey': 1.5, 'Serbia': 1.5, 'Ukraine': 1.5,
+  'Scotland': 1.4, 'Australia': 1.4, 'Wales': 1.4, 'Nigeria': 1.4, 'Egypt': 1.4,
+  'Chile': 1.4, 'Romania': 1.3, 'Slovakia': 1.3, 'Iran': 1.3, 'Saudi Arabia': 1.3,
+  'Tunisia': 1.3, 'Cameroon': 1.3, 'Ghana': 1.3, 'Algeria': 1.3, 'Paraguay': 1.3,
+  'Canada': 1.3, 'Venezuela': 1.2, 'Peru': 1.3, 'Iraq': 1.2, 'Qatar': 1.2,
+  'Costa Rica': 1.2, 'Jordan': 1.1, 'Bolivia': 1.1, 'Panama': 1.1, 'Honduras': 1.1,
+  'UAE': 1.1, 'Jamaica': 1.1, 'New Zealand': 1.1, 'Syria': 1.1, 'El Salvador': 1.0,
+  'Guatemala': 1.0, 'Palestine': 1.0, 'Oman': 1.0, 'Bahrain': 1.0, 'Kuwait': 1.0,
+  'Flamengo': 1.9, 'Palmeiras': 1.8, 'Atletico Mineiro': 1.7, 'Atlético-MG': 1.7,
+  'Sao Paulo': 1.6, 'São Paulo': 1.6, 'Fluminense': 1.6, 'Corinthians': 1.5,
+  'Internacional': 1.6, 'Gremio': 1.5, 'Grêmio': 1.5, 'Santos': 1.4, 'Botafogo': 1.5,
+  'Bahia': 1.4, 'Cruzeiro': 1.5, 'Bragantino': 1.4, 'Red Bull Bragantino': 1.4,
+  'Vasco': 1.3, 'Vasco da Gama': 1.3, 'Fortaleza': 1.4, 'Ceara': 1.3,
+  'Athletico-PR': 1.4, 'Goias': 1.2, 'America Mineiro': 1.3, 'Cuiaba': 1.2,
+  'Manchester City': 2.4, 'Real Madrid': 2.3, 'Bayern Munich': 2.3, 'Liverpool': 2.2,
+  'Barcelona': 2.2, 'Arsenal': 2.0, 'Chelsea': 1.9, 'Manchester United': 1.9,
+  'PSG': 2.1, 'Bayer Leverkusen': 1.9, 'Borussia Dortmund': 1.9, 'Inter': 1.9,
+  'Atletico Madrid': 1.8, 'Napoli': 1.8, 'Benfica': 1.8, 'PSV': 1.8,
+  'Tottenham': 1.8, 'Juventus': 1.7, 'AC Milan': 1.7, 'Sporting CP': 1.7,
+  'Ajax': 1.7, 'Feyenoord': 1.7, 'Monaco': 1.7, 'Porto': 1.7,
+  'Marseille': 1.6, 'Lyon': 1.6, 'Galatasaray': 1.6, 'RB Leipzig': 1.8,
+};
+
+// Gera forma (V/D/E) baseado na força real do time, não em hash fixo
+const generateFormFromStrength = (teamName) => {
+  if (!teamName) return ['E', 'D', 'V', 'E', 'D'];
+  let strength = CALC_TEAM_STRENGTH[teamName];
+  if (strength === undefined) {
+    const upper = teamName.toUpperCase();
+    for (const [key, val] of Object.entries(CALC_TEAM_STRENGTH)) {
+      if (upper.includes(key.toUpperCase()) || key.toUpperCase().includes(upper)) {
+        strength = val; break;
+      }
+    }
+  }
+  if (strength === undefined) {
+    // Hash fallback conservador
+    let h = 0;
+    for (let i = 0; i < teamName.length; i++) h = teamName.charCodeAt(i) + ((h << 5) - h);
+    strength = 1.0 + ((Math.abs(h) % 7) / 10);
+  }
+  // pWin proporcional à força: 1.0→15%, 1.5→48%, 2.0→67%, 2.3→87%
+  const pWin = Math.max(0.15, Math.min(0.70, (strength - 1.0) / 1.5));
+  const pDraw = 0.22;
+  // Usar hash do nome para determinar os resultados de forma estável
+  let seed = 0;
+  for (let i = 0; i < teamName.length; i++) seed = teamName.charCodeAt(i) + ((seed << 5) - seed);
+  seed = Math.abs(seed);
+  const form = [];
+  for (let i = 0; i < 5; i++) {
+    const gameSeed = (seed + i * 43) % 100;
+    if (gameSeed < pWin * 100) form.push('V');
+    else if (gameSeed < (pWin + pDraw) * 100) form.push('E');
+    else form.push('D');
+  }
+  return form;
+};
+
 // Reusable team logo resolver (similar to dashboard)
 const getTeamLogoUrl = (teamName, teamId) => {
   if (teamId) {
@@ -1331,25 +1395,89 @@ export default function AnalysisPage() {
     }
   };
 
-  const FILTERED_LEAGUES = useMemo(() => [
-    { id: 1, name: 'Copa do Mundo', logo: '/copadomundo.png' },
-    { id: 71, name: 'Série A', logo: 'https://media.api-sports.io/football/leagues/71.png' },
-    { id: 72, name: 'Série B', logo: 'https://media.api-sports.io/football/leagues/72.png' },
-    { id: 75, name: 'Série C', logo: '/brasileiraoc.png' },
-    { id: 13, name: 'Libertadores', logo: '/libertadores.png' },
-    { id: 12, name: 'Sulamericana', logo: '/sudamericana.png' },
-    { id: 39, name: 'Premier', logo: '/premierleague.png' },
-    { id: 140, name: 'La Liga', logo: 'https://media.api-sports.io/football/leagues/140.png' },
-    { id: 135, name: 'Serie A', logo: 'https://media.api-sports.io/football/leagues/135.png' },
-    { id: 78, name: 'Bundes', logo: '/bundesliga.png' },
-    { id: 3, name: 'Europa League', logo: '/europaleague.png' },
-    { id: 848, name: 'Conference', logo: 'https://media.api-sports.io/football/leagues/848.png' },
-    { id: 44, name: 'Liga Argentina', logo: '/ligaargentina.png' },
-    { id: 667, name: 'Amistosos', logo: 'https://media.api-sports.io/football/leagues/667.png' },
-    { id: 94, name: 'Liga Portugal', logo: 'https://media.api-sports.io/football/leagues/94.png' }
-  ], []);
+  const [activeLeagues, setActiveLeagues] = useState([
+    {"id": "1", "name": "Copa do Mundo"},
+    {"id": "71", "name": "Série A"},
+    {"id": "72", "name": "Série B"},
+    {"id": "75", "name": "Série C"},
+    {"id": "13", "name": "Libertadores"},
+    {"id": "12", "name": "Sulamericana"},
+    {"id": "39", "name": "Premier"},
+    {"id": "140", "name": "La Liga"},
+    {"id": "135", "name": "Serie A"},
+    {"id": "78", "name": "Bundes"},
+    {"id": "3", "name": "Europa League"},
+    {"id": "848", "name": "Conference"},
+    {"id": "44", "name": "Liga Argentina"},
+    {"id": "667", "name": "Amistosos"}
+  ]);
 
-  const ALLOWED_LEAGUE_IDS = useMemo(() => [1, 71, 72, 75, 13, 12, 39, 140, 135, 78, 3, 848, 44, 667, 94], []);
+  useEffect(() => {
+    const cached = typeof window !== 'undefined' ? localStorage.getItem('saas_target_leagues') : null;
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setActiveLeagues(parsed);
+        }
+      } catch (e) {
+        console.warn('[A2score] Erro ao parsear ligas:', e);
+      }
+    }
+
+    async function loadDynamicLeagues() {
+      try {
+        const { supabase } = await import('../../lib/supabaseClient');
+        if (!supabase) return;
+        const { data, error } = await supabase
+          .from('saas_settings')
+          .select('value')
+          .eq('key', 'target_leagues')
+          .maybeSingle();
+
+        if (data && data.value && Array.isArray(data.value)) {
+          setActiveLeagues(data.value);
+          localStorage.setItem('saas_target_leagues', JSON.stringify(data.value));
+        }
+      } catch (err) {
+        console.warn('[A2score] Falha ao conectar Supabase para carregar ligas:', err);
+      }
+    }
+    loadDynamicLeagues();
+  }, []);
+
+  const FILTERED_LEAGUES = useMemo(() => {
+    return activeLeagues.map(liga => {
+      let logo = '';
+      const val = String(liga.id).toLowerCase();
+      if (val === '1') logo = '/copadomundo.png';
+      else if (val === '71') logo = 'https://media.api-sports.io/football/leagues/71.png';
+      else if (val === '72') logo = 'https://media.api-sports.io/football/leagues/72.png';
+      else if (val === '75') logo = '/brasileiraoc.png';
+      else if (val === '13') logo = '/libertadores.png';
+      else if (val === '12') logo = '/sudamericana.png';
+      else if (val === '39') logo = '/premierleague.png';
+      else if (val === '140') logo = 'https://media.api-sports.io/football/leagues/140.png';
+      else if (val === '135') logo = 'https://media.api-sports.io/football/leagues/135.png';
+      else if (val === '78') logo = '/bundesliga.png';
+      else if (val === '3') logo = '/europaleague.png';
+      else if (val === '848') logo = 'https://media.api-sports.io/football/leagues/848.png';
+      else if (val === '44') logo = '/ligaargentina.png';
+      else if (val === '667') logo = 'https://media.api-sports.io/football/leagues/667.png';
+      else if (val === '94') logo = 'https://media.api-sports.io/football/leagues/94.png';
+      else logo = `https://media.api-sports.io/football/leagues/${liga.id}.png`;
+
+      return {
+        id: parseInt(liga.id),
+        name: liga.name,
+        logo
+      };
+    });
+  }, [activeLeagues]);
+
+  const ALLOWED_LEAGUE_IDS = useMemo(() => {
+    return activeLeagues.map(l => parseInt(l.id)).filter(Boolean);
+  }, [activeLeagues]);
 
   const matchesAllowedLeagues = useCallback((match) => {
     const sourceId = parseInt(match.sourceLeagueId);
@@ -1357,22 +1485,11 @@ export default function AnalysisPage() {
       return true;
     }
     const name = String(match.league).toLowerCase();
-    if (name.includes('copa do mundo')) return true;
-    if (name.includes('libertadores')) return true;
-    if (name.includes('sudamericana') || name.includes('sulamericana')) return true;
-    if (name.includes('série a') || name.includes('serie a')) return true;
-    if (name.includes('série b') || name.includes('serie b')) return true;
-    if (name.includes('série c') || name.includes('serie c')) return true;
-    if (name.includes('premier')) return true;
-    if (name.includes('la liga') || name.includes('espanha')) return true;
-    if (name.includes('bundesliga') || name.includes('alemanha')) return true;
-    if (name.includes('europa league')) return true;
-    if (name.includes('conference league')) return true;
-    if (name.includes('argentina')) return true;
-    if (name.includes('amistoso')) return true;
-    if (name.includes('portugal')) return true;
+    for (const liga of activeLeagues) {
+      if (name.includes(liga.name.toLowerCase())) return true;
+    }
     return false;
-  }, [ALLOWED_LEAGUE_IDS]);
+  }, [ALLOWED_LEAGUE_IDS, activeLeagues]);
 
   const leaguesWithGames = useMemo(() => {
     const set = new Set();
@@ -3043,7 +3160,8 @@ export default function AnalysisPage() {
               display: 'flex',
               flexDirection: 'column',
               gap: '12px',
-              height: '815px',
+              minHeight: '815px',
+              height: 'auto',
               boxSizing: 'border-box'
             }}>
               {/* Row 1: Recomendação +EV & Cálculo de Vitória (1X2) */}
@@ -3165,7 +3283,7 @@ export default function AnalysisPage() {
                     <span style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>{translateTeamName(selectedMatch.home)}</span>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginRight: '4px' }}>Forma:</span>
-                      {(selectedMatch.formHome || ["V", "V", "E", "D", "V"]).map((c, i) => renderFormBadge(c, i))}
+                      {(selectedMatch.formHome || generateFormFromStrength(selectedMatch.home)).map((c, i) => renderFormBadge(c, i))}
                     </div>
                   </div>
 
@@ -3200,7 +3318,7 @@ export default function AnalysisPage() {
                     <span style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>{translateTeamName(selectedMatch.away)}</span>
                     <div style={{ display: 'flex', alignItems: 'center' }}>
                       <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginRight: '4px' }}>Forma:</span>
-                      {(selectedMatch.formAway || ["V", "D", "V", "E", "D"]).map((c, i) => renderFormBadge(c, i))}
+                      {(selectedMatch.formAway || generateFormFromStrength(selectedMatch.away)).map((c, i) => renderFormBadge(c, i))}
                     </div>
                   </div>
 

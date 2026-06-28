@@ -1031,11 +1031,11 @@ export default function RelatorioApostasPage() {
             justify-content: space-between !important;
             align-items: center !important;
             border-bottom: 2px solid #1a1a1a !important;
-            padding-bottom: 10px !important;
-            margin-bottom: 18px !important;
+            padding-bottom: 6px !important;
+            margin-bottom: 10px !important;
           }
           .print-header-logo {
-            font-size: 18pt !important;
+            font-size: 14pt !important;
             font-weight: 900 !important;
             color: #1a1a1a !important;
             letter-spacing: -0.5px !important;
@@ -1045,13 +1045,13 @@ export default function RelatorioApostasPage() {
           }
           .print-header-info {
             text-align: right !important;
-            font-size: 8.5pt !important;
+            font-size: 7.5pt !important;
             color: #444 !important;
-            line-height: 1.5 !important;
+            line-height: 1.4 !important;
           }
           .print-header-info strong {
             display: block !important;
-            font-size: 10pt !important;
+            font-size: 9pt !important;
             color: #1a1a1a !important;
           }
 
@@ -1072,8 +1072,8 @@ export default function RelatorioApostasPage() {
           .print-kpi-grid {
             display: grid !important;
             grid-template-columns: repeat(4, 1fr) !important;
-            gap: 10px !important;
-            margin-bottom: 18px !important;
+            gap: 8px !important;
+            margin-bottom: 12px !important;
           }
           .print-kpi-card {
             display: flex !important;
@@ -1082,30 +1082,30 @@ export default function RelatorioApostasPage() {
             justify-content: center !important;
             text-align: center !important;
             border: 1.5px solid #e2e8f0 !important;
-            border-radius: 8px !important;
-            padding: 12px 8px !important;
+            border-radius: 6px !important;
+            padding: 8px 6px !important;
             background: #fafafa !important;
             page-break-inside: avoid !important;
           }
           .print-kpi-label {
-            font-size: 7pt !important;
+            font-size: 6.5pt !important;
             color: #666 !important;
             text-transform: uppercase !important;
             letter-spacing: 0.8px !important;
             font-weight: 600 !important;
-            margin-bottom: 4px !important;
+            margin-bottom: 3px !important;
           }
           .print-kpi-value {
-            font-size: 14pt !important;
+            font-size: 12pt !important;
             font-weight: 800 !important;
             color: #1a1a1a !important;
-            margin-bottom: 2px !important;
+            margin-bottom: 1px !important;
             line-height: 1.2 !important;
           }
           .print-kpi-value.positive { color: #2d7a00 !important; }
           .print-kpi-value.negative { color: #c0392b !important; }
           .print-kpi-sub {
-            font-size: 7.5pt !important;
+            font-size: 7pt !important;
             color: #888 !important;
           }
 
@@ -1154,14 +1154,14 @@ export default function RelatorioApostasPage() {
           .backtest-charts-grid {
             display: flex !important;
             flex-direction: column !important;
-            gap: 28px !important;
-            margin-bottom: 20px !important;
+            gap: 12px !important;
+            margin-bottom: 12px !important;
             overflow: visible !important;
           }
           .responsive-chart-wrapper {
             width: 100% !important;
-            height: 220px !important;
-            min-height: 220px !important;
+            height: 150px !important;
+            min-height: 150px !important;
             overflow: visible !important;
             position: relative !important;
           }
@@ -1169,11 +1169,7 @@ export default function RelatorioApostasPage() {
             page-break-inside: avoid !important;
             overflow: visible !important;
             margin-bottom: 0 !important;
-            padding-bottom: 12px !important;
-          }
-          /* Forçar quebra de página antes do 2º gráfico (Acertos vs Perdas) */
-          .responsive-chart-panel:nth-child(2) {
-            page-break-before: always !important;
+            padding-bottom: 6px !important;
           }
 
           /* ---- Tabela de apostas ---- */

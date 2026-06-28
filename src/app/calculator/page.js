@@ -1522,7 +1522,7 @@ export default function AnalysisPage() {
   }, [matches, FILTERED_LEAGUES]);
 
   const filteredMatches = useMemo(() => {
-    if (selectedLeague === 'Todas') return matches;
+    if (selectedLeague === 'Todas') return matches.filter(m => matchesAllowedLeagues(m));
     return matches.filter(m => {
       const name = String(m.league).toLowerCase();
       const sourceId = parseInt(m.sourceLeagueId);

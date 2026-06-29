@@ -57,27 +57,43 @@ export async function GET(request) {
       query = query.ilike('campeonato', `%${leagueFilter}%`);
     }
 
-    const sortBy = searchParams.get('sortBy');
-    console.log("[GET /api/admin/opportunities] sortBy recebido no backend:", sortBy);
+    // Ordenamos sempre por created_at desc no banco para processar a versão mais recente primeiro na deduplicação
+    query = query.order('created_at', { ascending: false }).limit(2000);
 
-    if (sortBy === 'ev') {
-      query = query.order('vantagem_ev_porcentagem', { ascending: false });
-    } else {
-      query = query.order('created_at', { ascending: false });
-    }
-
-    query = query.range(offset, offset + limit - 1);
-
-    const { data: opportunities, count, error } = await query;
+    const { data: rawOpportunities, error } = await query;
 
     if (error) {
       console.error('[Opportunities API] Erro ao buscar oportunidades:', error);
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
+    // Deduplica por (confronto, mercado) mantendo apenas a oportunidade mais recente (que aparece primeiro devido ao order desc)
+    const seen = new Set();
+    const deduplicated = [];
+
+    for (const opp of (rawOpportunities || [])) {
+      const confrontoKey = (opp.confronto || '').trim().toLowerCase();
+      const mercadoKey = (opp.mercado || '').trim().toLowerCase();
+      const uniqueKey = `${confrontoKey}|${mercadoKey}`;
+
+      if (!seen.has(uniqueKey)) {
+        seen.add(uniqueKey);
+        deduplicated.push(opp);
+      }
+    }
+
+    // Ordenação por EV se solicitado
+    const sortBy = searchParams.get('sortBy');
+    if (sortBy === 'ev') {
+      deduplicated.sort((a, b) => (b.vantagem_ev_porcentagem || 0) - (a.vantagem_ev_porcentagem || 0));
+    }
+
+    const totalCount = deduplicated.length;
+    const paginated = deduplicated.slice(offset, offset + limit);
+
     return NextResponse.json({ 
-      opportunities,
-      totalCount: count || 0,
+      opportunities: paginated,
+      totalCount,
       page,
       limit
     });

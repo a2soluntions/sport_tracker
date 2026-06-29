@@ -3281,6 +3281,7 @@ export default function PalpitesPage() {
 
 
 
+                  </div>
                 </div>
               );
             })}

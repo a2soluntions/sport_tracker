@@ -239,7 +239,13 @@ export default function AdminDashboard() {
   const [oppsPage, setOppsPage] = useState(1);
   const [oppsLimit, setOppsLimit] = useState(25);
   const [totalOppsCount, setTotalOppsCount] = useState(0);
-  const [filterDate, setFilterDate] = useState('');
+  const [filterDate, setFilterDate] = useState(() => {
+    const tzDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const yyyy = tzDate.getFullYear();
+    const mm = String(tzDate.getMonth() + 1).padStart(2, '0');
+    const dd = String(tzDate.getDate()).padStart(2, '0');
+    return `${yyyy}-${mm}-${dd}`;
+  });
   const [filterLeague, setFilterLeague] = useState('');
   const [sortEV, setSortEV] = useState(false);
 

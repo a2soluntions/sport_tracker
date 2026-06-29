@@ -85,8 +85,15 @@ export async function GET(request) {
         if (resultado === 'pending') {
           const campeonato = opp.campeonato || '';
           
-          // Se for LIVE, sempre mantemos
-          if (!campeonato.startsWith('[LIVE|')) {
+          if (campeonato.startsWith('[LIVE|')) {
+            // Se for LIVE, só mantemos se tiver sido criado nos últimos 3 horas (180 minutos)
+            // Isso evita que jogos "ao vivo" antigos ou que já terminaram fiquem travados na tela
+            const createdAtTime = new Date(opp.created_at).getTime();
+            const threeHoursAgo = now.getTime() - 3 * 60 * 60 * 1000;
+            if (createdAtTime < threeHoursAgo) {
+              continue;
+            }
+          } else {
             if (campeonato.startsWith('[')) {
               const closeBracketIdx = campeonato.indexOf(']');
               if (closeBracketIdx > 1) {

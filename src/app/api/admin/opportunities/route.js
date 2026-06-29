@@ -138,10 +138,50 @@ export async function GET(request) {
       }
     }
 
-    // Ordenação por EV se solicitado
+    // Ordenação inteligente
     const sortBy = searchParams.get('sortBy');
     if (sortBy === 'ev') {
       deduplicated.sort((a, b) => (b.vantagem_ev_porcentagem || 0) - (a.vantagem_ev_porcentagem || 0));
+    } else {
+      // Ordenação cronológica: LIVE primeiro, depois por horário de início da partida crescente (mais próximos do início primeiro)
+      const getMatchSortScore = (opp) => {
+        const campeonato = opp.campeonato || '';
+        
+        // Se for LIVE, prioridade máxima (sobe para o topo)
+        if (campeonato.startsWith('[LIVE|')) {
+          return 0;
+        }
+        
+        if (campeonato.startsWith('[')) {
+          const closeBracketIdx = campeonato.indexOf(']');
+          if (closeBracketIdx > 1) {
+            const datePart = campeonato.substring(1, closeBracketIdx).trim();
+            const dateMatch = datePart.match(/^(\d{2})\/(\d{2})/);
+            if (dateMatch) {
+              const day = parseInt(dateMatch[1], 10);
+              const month = parseInt(dateMatch[2], 10);
+              
+              const timeMatch = datePart.match(/\s+(\d{2}):(\d{2})$/);
+              let hour = 0;
+              let minute = 0;
+              if (timeMatch) {
+                hour = parseInt(timeMatch[1], 10);
+                minute = parseInt(timeMatch[2], 10);
+              }
+              
+              const matchDate = new Date(currentYear, month - 1, day, hour, minute);
+              if (!isNaN(matchDate.getTime())) {
+                return matchDate.getTime();
+              }
+            }
+          }
+        }
+        
+        // Sem data: joga para o final usando o timestamp de criação como fallback secundário
+        return new Date(opp.created_at).getTime() + 1000 * 60 * 60 * 24 * 30;
+      };
+
+      deduplicated.sort((a, b) => getMatchSortScore(a) - getMatchSortScore(b));
     }
 
     const totalCount = deduplicated.length;

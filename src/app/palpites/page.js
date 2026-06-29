@@ -3013,7 +3013,7 @@ export default function PalpitesPage() {
                   overflow: 'hidden',
                   opacity: game.isFinished ? 0.75 : 1,
                   flexShrink: 0,
-                  height: 'auto',
+                  height: '248px',
                   display: 'flex',
                   flexDirection: 'column',
                   gap: '8px',
@@ -3130,17 +3130,15 @@ export default function PalpitesPage() {
                           )}
                         </div>
 
-                        {/* PROTEÇÃO */}
-                        {game.stats.bestHandicapTip && (
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                            <div style={{ fontSize: '0.62rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Proteção</div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <span className="protection-text" style={{ fontSize: '0.75rem', fontWeight: 'bold', color: 'var(--brand-neon)' }} title={game.stats.bestHandicapTip.selection}>
-                                {game.stats.bestHandicapTip.selection}
-                              </span>
-                            </div>
+                        {/* PROTEÇÃO (Altura fixa de 24px para uniformidade do card) */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', height: '24px' }}>
+                          <div style={{ fontSize: '0.62rem', color: '#888', fontWeight: 'bold', textTransform: 'uppercase' }}>Proteção</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                            <span className="protection-text" style={{ fontSize: '0.75rem', fontWeight: 'bold', color: game.stats.bestHandicapTip ? 'var(--brand-neon)' : '#555' }} title={game.stats.bestHandicapTip ? game.stats.bestHandicapTip.selection : 'Sem proteção recomendada'}>
+                              {game.stats.bestHandicapTip ? game.stats.bestHandicapTip.selection : '-'}
+                            </span>
                           </div>
-                        )}
+                        </div>
 
                         {/* Seguir / Criar Aposta Actions */}
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', width: '100%', marginTop: '1px' }}>
@@ -3276,65 +3274,8 @@ export default function PalpitesPage() {
                             </button>
                           </div>
                         </div>
-
-                        {/* Bookmaker Odds Grid */}
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px', marginTop: '1px' }}>
-                          {bmOdds.map(bm => {
-                            const getBookmakerBtnStyle = (name, isBest) => {
-                              const brandColors = {
-                                'Bet365': { border: '#00a676', text: '#ffdf1b' },
-                                'Betano': { border: '#f27022', text: '#f27022' },
-                                'Pinnacle': { border: '#ff7300', text: '#ff7300' },
-                                'Betfair': { border: '#ffc500', text: '#ffc500' }
-                              };
-                              const colors = brandColors[name] || { border: '#222', text: '#ccc' };
-                              return {
-                                background: '#111116',
-                                border: isBest ? `1px solid var(--brand-neon)` : `1px solid ${colors.border}`,
-                                borderRadius: '4px',
-                                cursor: isFollowed(game) ? 'not-allowed' : 'pointer',
-                                fontSize: '0.62rem',
-                                boxSizing: 'border-box',
-                                boxShadow: isBest ? `0 0 6px ${colors.border}44` : 'none',
-                                textCol: colors.text
-                              };
-                            };
-                            const bmStyle = getBookmakerBtnStyle(bm.name, bm.isBest);
-                            return (
-                              <div
-                                key={bm.name}
-                                onClick={() => {
-                                  if (isFollowed(game)) return;
-                                  setActiveFollowId(game.id);
-                                  setFollowOdd(bm.odd.toFixed(2));
-                                  setFollowAmount('50');
-                                  showToast(`Selecionou ${bm.name} (@${bm.odd.toFixed(2)}) para registrar na Banca!`, 'success');
-                                }}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  background: bmStyle.background,
-                                  border: bmStyle.border,
-                                  padding: '2px 4px',
-                                  borderRadius: bmStyle.borderRadius,
-                                  cursor: bmStyle.cursor,
-                                  fontSize: bmStyle.fontSize,
-                                  boxSizing: bmStyle.boxSizing,
-                                  boxShadow: bmStyle.boxShadow
-                                }}
-                              >
-                                {getBookmakerLogo(bm.name)}
-                                <span style={{ fontWeight: 'bold', color: bm.isBest ? 'var(--brand-neon)' : bmStyle.textCol }}>
-                                  @{bm.odd.toFixed(2)}
-                                </span>
-                              </div>
-                            );
-                          })}
-                        </div>
                       </div>
                     </div>
-                  </div>
 
 
 

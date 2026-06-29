@@ -47,8 +47,8 @@ export async function GET(request) {
       }
     }
 
-    if (dateFilter) {
-      // Filtrar oportunidades criadas naquele dia (fuso horário local Brasil)
+    if (dateFilter && resultado !== 'pending') {
+      // Filtrar histórico pela data de criação
       query = query.gte('created_at', `${dateFilter}T00:00:00-03:00`)
                    .lte('created_at', `${dateFilter}T23:59:59-03:00`);
     }
@@ -85,10 +85,28 @@ export async function GET(request) {
         if (resultado === 'pending') {
           const campeonato = opp.campeonato || '';
           
+          let targetDateFormatted = '';
+          let isTodayFilter = false;
+          if (dateFilter) {
+            const parts = dateFilter.split('-'); // ["2026", "06", "28"]
+            targetDateFormatted = `${parts[2]}/${parts[1]}`; // "28/06"
+            
+            // Fuso horário São Paulo para identificar se o filtro é hoje
+            const tzDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+            const todayY = tzDate.getFullYear();
+            const todayM = String(tzDate.getMonth() + 1).padStart(2, '0');
+            const todayD = String(tzDate.getDate()).padStart(2, '0');
+            if (parts[0] === String(todayY) && parts[1] === todayM && parts[2] === todayD) {
+              isTodayFilter = true;
+            }
+          }
+
           if (campeonato.startsWith('[LIVE|')) {
-            // Se for LIVE, só mantemos se tiver sido criado nos últimos 15 minutos.
-            // Como o robô atualiza a cada minuto, se passar de 15 minutos o jogo terminou
-            // ou a cotação mudou, não devendo ficar preso como "EM ANDAMENTO".
+            // Se o filtro de data estiver ativo e NÃO for hoje, oculta jogos ao vivo (pois ocorrem hoje)
+            if (dateFilter && !isTodayFilter) {
+              continue;
+            }
+            // Se for LIVE, só mantemos se tiver sido criado nos últimos 15 minutos
             const createdAtTime = new Date(opp.created_at).getTime();
             const fifteenMinutesAgo = now.getTime() - 15 * 60 * 1000;
             if (createdAtTime < fifteenMinutesAgo) {
@@ -98,7 +116,15 @@ export async function GET(request) {
             if (campeonato.startsWith('[')) {
               const closeBracketIdx = campeonato.indexOf(']');
               if (closeBracketIdx > 1) {
-                const datePart = campeonato.substring(1, closeBracketIdx).trim();
+                const datePart = campeonato.substring(1, closeBracketIdx).trim(); // ex: "28/06 20:50"
+
+                // Se houver filtro de data, exige que a data do jogo bata com a selecionada
+                if (dateFilter && targetDateFormatted) {
+                  if (!datePart.startsWith(targetDateFormatted)) {
+                    continue;
+                  }
+                }
+
                 const dateMatch = datePart.match(/^(\d{2})\/(\d{2})/);
                 if (dateMatch) {
                   const day = parseInt(dateMatch[1], 10);
@@ -131,7 +157,16 @@ export async function GET(request) {
               }
             } else {
               // Sem data explícita no campeonato.
-              // Só mantemos se tiver sido detectado nos últimos 30 minutos (evita jogos antigos sem data como Figueirense/Athletic Club).
+              // Se houver filtro de data, exige que a data de criação local bata com a filtrada
+              if (dateFilter) {
+                const createdLocalDate = new Date(opp.created_at).toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo' }); // "28/06/2026"
+                const filterDateFormatted = dateFilter.split('-').reverse().join('/'); // "28/06/2026"
+                if (createdLocalDate !== filterDateFormatted) {
+                  continue;
+                }
+              }
+
+              // Só mantemos se tiver sido detectado nos últimos 30 minutos
               const createdAtTime = new Date(opp.created_at).getTime();
               const thirtyMinutesAgo = now.getTime() - 30 * 60 * 1000;
               if (createdAtTime < thirtyMinutesAgo) {

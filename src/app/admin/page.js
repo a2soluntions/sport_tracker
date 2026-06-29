@@ -5236,7 +5236,8 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                         
                         
                         // Extrai a data real da partida se estiver prefixada no campeonato ex: "[27/06 16:00] Serie B"
-                        let dataExibicao = dataFormatada;
+                        // Só exibe o horário se tivermos o prefixo formatado de data real da partida
+                        let dataExibicao = '-';
                         let campeonatoExibicao = opp.campeonato || 'Desconhecido';
                         
                         if (opp.campeonato && opp.campeonato.startsWith('[')) {
@@ -5247,6 +5248,8 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                             if (!conteudo.startsWith('LIVE|')) {
                               dataExibicao = conteudo;
                               campeonatoExibicao = opp.campeonato.substring(fechoIdx + 1).trim();
+                            } else {
+                              dataExibicao = 'AO VIVO';
                             }
                           }
                         }

@@ -71,13 +71,9 @@ export async function GET(request) {
     const seen = new Set();
     let deduplicated = [];
 
-    // Helper para verificar se o jogo é no máximo 2 dias no futuro e não está no passado
     const now = new Date();
-    const localDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    const currentDay = localDate.getDate();
-    const currentMonth = localDate.getMonth() + 1;
-    const currentYear = localDate.getFullYear();
-    const todayZero = new Date(currentYear, currentMonth - 1, currentDay);
+    const currentYear = now.getFullYear();
+    const twoDaysFromNow = new Date(now.getTime() + 2 * 24 * 60 * 60 * 1000);
 
     for (const opp of (rawOpportunities || [])) {
       const confrontoKey = (opp.confronto || '').trim().toLowerCase();
@@ -100,26 +96,36 @@ export async function GET(request) {
                   const day = parseInt(dateMatch[1], 10);
                   const month = parseInt(dateMatch[2], 10);
 
-                  const matchDate = new Date(currentYear, month - 1, day);
-                  
-                  // Se for no passado (antes de hoje), descarta
-                  if (matchDate < todayZero) {
-                    continue;
+                  const timeMatch = datePart.match(/\s+(\d{2}):(\d{2})$/);
+                  let hour = 0;
+                  let minute = 0;
+                  if (timeMatch) {
+                    hour = parseInt(timeMatch[1], 10);
+                    minute = parseInt(timeMatch[2], 10);
                   }
 
-                  // Se for mais do que 2 dias no futuro, descarta
-                  const diffTime = matchDate - todayZero;
-                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                  if (diffDays > 2) {
-                    continue;
+                  // Cria a data e hora do jogo no fuso horário oficial de Brasília (UTC-3)
+                  const matchDateStr = `${currentYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00-03:00`;
+                  const matchDate = new Date(matchDateStr);
+                  
+                  if (!isNaN(matchDate.getTime())) {
+                    // Se o horário de início for anterior a agora, descarta (já passou/começou)
+                    if (matchDate < now) {
+                      continue;
+                    }
+
+                    // Se for mais do que 2 dias no futuro, descarta
+                    if (matchDate > twoDaysFromNow) {
+                      continue;
+                    }
                   }
                 }
               }
             } else {
-              // Sem prefixo de data explícito (ex: World Cup). 
-              // Se foi criado há mais de 24h, descarta por ser potencialmente antigo.
+              // Sem prefixo de data explícito.
+              // Se foi criado há mais de 24h, descarta.
               const createdAtTime = new Date(opp.created_at).getTime();
-              const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+              const oneDayAgo = now.getTime() - 24 * 60 * 60 * 1000;
               if (createdAtTime < oneDayAgo) {
                 continue;
               }

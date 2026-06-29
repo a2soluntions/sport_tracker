@@ -69,7 +69,15 @@ export async function GET(request) {
 
     // Deduplica por (confronto, mercado) mantendo apenas a oportunidade mais recente (que aparece primeiro devido ao order desc)
     const seen = new Set();
-    const deduplicated = [];
+    let deduplicated = [];
+
+    // Helper para verificar se o jogo é no máximo 2 dias no futuro e não está no passado
+    const now = new Date();
+    const localDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const currentDay = localDate.getDate();
+    const currentMonth = localDate.getMonth() + 1;
+    const currentYear = localDate.getFullYear();
+    const todayZero = new Date(currentYear, currentMonth - 1, currentDay);
 
     for (const opp of (rawOpportunities || [])) {
       const confrontoKey = (opp.confronto || '').trim().toLowerCase();
@@ -77,6 +85,48 @@ export async function GET(request) {
       const uniqueKey = `${confrontoKey}|${mercadoKey}`;
 
       if (!seen.has(uniqueKey)) {
+        // Validação de datas para dispatch manual (apenas se resultado for pending)
+        if (resultado === 'pending') {
+          const campeonato = opp.campeonato || '';
+          
+          // Se for LIVE, sempre mantemos
+          if (!campeonato.startsWith('[LIVE|')) {
+            if (campeonato.startsWith('[')) {
+              const closeBracketIdx = campeonato.indexOf(']');
+              if (closeBracketIdx > 1) {
+                const datePart = campeonato.substring(1, closeBracketIdx).trim();
+                const dateMatch = datePart.match(/^(\d{2})\/(\d{2})/);
+                if (dateMatch) {
+                  const day = parseInt(dateMatch[1], 10);
+                  const month = parseInt(dateMatch[2], 10);
+
+                  const matchDate = new Date(currentYear, month - 1, day);
+                  
+                  // Se for no passado (antes de hoje), descarta
+                  if (matchDate < todayZero) {
+                    continue;
+                  }
+
+                  // Se for mais do que 2 dias no futuro, descarta
+                  const diffTime = matchDate - todayZero;
+                  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                  if (diffDays > 2) {
+                    continue;
+                  }
+                }
+              }
+            } else {
+              // Sem prefixo de data explícito (ex: World Cup). 
+              // Se foi criado há mais de 24h, descarta por ser potencialmente antigo.
+              const createdAtTime = new Date(opp.created_at).getTime();
+              const oneDayAgo = Date.now() - 24 * 60 * 60 * 1000;
+              if (createdAtTime < oneDayAgo) {
+                continue;
+              }
+            }
+          }
+        }
+
         seen.add(uniqueKey);
         deduplicated.push(opp);
       }

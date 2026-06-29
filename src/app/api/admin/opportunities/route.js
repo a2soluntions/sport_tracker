@@ -86,11 +86,12 @@ export async function GET(request) {
           const campeonato = opp.campeonato || '';
           
           if (campeonato.startsWith('[LIVE|')) {
-            // Se for LIVE, só mantemos se tiver sido criado nos últimos 3 horas (180 minutos)
-            // Isso evita que jogos "ao vivo" antigos ou que já terminaram fiquem travados na tela
+            // Se for LIVE, só mantemos se tiver sido criado nos últimos 15 minutos.
+            // Como o robô atualiza a cada minuto, se passar de 15 minutos o jogo terminou
+            // ou a cotação mudou, não devendo ficar preso como "EM ANDAMENTO".
             const createdAtTime = new Date(opp.created_at).getTime();
-            const threeHoursAgo = now.getTime() - 3 * 60 * 60 * 1000;
-            if (createdAtTime < threeHoursAgo) {
+            const fifteenMinutesAgo = now.getTime() - 15 * 60 * 1000;
+            if (createdAtTime < fifteenMinutesAgo) {
               continue;
             }
           } else {
@@ -129,11 +130,11 @@ export async function GET(request) {
                 }
               }
             } else {
-              // Sem prefixo de data explícito.
-              // Se foi criado há mais de 24h, descarta.
+              // Sem data explícita no campeonato.
+              // Só mantemos se tiver sido detectado nos últimos 30 minutos (evita jogos antigos sem data como Figueirense/Athletic Club).
               const createdAtTime = new Date(opp.created_at).getTime();
-              const oneDayAgo = now.getTime() - 24 * 60 * 60 * 1000;
-              if (createdAtTime < oneDayAgo) {
+              const thirtyMinutesAgo = now.getTime() - 30 * 60 * 1000;
+              if (createdAtTime < thirtyMinutesAgo) {
                 continue;
               }
             }

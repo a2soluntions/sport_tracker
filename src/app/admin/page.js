@@ -4503,13 +4503,28 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                 {/* CONFIGURAÇÃO DE MODELO/IMAGEM DE ALERTA EV */}
                 <div style={{ borderTop: '1px dashed #222', paddingTop: '10px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff' }}>Modelo de Alerta +EV:</div>
-                  <input
-                    type="text"
-                    value={alertaEvImageUrl}
-                    onChange={(e) => setAlertaEvImageUrl(e.target.value)}
-                    placeholder="URL da Imagem Padrão (Opcional)"
-                    style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 8px', fontSize: '0.72rem', outline: 'none' }}
-                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => setAlertaEvImageUrl(reader.result);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      style={{ fontSize: '0.72rem', color: '#aaa', cursor: 'pointer' }}
+                    />
+                    <input
+                      type="text"
+                      value={alertaEvImageUrl && alertaEvImageUrl.startsWith('data:') ? '' : alertaEvImageUrl}
+                      onChange={(e) => setAlertaEvImageUrl(e.target.value)}
+                      placeholder="Ou cole a URL da Imagem..."
+                      style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 8px', fontSize: '0.72rem', outline: 'none' }}
+                    />
+                  </div>
                   <textarea
                     value={alertaEvTemplate}
                     onChange={(e) => setAlertaEvTemplate(e.target.value)}
@@ -4794,13 +4809,28 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                 {/* CONFIGURAÇÃO DE MODELO/IMAGEM DE PALPITES */}
                 <div style={{ borderTop: '1px dashed #222', paddingTop: '10px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff' }}>Modelo de Palpites VIP:</div>
-                  <input
-                    type="text"
-                    value={palpitesImageUrl}
-                    onChange={(e) => setPalpitesImageUrl(e.target.value)}
-                    placeholder="URL da Imagem Padrão (Opcional)"
-                    style={{ width: '100%', background: '#050508', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 8px', fontSize: '0.72rem', outline: 'none' }}
-                  />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onloadend = () => setPalpitesImageUrl(reader.result);
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                      style={{ fontSize: '0.72rem', color: '#aaa', cursor: 'pointer' }}
+                    />
+                    <input
+                      type="text"
+                      value={palpitesImageUrl && palpitesImageUrl.startsWith('data:') ? '' : palpitesImageUrl}
+                      onChange={(e) => setPalpitesImageUrl(e.target.value)}
+                      placeholder="Ou cole a URL da Imagem..."
+                      style={{ width: '100%', background: '#050508', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 8px', fontSize: '0.72rem', outline: 'none' }}
+                    />
+                  </div>
                   <textarea
                     value={palpitesTemplate}
                     onChange={(e) => setPalpitesTemplate(e.target.value)}

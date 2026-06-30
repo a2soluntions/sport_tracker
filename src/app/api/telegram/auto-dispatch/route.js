@@ -156,6 +156,8 @@ async function handleDispatch(request) {
             if (todayGames.length > 0) {
               const botToken = process.env.TELEGRAM_BOT_TOKEN;
               const chatId = process.env.TELEGRAM_VIP_CHAT_ID || process.env.TELEGRAM_CHAT_ID;
+              const palpitesTemplate = settings.telegram_palpites_template;
+              const palpitesImage = settings.telegram_palpites_image_url;
 
               if (botToken && chatId) {
                 for (const game of todayGames) {
@@ -168,18 +170,36 @@ async function handleDispatch(request) {
                     const probPct = (bestTip.prob * 100).toFixed(1);
                     const fairOdd = (1 / bestTip.prob).toFixed(2);
 
-                    const message = `🏆 *NOVO PALPITE VIP* 🏆\n\n⚽ *Jogo:* ${game.home} x ${game.away}\n🎯 *Palpite:* ${bestTip.selection}\n📊 *Probabilidade:* ${probPct}%\n🔥 *Odd Justa:* @${fairOdd}\n\n_Palpite gerado pelo Algoritmo de Poisson_ 🤖`;
+                    const templateStr = palpitesTemplate || `🏆 *NOVO PALPITE VIP* 🏆\n\n⚽ *Jogo:* {jogo}\n🎯 *Palpite:* {palpite}\n📊 *Probabilidade:* {probabilidade}%\n🔥 *Odd Justa:* @{odd_justa}\n\n_Palpite gerado pelo Algoritmo de Poisson_ 🤖`;
 
-                    // Send to Telegram
-                    const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+                    const message = templateStr
+                      .replace(/{jogo}/g, `${game.home} x ${game.away}`)
+                      .replace(/{palpite}/g, String(bestTip.selection))
+                      .replace(/{probabilidade}/g, String(probPct))
+                      .replace(/{odd_justa}/g, String(fairOdd));
+
+                    // Send to Telegram (handling optional image using sendPhoto)
+                    let telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
+                    let body = {
+                      chat_id: chatId,
+                      text: message,
+                      parse_mode: 'Markdown'
+                    };
+
+                    if (palpitesImage) {
+                      telegramUrl = `https://api.telegram.org/bot${botToken}/sendPhoto`;
+                      body = {
+                        chat_id: chatId,
+                        photo: palpitesImage,
+                        caption: message,
+                        parse_mode: 'Markdown'
+                      };
+                    }
+
                     await fetch(telegramUrl, {
                       method: 'POST',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({
-                        chat_id: chatId,
-                        text: message,
-                        parse_mode: 'Markdown'
-                      })
+                      body: JSON.stringify(body)
                     });
 
                     // Pause to avoid rate limits

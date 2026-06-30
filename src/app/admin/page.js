@@ -283,6 +283,12 @@ export default function AdminDashboard() {
   const [palpitesHourInput, setPalpitesHourInput] = useState('');
   const [palpitesSelectedLeagues, setPalpitesSelectedLeagues] = useState([]);
   const [telegramHistoryTab, setTelegramHistoryTab] = useState('agendados'); // 'agendados' | 'historico'
+  
+  // Custom Automatic Template Configurations
+  const [alertaEvTemplate, setAlertaEvTemplate] = useState('');
+  const [alertaEvImageUrl, setAlertaEvImageUrl] = useState('');
+  const [palpitesTemplate, setPalpitesTemplate] = useState('');
+  const [palpitesImageUrl, setPalpitesImageUrl] = useState('');
 
   // Time auto-format mask helper
   const handleTimeChange = (e, setter) => {
@@ -732,6 +738,10 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
           if (settings.telegram_bot_hours !== undefined) setBotHours(settings.telegram_bot_hours);
           if (settings.telegram_palpites_enabled !== undefined) setPalpitesBotEnabled(settings.telegram_palpites_enabled);
           if (settings.telegram_palpites_schedules !== undefined) setPalpitesSchedules(settings.telegram_palpites_schedules);
+          if (settings.telegram_alerta_ev_template !== undefined) setAlertaEvTemplate(settings.telegram_alerta_ev_template);
+          if (settings.telegram_alerta_ev_image_url !== undefined) setAlertaEvImageUrl(settings.telegram_alerta_ev_image_url);
+          if (settings.telegram_palpites_template !== undefined) setPalpitesTemplate(settings.telegram_palpites_template);
+          if (settings.telegram_palpites_image_url !== undefined) setPalpitesImageUrl(settings.telegram_palpites_image_url);
           if (settings.company_info) {
             setCompanyInfo(prev => ({ ...prev, ...settings.company_info }));
           }
@@ -4489,6 +4499,45 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                     </button>
                   </div>
                 </div>
+
+                {/* CONFIGURAÇÃO DE MODELO/IMAGEM DE ALERTA EV */}
+                <div style={{ borderTop: '1px dashed #222', paddingTop: '10px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff' }}>Modelo de Alerta +EV:</div>
+                  <input
+                    type="text"
+                    value={alertaEvImageUrl}
+                    onChange={(e) => setAlertaEvImageUrl(e.target.value)}
+                    placeholder="URL da Imagem Padrão (Opcional)"
+                    style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 8px', fontSize: '0.72rem', outline: 'none' }}
+                  />
+                  <textarea
+                    value={alertaEvTemplate}
+                    onChange={(e) => setAlertaEvTemplate(e.target.value)}
+                    placeholder={`Modelo HTML (Ex: {header}\n\n🏆 <b>{campeonato}</b>\n⚔️ <b>{confronto}</b>\n\n🎯 <b>{mercado}</b>\n📈 Odd: {odd_oferecida}\n⚖️ Justa: {odd_justa}\n🔥 EV: +{ev}%\n🛡️ Stake: {stake})`}
+                    rows={6}
+                    style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 8px', fontSize: '0.72rem', fontFamily: 'monospace', resize: 'vertical', outline: 'none' }}
+                  />
+                  <button
+                    onClick={() => {
+                      saveSettingDirectly('telegram_alerta_ev_template', alertaEvTemplate);
+                      saveSettingDirectly('telegram_alerta_ev_image_url', alertaEvImageUrl);
+                      showNotification('Modelo de Alerta EV salvo com sucesso!', 'success');
+                    }}
+                    style={{
+                      background: 'var(--brand-neon)',
+                      color: '#000',
+                      border: 'none',
+                      padding: '6px',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    Salvar Modelo Alerta
+                  </button>
+                </div>
               </div>
 
               {/* CRIADOR DE CARDS (MAIS COMPACTO COM UPLOAD LOCAL) */}
@@ -4740,6 +4789,45 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                       );
                     })}
                   </div>
+                </div>
+
+                {/* CONFIGURAÇÃO DE MODELO/IMAGEM DE PALPITES */}
+                <div style={{ borderTop: '1px dashed #222', paddingTop: '10px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff' }}>Modelo de Palpites VIP:</div>
+                  <input
+                    type="text"
+                    value={palpitesImageUrl}
+                    onChange={(e) => setPalpitesImageUrl(e.target.value)}
+                    placeholder="URL da Imagem Padrão (Opcional)"
+                    style={{ width: '100%', background: '#050508', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 8px', fontSize: '0.72rem', outline: 'none' }}
+                  />
+                  <textarea
+                    value={palpitesTemplate}
+                    onChange={(e) => setPalpitesTemplate(e.target.value)}
+                    placeholder={`Modelo Markdown (Ex: 🏆 *NOVO PALPITE VIP* 🏆\n\n⚽ *Jogo:* {jogo}\n🎯 *Palpite:* {palpite}\n📊 *Probabilidade:* {probabilidade}%\n🔥 *Odd Justa:* @{odd_justa})`}
+                    rows={6}
+                    style={{ width: '100%', background: '#050508', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 8px', fontSize: '0.72rem', fontFamily: 'monospace', resize: 'vertical', outline: 'none' }}
+                  />
+                  <button
+                    onClick={() => {
+                      saveSettingDirectly('telegram_palpites_template', palpitesTemplate);
+                      saveSettingDirectly('telegram_palpites_image_url', palpitesImageUrl);
+                      showNotification('Modelo de Palpites salvo com sucesso!', 'success');
+                    }}
+                    style={{
+                      background: '#00d2ff',
+                      color: '#000',
+                      border: 'none',
+                      padding: '6px',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                      fontWeight: 'bold',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    Salvar Modelo Palpites
+                  </button>
                 </div>
               </div>
             </div>

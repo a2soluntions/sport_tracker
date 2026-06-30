@@ -289,6 +289,10 @@ export default function AdminDashboard() {
   const [alertaEvImageUrl, setAlertaEvImageUrl] = useState('');
   const [palpitesTemplate, setPalpitesTemplate] = useState('');
   const [palpitesImageUrl, setPalpitesImageUrl] = useState('');
+  
+  // Telegram Preview and Popups
+  const [telegramPreviewTab, setTelegramPreviewTab] = useState('manual');
+  const [activeImagePopup, setActiveImagePopup] = useState(null);
 
   // Time auto-format mask helper
   const handleTimeChange = (e, setter) => {

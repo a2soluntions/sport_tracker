@@ -56,32 +56,19 @@ async function handleDispatch(request) {
       settings[item.key] = item.value;
     });
 
-    // 3. Get Current Time in America/Sao_Paulo (timezone of Brasilia)
+    // 3. Get Current Time in America/Sao_Paulo (timezone of Brasilia) - ROBUST IMPLEMENTATION
     const now = new Date();
+    const brtTime = new Date(now.getTime() - 3 * 60 * 60 * 1000); // UTC-3
+    const currentHour = brtTime.getUTCHours();
+    const currentMinute = brtTime.getUTCMinutes();
+    const year = brtTime.getUTCFullYear();
+    const month = String(brtTime.getUTCMonth() + 1).padStart(2, '0');
+    const day = String(brtTime.getUTCDate()).padStart(2, '0');
     
-    const timeFormatter = new Intl.DateTimeFormat('pt-BR', {
-      timeZone: 'America/Sao_Paulo',
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false
-    });
-    const dateStrFormatter = new Intl.DateTimeFormat('en-US', {
-      timeZone: 'America/Sao_Paulo',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit'
-    });
-
-    const timeStr = timeFormatter.format(now);
-    const [currentHour, currentMinute] = timeStr.split(':').map(Number);
-
-    const dParts = dateStrFormatter.formatToParts(now);
-    const year = dParts.find(p => p.type === 'year').value;
-    const month = dParts.find(p => p.type === 'month').value;
-    const day = dParts.find(p => p.type === 'day').value;
     const todayDateStr = `${year}-${month}-${day}`;
+    const timeStr = `${String(currentHour).padStart(2, '0')}:${String(currentMinute).padStart(2, '0')}`;
 
-    console.log(`[Auto-Dispatch] Current time: ${timeStr} | Today: ${todayDateStr}`);
+    console.log(`[Auto-Dispatch] Current Brasília time: ${timeStr} | Today: ${todayDateStr}`);
 
     const lastRuns = settings.telegram_last_dispatches || { alerta_ev: {}, palpites: {} };
     if (!lastRuns.alerta_ev) lastRuns.alerta_ev = {};
@@ -105,7 +92,19 @@ async function handleDispatch(request) {
         const alreadyRunToday = (lastRuns.palpites[todayDateStr] || []).includes(scheduledHour);
 
         if (isActive && !alreadyRunToday) {
-          console.log(`[Auto-Dispatch] Triggering Palpites for hour: ${scheduledHour} with leagues:`, schedLeagues);
+          // CONCURRENCY CONTROL: Write locks immediately before fetching to block other parallel runs
+          if (!lastRuns.palpites[todayDateStr]) {
+            lastRuns.palpites[todayDateStr] = [];
+          }
+          lastRuns.palpites[todayDateStr].push(scheduledHour);
+
+          await client.from('saas_settings').upsert({
+            key: 'telegram_last_dispatches',
+            value: lastRuns,
+            updated_at: new Date().toISOString()
+          });
+
+          console.log(`[Auto-Dispatch] Concurrency lock acquired. Triggering Palpites for hour: ${scheduledHour} with leagues:`, schedLeagues);
 
           // Fetch fixtures for today
           const origin = request.nextUrl.origin;
@@ -116,7 +115,7 @@ async function handleDispatch(request) {
             const fixturesData = await resFixtures.json();
             const allFixtures = fixturesData.fixtures || [];
 
-            // Filter fixtures by selected leagues and today's dayCategory, only before the match starts (not finished, not live, and scheduled time is in the future)
+            // Filter fixtures by selected leagues and today's dayCategory, only before the match starts
             const todayGames = allFixtures.filter(g => {
               if (g.dayCategory !== 'HOJE') return false;
               if (!schedLeagues.includes(String(g.sourceLeagueId || ''))) return false;
@@ -127,16 +126,26 @@ async function handleDispatch(request) {
                   const parts = g.date.split(' • ');
                   const timePart = parts[parts.length - 1]; // "HH:MM"
                   if (timePart && timePart.includes(':')) {
-                    const matchTime = new Date(`${g.rawDate}T${timePart.trim()}:00-03:00`);
-                    const now = new Date();
-                    if (matchTime.getTime() <= now.getTime()) {
-                      // Match has already started or finished
+                    const [h, m] = timePart.trim().split(':').map(Number);
+                    if (isNaN(h) || isNaN(m)) return false;
+
+                    const [yStr, moStr, dStr] = g.rawDate.split('-');
+                    const matchTime = new Date(Date.UTC(Number(yStr), Number(moStr) - 1, Number(dStr), h + 3, m, 0)); // BRT (UTC-3) to UTC
+
+                    const nowUTC = new Date();
+                    if (isNaN(matchTime.getTime()) || matchTime.getTime() <= nowUTC.getTime()) {
+                      // Match has already started, finished, or is invalid
                       return false;
                     }
+                  } else {
+                    return false;
                   }
+                } else {
+                  return false;
                 }
               } catch (err) {
                 console.warn('[Auto-Dispatch] Error checking match time:', err);
+                return false; // Discard on error to be safe
               }
 
               return true;
@@ -154,7 +163,8 @@ async function handleDispatch(request) {
                   const stats = calculatePoissonMatchStats(game.homeXG, game.awayXG);
                   const bestTip = stats.bestTip;
 
-                  if (bestTip && bestTip.selection) {
+                  // Safety check: ensure stats are correct and probability is realistic
+                  if (bestTip && bestTip.selection && !isNaN(bestTip.prob) && bestTip.prob > 0 && bestTip.prob < 0.999) {
                     const probPct = (bestTip.prob * 100).toFixed(1);
                     const fairOdd = (1 / bestTip.prob).toFixed(2);
 
@@ -180,26 +190,11 @@ async function handleDispatch(request) {
               }
             }
 
-            // Mark this hour as completed for today
-            if (!lastRuns.palpites[todayDateStr]) {
-              lastRuns.palpites[todayDateStr] = [];
-            }
-            lastRuns.palpites[todayDateStr].push(scheduledHour);
-
           } catch (err) {
             console.error('[Auto-Dispatch] Error fetching/sending palpites:', err);
           }
         }
       }
-    }
-
-    // Save updated lastRuns state back to database
-    if (dispatchedPalpites || checkedPalpitesCount > 0) {
-      await client.from('saas_settings').upsert({
-        key: 'telegram_last_dispatches',
-        value: lastRuns,
-        updated_at: new Date().toISOString()
-      });
     }
 
     return NextResponse.json({

@@ -283,7 +283,15 @@ async function fetchCurrentRoundFixtures(leagueId, activeSeason, nowTimestamp) {
       }
       const res = await fetch(url, { headers: { 'x-apisports-key': API_KEY } });
       const data = await res.json();
-      matches = (data.response || []).filter(m => !['CANC', 'PST', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short));
+      if (data.errors && Object.keys(data.errors).length > 0) {
+        console.error(`[API-Sports] Erro ao buscar rodada atual para liga ${leagueId}:`, data.errors);
+        if (roundFixturesCacheKey && cache.fixtures[roundFixturesCacheKey]) {
+          matches = cache.fixtures[roundFixturesCacheKey].data;
+          fromCache = true;
+        }
+      } else {
+        matches = (data.response || []).filter(m => !['CANC', 'PST', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short));
+      }
       
       if (!resolvedRound && matches.length > 0) {
         const now = new Date();
@@ -708,8 +716,13 @@ export async function GET(request) {
             const data = await res.json();
             if (data.errors && Object.keys(data.errors).length > 0) {
               console.error(`[API-Sports] Erro retornado pela API para a liga ${leagueId}:`, data.errors);
+              if (cache.fixtures[fixturesCacheKey]) {
+                matches = cache.fixtures[fixturesCacheKey].data;
+                fromCache = true;
+              }
+            } else {
+              matches = (data.response || []).filter(m => !['CANC', 'PST', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short));
             }
-            matches = (data.response || []).filter(m => !['CANC', 'PST', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short));
             if (matches.length > 0) {
               cache.fixtures[fixturesCacheKey] = {
                 data: matches,

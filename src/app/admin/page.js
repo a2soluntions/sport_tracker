@@ -4519,7 +4519,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                     />
                     <input
                       type="text"
-                      value={alertaEvImageUrl && alertaEvImageUrl.startsWith('data:') ? '' : alertaEvImageUrl}
+                      value={alertaEvImageUrl}
                       onChange={(e) => setAlertaEvImageUrl(e.target.value)}
                       placeholder="Ou cole a URL da Imagem..."
                       style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 8px', fontSize: '0.72rem', outline: 'none' }}
@@ -4599,7 +4599,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                     />
                     <input
                       type="text"
-                      value={cardImageUrl.startsWith('data:') ? '' : cardImageUrl}
+                      value={cardImageUrl}
                       onChange={(e) => setCardImageUrl(e.target.value)}
                       placeholder="Ou cole a URL..."
                       style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 10px', fontSize: '0.75rem', outline: 'none' }}
@@ -4825,7 +4825,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                     />
                     <input
                       type="text"
-                      value={palpitesImageUrl && palpitesImageUrl.startsWith('data:') ? '' : palpitesImageUrl}
+                      value={palpitesImageUrl}
                       onChange={(e) => setPalpitesImageUrl(e.target.value)}
                       placeholder="Ou cole a URL da Imagem..."
                       style={{ width: '100%', background: '#050508', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 8px', fontSize: '0.72rem', outline: 'none' }}

@@ -4382,19 +4382,18 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
           {/* GRID SUPERIOR: CONFIGS, HISTÓRICO E PREVIEW - 4 COLUNAS */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.1fr 0.9fr', gap: '12px', alignItems: 'stretch' }}>
             
-            {/* COLUNA 1: CONFIGS EV E CRIADOR DE CARDS */}
+            {/* COLUNA 1: ⚡ ROBÔ DE SINAIS VIP & ENVIO DE CARDS */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
-              {/* CONFIGS DO AGENDAMENTO EV */}
               <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #222', paddingBottom: '8px' }}>
                   <Clock size={16} color="var(--brand-neon)" />
-                  ⏱️ Robô de Sinais VIP (+EV)
+                  ⚡ Robô de Sinais VIP & Envio de Cards
                 </h3>
                 
                 {/* LIGA / DESLIGA BOT EV */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0a0a0f', padding: '8px 12px', borderRadius: '6px', border: '1px solid #1a1a24' }}>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>Ativar Sinais</div>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>Ativar Sinais Automáticos</div>
                   <button
                     onClick={() => {
                       const newVal = !botEnabled;
@@ -4440,14 +4439,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                     onChange={(e) => setBotMinEv(parseFloat(e.target.value))}
                     onMouseUp={() => saveSettingDirectly('telegram_bot_min_ev', parseFloat(botMinEv), true)}
                     onTouchEnd={() => saveSettingDirectly('telegram_bot_min_ev', parseFloat(botMinEv), true)}
-                    style={{
-                      width: '100%',
-                      accentColor: 'var(--brand-neon)',
-                      background: '#222',
-                      height: '4px',
-                      borderRadius: '2px',
-                      cursor: 'pointer'
-                    }}
+                    style={{ width: '100%', accentColor: 'var(--brand-neon)', background: '#222', height: '4px', borderRadius: '2px', cursor: 'pointer' }}
                   />
                 </div>
 
@@ -4461,16 +4453,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                       value={newHourInput}
                       onChange={(e) => handleTimeChange(e, setNewHourInput)}
                       onBlur={(e) => handleTimeBlur(e.target.value, setNewHourInput)}
-                      style={{
-                        flex: 1,
-                        background: '#0a0a0f',
-                        border: '1px solid #222',
-                        borderRadius: '4px',
-                        color: '#fff',
-                        padding: '4px 8px',
-                        fontSize: '0.75rem',
-                        outline: 'none'
-                      }}
+                      style={{ flex: 1, background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '4px 8px', fontSize: '0.75rem', outline: 'none' }}
                     />
                     <button
                       onClick={() => {
@@ -4488,194 +4471,153 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                           showNotification('Formato inválido (Use HH:MM)', 'error');
                         }
                       }}
-                      style={{
-                        background: '#1a1a24',
-                        border: '1px solid #333',
-                        color: 'var(--brand-neon)',
-                        padding: '4px 10px',
-                        borderRadius: '4px',
-                        fontSize: '0.75rem',
-                        fontWeight: 'bold',
-                        cursor: 'pointer'
-                      }}
+                      style={{ background: '#1a1a24', border: '1px solid #333', color: 'var(--brand-neon)', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }}
                     >
                       Agendar
                     </button>
                   </div>
                 </div>
 
-                {/* CONFIGURAÇÃO DE MODELO/IMAGEM DE ALERTA EV */}
-                <div style={{ borderTop: '1px dashed #222', paddingTop: '10px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff' }}>Modelo de Alerta +EV:</div>
+                {/* CONFIGURADOR DE CARDS & TEMPLATE AUTOMÁTICO */}
+                <div style={{ borderTop: '1px solid #222', paddingTop: '12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  <div style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 'bold' }}>Modelos Rápidos (Card Creator):</div>
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                    {['free', 'tip', 'report', 'alert'].map((t) => (
+                      <button 
+                        key={t}
+                        onClick={() => applyTemplate(t)}
+                        style={{
+                          background: msgTemplate === t ? 'rgba(204,255,0,0.1)' : '#1a1a24',
+                          border: msgTemplate === t ? '1px solid var(--brand-neon)' : '1px solid #333',
+                          color: msgTemplate === t ? 'var(--brand-neon)' : '#aaa',
+                          padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 'bold'
+                        }}
+                      >
+                        {t === 'free' ? 'Livre' : t === 'tip' ? '🔥 Palpite' : t === 'report' ? '📊 Balanço' : '📢 Alerta'}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                    <label style={{ fontSize: '0.72rem', color: '#aaa', fontWeight: 'bold' }}>Imagem do Card / Modelo Automático</label>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                        <input
+                          ref={fileInputRef}
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.onloadend = () => setCardImageUrl(reader.result);
+                              reader.readAsDataURL(file);
+                            }
+                          }}
+                          style={{ flex: 1, fontSize: '0.72rem', color: '#aaa', cursor: 'pointer' }}
+                        />
+                        {cardImageUrl && (
+                          <img
+                            src={cardImageUrl}
+                            alt="Miniatura Alerta"
+                            onClick={() => setActiveImagePopup(cardImageUrl)}
+                            style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #333', cursor: 'pointer', flexShrink: 0 }}
+                            title="Clique para ver imagem inteira"
+                          />
+                        )}
+                      </div>
+                      <input
+                        type="text"
+                        value={cardImageUrl}
+                        onChange={(e) => setCardImageUrl(e.target.value)}
+                        placeholder="Ou cole a URL da Imagem..."
+                        style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 8px', fontSize: '0.72rem', outline: 'none' }}
+                      />
+                    </div>
+                  </div>
+
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => setAlertaEvImageUrl(reader.result);
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      style={{ fontSize: '0.72rem', color: '#aaa', cursor: 'pointer' }}
-                    />
-                    <input
-                      type="text"
-                      value={alertaEvImageUrl}
-                      onChange={(e) => setAlertaEvImageUrl(e.target.value)}
-                      placeholder="Ou cole a URL da Imagem..."
-                      style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 8px', fontSize: '0.72rem', outline: 'none' }}
+                    <label style={{ fontSize: '0.72rem', color: '#aaa', fontWeight: 'bold' }}>Legenda do Card / Template +EV Automático</label>
+                    <textarea
+                      value={customMessage}
+                      onChange={(e) => setCustomMessage(e.target.value)}
+                      placeholder="Legenda Markdown ou Modelo Automático (Ex: {header}\n🏆 <b>{campeonato}</b>\n⚔️ <b>{confronto}</b>...)"
+                      rows={6}
+                      style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '8px', fontSize: '0.75rem', fontFamily: 'monospace', resize: 'vertical', outline: 'none' }}
                     />
                   </div>
-                  <textarea
-                    value={alertaEvTemplate}
-                    onChange={(e) => setAlertaEvTemplate(e.target.value)}
-                    placeholder={`Modelo HTML (Ex: {header}\n\n🏆 <b>{campeonato}</b>\n⚔️ <b>{confronto}</b>\n\n🎯 <b>{mercado}</b>\n📈 Odd: {odd_oferecida}\n⚖️ Justa: {odd_justa}\n🔥 EV: +{ev}%\n🛡️ Stake: {stake})`}
-                    rows={6}
-                    style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 8px', fontSize: '0.72rem', fontFamily: 'monospace', resize: 'vertical', outline: 'none' }}
-                  />
-                  <button
-                    onClick={() => {
-                      saveSettingDirectly('telegram_alerta_ev_template', alertaEvTemplate);
-                      saveSettingDirectly('telegram_alerta_ev_image_url', alertaEvImageUrl);
-                      showNotification('Modelo de Alerta EV salvo com sucesso!', 'success');
-                    }}
-                    style={{
-                      background: 'var(--brand-neon)',
-                      color: '#000',
-                      border: 'none',
-                      padding: '6px',
-                      borderRadius: '4px',
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold',
-                      cursor: 'pointer',
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    Salvar Modelo Alerta
-                  </button>
-                </div>
-              </div>
 
-              {/* CRIADOR DE CARDS (MAIS COMPACTO COM UPLOAD LOCAL) */}
-              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  🎨 Criador de Cards
-                </h3>
-                
-                {/* Seleção de Templates */}
-                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                  {['free', 'tip', 'report', 'alert'].map((t) => (
-                    <button 
-                      key={t}
-                      onClick={() => applyTemplate(t)}
-                      style={{
-                        background: msgTemplate === t ? 'rgba(204,255,0,0.1)' : '#1a1a24',
-                        border: msgTemplate === t ? '1px solid var(--brand-neon)' : '1px solid #333',
-                        color: msgTemplate === t ? 'var(--brand-neon)' : '#aaa',
-                        padding: '4px 8px', borderRadius: '4px', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 'bold'
-                      }}
+                  {/* Botão de Link Opcional */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid #222', paddingTop: '10px' }}>
+                    <label style={{ fontSize: '0.72rem', color: '#aaa', fontWeight: 'bold' }}>🔗 Botão Link Manual (Op)</label>
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <input
+                        type="text"
+                        placeholder="Texto do Botão"
+                        value={buttonText}
+                        onChange={(e) => setButtonText(e.target.value)}
+                        style={{ flex: 1, background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 10px', fontSize: '0.72rem', outline: 'none' }}
+                      />
+                      <input
+                        type="text"
+                        placeholder="URL"
+                        value={buttonUrl}
+                        onChange={(e) => setButtonUrl(e.target.value)}
+                        style={{ flex: 1.5, background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 10px', fontSize: '0.72rem', outline: 'none' }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Seleção do Canal de Destino do Envio Manual */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.72rem', color: '#aaa', fontWeight: 'bold' }}>Canal de Destino (Para Envio Imediato):</label>
+                    <select
+                      value={broadcastChannel}
+                      onChange={(e) => setBroadcastChannel(e.target.value)}
+                      style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px', fontSize: '0.72rem', cursor: 'pointer' }}
                     >
-                      {t === 'free' ? 'Livre' : t === 'tip' ? '🔥 Palpite' : t === 'report' ? '📊 Balanço' : '📢 Alerta'}
-                    </button>
-                  ))}
-                </div>
+                      <option value="vip">Grupo VIP (Premium)</option>
+                      <option value="free">Canal Livre (Geral)</option>
+                      <option value="radar_ev">Marketing: Radar EV</option>
+                    </select>
+                  </div>
 
-                {/* Upload de Imagem de Arquivo Local ou URL */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 'bold' }}>Imagem (Arquivo/Link)</label>
-                  <div style={{ display: 'flex', gap: '6px', flexDirection: 'column' }}>
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => setCardImageUrl(reader.result);
-                          reader.readAsDataURL(file);
-                        }
+                  <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                    <button
+                      onClick={() => {
+                        saveSettingDirectly('telegram_alerta_ev_template', customMessage);
+                        saveSettingDirectly('telegram_alerta_ev_image_url', cardImageUrl);
+                        setAlertaEvTemplate(customMessage);
+                        setAlertaEvImageUrl(cardImageUrl);
+                        showNotification('Modelo Automático +EV atualizado!', 'success');
                       }}
-                      style={{ fontSize: '0.75rem', color: '#aaa', cursor: 'pointer' }}
-                    />
-                    <input
-                      type="text"
-                      value={cardImageUrl}
-                      onChange={(e) => setCardImageUrl(e.target.value)}
-                      placeholder="Ou cole a URL..."
-                      style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 10px', fontSize: '0.75rem', outline: 'none' }}
-                    />
+                      style={{ flex: 1, background: '#1a1a24', border: '1px solid #333', color: 'var(--brand-neon)', padding: '8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.75rem', transition: 'all 0.2s' }}
+                    >
+                      Salvar p/ Automático
+                    </button>
+                    <button
+                      onClick={handleSendCustomCard}
+                      disabled={isVipSending || (!customMessage.trim() && !cardImageUrl)}
+                      style={{ flex: 1.2, background: 'var(--brand-neon)', color: '#000', border: 'none', padding: '8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.75rem', transition: 'all 0.2s' }}
+                    >
+                      Enviar Agora
+                    </button>
                   </div>
                 </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <textarea
-                    value={customMessage}
-                    onChange={(e) => setCustomMessage(e.target.value)}
-                    placeholder="Legenda Markdown"
-                    rows={4}
-                    style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '8px', fontSize: '0.75rem', fontFamily: 'monospace', resize: 'none', outline: 'none' }}
-                  />
-                </div>
-
-                {/* Botão de Link Opcional */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', borderTop: '1px solid #222', paddingTop: '10px' }}>
-                  <label style={{ fontSize: '0.75rem', color: '#aaa', fontWeight: 'bold' }}>🔗 Botão Link (Op)</label>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <input
-                      type="text"
-                      placeholder="Texto"
-                      value={buttonText}
-                      onChange={(e) => setButtonText(e.target.value)}
-                      style={{ flex: 1, background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 10px', fontSize: '0.75rem', outline: 'none' }}
-                    />
-                    <input
-                      type="text"
-                      placeholder="URL"
-                      value={buttonUrl}
-                      onChange={(e) => setButtonUrl(e.target.value)}
-                      style={{ flex: 1.5, background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 10px', fontSize: '0.75rem', outline: 'none' }}
-                    />
-                  </div>
-                </div>
-
-                {/* Seleção do Canal de Destino */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <select
-                    value={broadcastChannel}
-                    onChange={(e) => setBroadcastChannel(e.target.value)}
-                    style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px', fontSize: '0.75rem', cursor: 'pointer' }}
-                  >
-                    <option value="vip">Grupo VIP (Premium)</option>
-                    <option value="free">Canal Livre (Geral)</option>
-                    <option value="radar_ev">Marketing: Radar EV</option>
-                  </select>
-                </div>
-
-                <button
-                  onClick={handleSendCustomCard}
-                  disabled={isVipSending || (!customMessage.trim() && !cardImageUrl)}
-                  style={{ background: 'var(--brand-neon)', color: '#000', border: 'none', padding: '8px', borderRadius: '4px', fontWeight: 'bold', cursor: 'pointer', fontSize: '0.75rem', transition: 'all 0.2s' }}
-                >
-                  Enviar
-                </button>
               </div>
             </div>
 
-            {/* COLUNA 2: PALPITES */}
+            {/* COLUNA 2: ⏱️ ROBÔ DE PALPITES & ENVIO DE TIPS */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
                 <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #222', paddingBottom: '8px' }}>
                   <Clock size={16} color="#00d2ff" />
-                  ⏱️ Robô de Palpites
+                  ⏱️ Robô de Palpites & Envio de Tips
                 </h3>
 
                 {/* LIGA / DESLIGA BOT PALPITES */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0a0a0f', padding: '8px 12px', borderRadius: '6px', border: '1px solid #1a1a24' }}>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>Ativar Palpites</div>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 'bold', color: '#fff' }}>Ativar Palpites Automáticos</div>
                   <button
                     onClick={() => {
                       const newVal = !palpitesBotEnabled;
@@ -4707,7 +4649,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                 </div>
 
                 {/* HORARIO PROGRAMADOS PALPITES E SELEÇÃO LIGAS */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: '#0a0a0f', padding: '10px', borderRadius: '6px', border: '1px solid #1a1a24', flexGrow: 1 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', background: '#0a0a0f', padding: '10px', borderRadius: '6px', border: '1px solid #1a1a24' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff' }}>Novo Agendamento:</div>
                   <div style={{ display: 'flex', gap: '6px' }}>
                     <input
@@ -4716,16 +4658,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                       value={palpitesHourInput}
                       onChange={(e) => handleTimeChange(e, setPalpitesHourInput)}
                       onBlur={(e) => handleTimeBlur(e.target.value, setPalpitesHourInput)}
-                      style={{
-                        flex: 1,
-                        background: '#050508',
-                        border: '1px solid #222',
-                        borderRadius: '4px',
-                        color: '#fff',
-                        padding: '4px 8px',
-                        fontSize: '0.75rem',
-                        outline: 'none'
-                      }}
+                      style={{ flex: 1, background: '#050508', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '4px 8px', fontSize: '0.75rem', outline: 'none' }}
                     />
                     <button
                       onClick={() => {
@@ -4738,46 +4671,31 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                           showNotification('Selecione pelo menos uma liga para este horário', 'error');
                           return;
                         }
-                        // Evitar duplicados no mesmo horário
                         if (palpitesSchedules.some(s => s.hour === val)) {
                           showNotification('Já existe um agendamento para este horário', 'error');
                           return;
                         }
                         
-                        const newSched = {
-                          id: Date.now().toString(),
-                          hour: val,
-                          leagues: [...palpitesSelectedLeagues]
-                        };
-                        
+                        const newSched = { id: Date.now().toString(), hour: val, leagues: [...palpitesSelectedLeagues] };
                         const updated = [...palpitesSchedules, newSched].sort((a,b) => a.hour.localeCompare(b.hour));
                         setPalpitesSchedules(updated);
                         setPalpitesHourInput('');
                         setPalpitesSelectedLeagues([]);
                         saveSettingDirectly('telegram_palpites_schedules', updated);
                       }}
-                      style={{
-                        background: '#1a1a24',
-                        border: '1px solid #333',
-                        color: '#00d2ff',
-                        padding: '4px 10px',
-                        borderRadius: '4px',
-                        fontSize: '0.75rem',
-                        fontWeight: 'bold',
-                        cursor: 'pointer'
-                      }}
+                      style={{ background: '#1a1a24', border: '1px solid #333', color: '#00d2ff', padding: '4px 10px', borderRadius: '4px', fontSize: '0.75rem', fontWeight: 'bold', cursor: 'pointer' }}
                     >
                       Agendar
                     </button>
                   </div>
 
-                  {/* SELEÇÃO DE LIGAS NO CRUADOR DE AGENDAMENTO */}
+                  {/* SELEÇÃO DE LIGAS NO AGENDAMENTO */}
                   <div style={{ fontSize: '0.72rem', color: '#aaa', marginTop: '4px' }}>Ligas do Horário:</div>
                   <div style={{ 
                     display: 'grid', 
                     gridTemplateColumns: '1fr', 
                     gap: '4px', 
-                    flexGrow: 1, 
+                    height: '100px', 
                     overflowY: 'auto', 
                     border: '1px solid #222', 
                     padding: '6px', 
@@ -4787,22 +4705,11 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                     {ligasSaaS.map(liga => {
                       const isSelected = palpitesSelectedLeagues.includes(String(liga.id));
                       return (
-                        <label 
-                          key={liga.id} 
-                          style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: isSelected ? '#00d2ff' : '#666', cursor: 'pointer', userSelect: 'none' }}
-                        >
-                          <input
-                            type="checkbox"
-                            checked={isSelected}
-                            onChange={() => {
-                              if (isSelected) {
-                                setPalpitesSelectedLeagues(palpitesSelectedLeagues.filter(id => id !== String(liga.id)));
-                              } else {
-                                setPalpitesSelectedLeagues([...palpitesSelectedLeagues, String(liga.id)]);
-                              }
-                            }}
-                            style={{ accentColor: '#00d2ff', cursor: 'pointer' }}
-                          />
+                        <label key={liga.id} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.7rem', color: isSelected ? '#00d2ff' : '#666', cursor: 'pointer' }}>
+                          <input type="checkbox" checked={isSelected} onChange={() => {
+                            if (isSelected) setPalpitesSelectedLeagues(palpitesSelectedLeagues.filter(id => id !== String(liga.id)));
+                            else setPalpitesSelectedLeagues([...palpitesSelectedLeagues, String(liga.id)]);
+                          }} style={{ accentColor: '#00d2ff', cursor: 'pointer' }} />
                           {liga.name}
                         </label>
                       );
@@ -4811,22 +4718,33 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                 </div>
 
                 {/* CONFIGURAÇÃO DE MODELO/IMAGEM DE PALPITES */}
-                <div style={{ borderTop: '1px dashed #222', paddingTop: '10px', marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ borderTop: '1px dashed #222', paddingTop: '10px', marginTop: '4px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   <div style={{ fontSize: '0.75rem', fontWeight: 'bold', color: '#fff' }}>Modelo de Palpites VIP:</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.onloadend = () => setPalpitesImageUrl(reader.result);
-                          reader.readAsDataURL(file);
-                        }
-                      }}
-                      style={{ fontSize: '0.72rem', color: '#aaa', cursor: 'pointer' }}
-                    />
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => setPalpitesImageUrl(reader.result);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        style={{ flex: 1, fontSize: '0.72rem', color: '#aaa', cursor: 'pointer' }}
+                      />
+                      {palpitesImageUrl && (
+                        <img
+                          src={palpitesImageUrl}
+                          alt="Miniatura Palpite"
+                          onClick={() => setActiveImagePopup(palpitesImageUrl)}
+                          style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #333', cursor: 'pointer', flexShrink: 0 }}
+                          title="Clique para ver imagem inteira"
+                        />
+                      )}
+                    </div>
                     <input
                       type="text"
                       value={palpitesImageUrl}

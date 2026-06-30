@@ -4981,96 +4981,170 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                 <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   👁️ Prévia da Mensagem (Telegram)
                 </h3>
+
+                {/* Seletores de Aba para a Prévia */}
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
+                  {['manual', 'alerta_ev', 'palpites'].map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setTelegramPreviewTab(tab)}
+                      style={{
+                        flex: 1,
+                        background: telegramPreviewTab === tab ? 'rgba(204,255,0,0.1)' : '#1a1a24',
+                        border: telegramPreviewTab === tab ? '1px solid var(--brand-neon)' : '1px solid #333',
+                        color: telegramPreviewTab === tab ? 'var(--brand-neon)' : '#aaa',
+                        padding: '4px 0',
+                        borderRadius: '4px',
+                        fontSize: '0.65rem',
+                        cursor: 'pointer',
+                        fontWeight: 'bold',
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      {tab === 'manual' ? 'Manual' : tab === 'alerta_ev' ? 'Alerta EV' : 'Palpites VIP'}
+                    </button>
+                  ))}
+                </div>
                 
-                <div style={{
-                  background: 'radial-gradient(circle at top, #1e2c3a, #151f28)',
-                  borderRadius: '8px',
-                  padding: '10px',
-                  border: '1px solid #283747',
-                  boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  justifyContent: 'space-between'
-                }}>
-                  <div style={{
-                    background: '#182533',
-                    border: '1px solid #202f3e',
-                    borderRadius: '8px',
-                    padding: '0',
-                    color: '#eef2f5',
-                    fontSize: '0.78rem',
-                    lineHeight: '1.4',
-                    maxWidth: '100%',
-                    boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
-                    overflow: 'hidden'
-                  }}>
-                    {cardImageUrl && (
-                      <div style={{ width: '100%', borderBottom: '1px solid #202f3e' }}>
-                        <img 
-                          src={cardImageUrl} 
-                          alt="Pré-visualização do Card" 
-                          style={{ width: '100%', height: 'auto', maxHeight: '180px', display: 'block', objectFit: 'contain' }}
-                        />
-                      </div>
-                    )}
-                    <div style={{ padding: '8px 10px', whiteSpace: 'pre-wrap' }}>
-                      {customMessage.trim() ? (
-                        customMessage
-                          .split('\n')
-                          .map((line, idx) => {
-                            let rendered = line;
-                            const boldMatches = rendered.match(/\*(.*?)\*/g);
-                            if (boldMatches) {
-                              boldMatches.forEach(m => {
-                                const clean = m.replace(/\*/g, '');
-                                rendered = rendered.replace(m, `<strong>${clean}</strong>`);
-                              });
-                            }
-                            const italicMatches = rendered.match(/_(.*?)_/g);
-                            if (italicMatches) {
-                              italicMatches.forEach(m => {
-                                const clean = m.replace(/_/g, '');
-                                rendered = rendered.replace(m, `<em>${clean}</em>`);
-                              });
-                            }
-                            return <div key={idx} dangerouslySetInnerHTML={{ __html: rendered || '&nbsp;' }} />;
-                          })
-                      ) : cardImageUrl ? (
+                {(() => {
+                  let imgToShow = '';
+                  let rawText = '';
+                  let formatType = 'markdown'; // 'markdown' | 'html'
+                  let hasButton = false;
+
+                  if (telegramPreviewTab === 'manual') {
+                    imgToShow = cardImageUrl;
+                    rawText = customMessage;
+                    formatType = 'markdown';
+                    hasButton = !!buttonText;
+                  } else if (telegramPreviewTab === 'alerta_ev') {
+                    imgToShow = alertaEvImageUrl;
+                    rawText = alertaEvTemplate || `{header}\n\n🏆 <b>{campeonato}</b>\n⚔️ <b>{confronto}</b>\n\n🎯 <b>Mercado:</b> {mercado}\n📈 <b>Odd recomendada:</b> {odd_oferecida}\n⚖️ <b>Odd justa calculada:</b> {odd_justa}\n🔥 <b>Vantagem (EV):</b> +{ev}%\n\n🛡️ <b>Gestão de Risco sugerida:</b> {stake} da sua banca`;
+                    rawText = rawText
+                      .replace(/{header}/g, '⚽ <b>NOVO PALPITE PRÉ-JOGO!</b>')
+                      .replace(/{campeonato}/g, 'Brasileirão Série A')
+                      .replace(/{confronto}/g, 'Flamengo x Palmeiras')
+                      .replace(/{mercado}/g, 'Vitória do Flamengo')
+                      .replace(/{odd_oferecida}/g, '2.50')
+                      .replace(/{odd_recomendada}/g, '2.50')
+                      .replace(/{odd_justa}/g, '1.80')
+                      .replace(/{ev}/g, '15.20')
+                      .replace(/{stake}/g, '2.5%');
+                    formatType = 'html';
+                  } else {
+                    imgToShow = palpitesImageUrl;
+                    rawText = palpitesTemplate || `🏆 *NOVO PALPITE VIP* 🏆\n\n⚽ *Jogo:* {jogo}\n🎯 *Palpite:* {palpite}\n📊 *Probabilidade:* {probabilidade}%\n🔥 *Odd Justa:* @{odd_justa}\n\n_Palpite gerado pelo Algoritmo de Poisson_ 🤖`;
+                    rawText = rawText
+                      .replace(/{jogo}/g, 'Real Madrid x Barcelona')
+                      .replace(/{palpite}/g, 'Mais de 2.5 Gols')
+                      .replace(/{probabilidade}/g, '82.4')
+                      .replace(/{odd_justa}/g, '1.21');
+                    formatType = 'markdown';
+                  }
+
+                  const renderFormattedText = (text) => {
+                    if (!text.trim()) {
+                      return imgToShow ? (
                         <span style={{ color: '#7a8a99', fontStyle: 'italic' }}>Apenas imagem (sem legenda)</span>
                       ) : (
                         <span style={{ color: '#7a8a99', fontStyle: 'italic' }}>Nenhum conteúdo criado.</span>
-                      )}
-                    </div>
-                  </div>
+                      );
+                    }
 
-                  {buttonText && (
-                    <div style={{ marginTop: '8px' }}>
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          background: '#2b5278',
-                          color: '#fff',
-                          padding: '8px 12px',
-                          borderRadius: '6px',
-                          fontSize: '0.78rem',
-                          fontWeight: 'bold',
-                          textAlign: 'center',
-                          border: '1px solid #36618e',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
-                          cursor: 'default'
-                        }}
-                      >
-                        {buttonText}
+                    return text.split('\n').map((line, idx) => {
+                      let rendered = line;
+                      if (formatType === 'html') {
+                        return <div key={idx} dangerouslySetInnerHTML={{ __html: rendered || '&nbsp;' }} />;
+                      } else {
+                        const boldMatches = rendered.match(/\*(.*?)\*/g);
+                        if (boldMatches) {
+                          boldMatches.forEach(m => {
+                            const clean = m.replace(/\*/g, '');
+                            rendered = rendered.replace(m, `<strong>${clean}</strong>`);
+                          });
+                        }
+                        const italicMatches = rendered.match(/_(.*?)_/g);
+                        if (italicMatches) {
+                          italicMatches.forEach(m => {
+                            const clean = m.replace(/_/g, '');
+                            rendered = rendered.replace(m, `<em>${clean}</em>`);
+                          });
+                        }
+                        return <div key={idx} dangerouslySetInnerHTML={{ __html: rendered || '&nbsp;' }} />;
+                      }
+                    });
+                  };
+
+                  return (
+                    <div style={{
+                      background: 'radial-gradient(circle at top, #1e2c3a, #151f28)',
+                      borderRadius: '8px',
+                      padding: '10px',
+                      border: '1px solid #283747',
+                      boxShadow: 'inset 0 2px 10px rgba(0,0,0,0.5)',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      minHeight: '260px'
+                    }}>
+                      <div style={{
+                        background: '#182533',
+                        border: '1px solid #202f3e',
+                        borderRadius: '8px',
+                        padding: '0',
+                        color: '#eef2f5',
+                        fontSize: '0.78rem',
+                        lineHeight: '1.4',
+                        maxWidth: '100%',
+                        boxShadow: '0 2px 5px rgba(0,0,0,0.2)',
+                        overflow: 'hidden'
+                      }}>
+                        {imgToShow && (
+                          <div style={{ width: '100%', borderBottom: '1px solid #202f3e' }}>
+                            <img 
+                              src={imgToShow} 
+                              alt="Pré-visualização do Card" 
+                              style={{ width: '100%', height: 'auto', maxHeight: '180px', display: 'block', objectFit: 'contain', cursor: 'zoom-in' }}
+                              onClick={() => setActiveImagePopup(imgToShow)}
+                              title="Clique para ampliar"
+                            />
+                          </div>
+                        )}
+                        <div style={{ padding: '8px 10px', whiteSpace: 'pre-wrap' }}>
+                          {renderFormattedText(rawText)}
+                        </div>
+                      </div>
+
+                      {hasButton && (
+                        <div style={{ marginTop: '8px' }}>
+                          <div
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              background: '#2b5278',
+                              color: '#fff',
+                              padding: '8px 12px',
+                              borderRadius: '6px',
+                              fontSize: '0.78rem',
+                              fontWeight: 'bold',
+                              textAlign: 'center',
+                              border: '1px solid #36618e',
+                              boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+                              cursor: 'default'
+                            }}
+                          >
+                            {buttonText}
+                          </div>
+                        </div>
+                      )}
+
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.65rem', color: '#7a8a99', marginTop: '10px', padding: '0 4px' }}>
+                        {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • Algoritmo Bot
                       </div>
                     </div>
-                  )}
-
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: '0.65rem', color: '#7a8a99', marginTop: '10px', padding: '0 4px' }}>
-                    {new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })} • Algoritmo Bot
-                  </div>
-                </div>
+                  );
+                })()}
               </div>
             </div>
 
@@ -5146,6 +5220,57 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
           >
             ✕
           </button>
+        </div>
+      )}
+
+      {/* Modal Popup da Imagem Ampliada */}
+      {activeImagePopup && (
+        <div 
+          onClick={() => setActiveImagePopup(null)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            width: '100vw',
+            height: '100vh',
+            background: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 99999,
+            cursor: 'zoom-out',
+            animation: 'fadeIn 0.2s ease-out'
+          }}
+        >
+          <div style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
+            <img 
+              src={activeImagePopup} 
+              alt="Imagem Ampliada" 
+              style={{ maxWidth: '90vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: '8px', border: '2px solid #222', boxShadow: '0 8px 32px rgba(0,0,0,0.8)' }}
+            />
+            <button 
+              onClick={() => setActiveImagePopup(null)}
+              style={{
+                position: 'absolute',
+                top: '-40px',
+                right: '0',
+                background: 'rgba(0,0,0,0.5)',
+                border: '1px solid #444',
+                color: '#fff',
+                borderRadius: '50%',
+                width: '32px',
+                height: '32px',
+                cursor: 'pointer',
+                fontSize: '14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 'bold'
+              }}
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
 

@@ -236,19 +236,21 @@ const HandicapSimulator = () => {
       padding: '24px',
       color: '#fff',
       display: 'grid',
-      gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))',
+      gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
       gap: '24px',
-      marginTop: '12px'
+      marginTop: '12px',
+      width: '100%',
+      boxSizing: 'border-box'
     }}>
       {/* Coluna 1: Ajustes */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', width: '100%', boxSizing: 'border-box' }}>
         
         {/* Nomes dos Times */}
         <div>
           <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#888', marginBottom: '8px' }}>
             Nomes das Equipes
           </label>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
             <input 
               type="text" 
               value={homeName} 
@@ -262,7 +264,9 @@ const HandicapSimulator = () => {
                 color: '#fff',
                 fontSize: '0.88rem',
                 outline: 'none',
-                fontFamily: 'inherit'
+                fontFamily: 'inherit',
+                width: '50%',
+                boxSizing: 'border-box'
               }}
               placeholder="Mandante"
             />
@@ -279,7 +283,9 @@ const HandicapSimulator = () => {
                 color: '#fff',
                 fontSize: '0.88rem',
                 outline: 'none',
-                fontFamily: 'inherit'
+                fontFamily: 'inherit',
+                width: '50%',
+                boxSizing: 'border-box'
               }}
               placeholder="Visitante"
             />
@@ -291,7 +297,7 @@ const HandicapSimulator = () => {
           <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, textTransform: 'uppercase', color: '#888', marginBottom: '8px' }}>
             Apostar em quem?
           </label>
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div style={{ display: 'flex', gap: '10px', width: '100%', boxSizing: 'border-box' }}>
             <button 
               onClick={() => setBetOnHome(true)}
               style={{
@@ -304,8 +310,14 @@ const HandicapSimulator = () => {
                 fontWeight: 700,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                fontSize: '0.85rem'
+                fontSize: '0.85rem',
+                width: '50%',
+                boxSizing: 'border-box',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
               }}
+              title={homeName || 'Mandante'}
             >
               🏠 {homeName || 'Mandante'}
             </button>
@@ -321,8 +333,14 @@ const HandicapSimulator = () => {
                 fontWeight: 700,
                 cursor: 'pointer',
                 transition: 'all 0.2s',
-                fontSize: '0.85rem'
+                fontSize: '0.85rem',
+                width: '50%',
+                boxSizing: 'border-box',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
               }}
+              title={awayName || 'Visitante'}
             >
               🚌 {awayName || 'Visitante'}
             </button>
@@ -435,26 +453,6 @@ const HandicapSimulator = () => {
             </div>
           </div>
 
-          {/* Presets */}
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', marginTop: '10px', justifyContent: 'center' }}>
-            {presets.map((preset, idx) => (
-              <button
-                key={idx}
-                onClick={() => { setHomeScore(preset.h); setAwayScore(preset.a); }}
-                style={{
-                  background: homeScore === preset.h && awayScore === preset.a ? 'rgba(204, 255, 0, 0.15)' : '#161622',
-                  border: homeScore === preset.h && awayScore === preset.a ? '1px solid var(--brand-neon)' : '1px solid #222',
-                  borderRadius: '6px',
-                  padding: '4px 8px',
-                  fontSize: '0.75rem',
-                  color: homeScore === preset.h && awayScore === preset.a ? 'var(--brand-neon)' : '#aaa',
-                  cursor: 'pointer'
-                }}
-              >
-                {preset.h} × {preset.a}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Linha de Handicap */}

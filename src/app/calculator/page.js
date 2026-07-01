@@ -3566,9 +3566,169 @@ export default function AnalysisPage() {
                 </div>
               </div>
 
+              {/* Analisador de Métodos: Over Gols */}
+              <div style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '16px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                marginTop: '16px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                  <TrendingUp size={18} color="var(--brand-neon)" />
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>📊 Analisador de Métodos Over</h3>
+                </div>
+
+                <div className="over-methods-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  {(() => {
+                    const hXG = selectedMatch.homeXG;
+                    const aXG = selectedMatch.awayXG;
+                    
+                    // 1. Competições com tendência de Over (Alemanha, Holanda, Champions, etc)
+                    const isOverLeague = ['78', '94', '2', '39', '253'].includes(String(selectedMatch.leagueId)) || 
+                      String(selectedMatch.leagueName || '').toLowerCase().includes('bundesliga') || 
+                      String(selectedMatch.leagueName || '').toLowerCase().includes('holanda') || 
+                      String(selectedMatch.leagueName || '').toLowerCase().includes('netherlands') || 
+                      String(selectedMatch.leagueName || '').toLowerCase().includes('champions') ||
+                      String(selectedMatch.leagueName || '').toLowerCase().includes('premier');
+                    
+                    // 2. Média projetada xG alta (Soma > 2.7)
+                    const totalExpectedGoals = hXG + aXG;
+                    const isHighGoalsAverage = totalExpectedGoals >= 2.7;
+
+                    // 3. Relevância do jogo
+                    const isHighRelevance = true;
+
+                    // 4. Histórico / Poisson Over 1.5 (Soma >= 2)
+                    let under15Val = 0;
+                    const maxG = 6;
+                    for (let h = 0; h < maxG; h++) {
+                      for (let a = 0; a < maxG; a++) {
+                        if (h + a <= 1) {
+                          under15Val += poisson(h, hXG) * poisson(a, aXG);
+                        }
+                      }
+                    }
+                    const over15Prob = Math.min(99, Math.round((1 - under15Val) * 100));
+                    const isHistoryOver15 = over15Prob > 75;
+
+                    // Odd justa Over 1.5
+                    const fairOddOver15 = 1 / ((1 - under15Val) || 0.8);
+                    const isOddInInterval15 = fairOddOver15 >= 1.20 && fairOddOver15 <= 1.55;
+
+                    const metCount15 = [isOverLeague, isHighGoalsAverage, isHighRelevance, isHistoryOver15, isOddInInterval15].filter(Boolean).length;
+                    const isApproved15 = metCount15 >= 3;
+
+                    // Para Over 2.5 (Soma >= 3)
+                    let under25Val = 0;
+                    for (let h = 0; h < maxG; h++) {
+                      for (let a = 0; a < maxG; a++) {
+                        if (h + a <= 2) {
+                          under25Val += poisson(h, hXG) * poisson(a, aXG);
+                        }
+                      }
+                    }
+                    const over25Prob = Math.min(99, Math.round((1 - under25Val) * 100));
+                    const isHistoryOver25 = over25Prob > 55;
+                    const fairOddOver25 = 1 / ((1 - under25Val) || 0.5);
+                    const isOddInInterval25 = fairOddOver25 >= 1.50 && fairOddOver25 <= 2.10;
+
+                    const metCount25 = [isOverLeague, isHighGoalsAverage, isHighRelevance, isHistoryOver25, isOddInInterval25].filter(Boolean).length;
+                    const isApproved25 = metCount25 >= 3;
+
+                    return (
+                      <>
+                        {/* CARD 1: OVER 1.5 */}
+                        <div style={{ background: '#121217', borderRadius: '12px', border: '1px solid #1E1E24', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #1E1E24', paddingBottom: '6px' }}>
+                            📈 Método Over 1.5 Gols
+                          </span>
+
+                          <div style={{
+                            background: isApproved15 ? 'rgba(204, 255, 0, 0.06)' : 'rgba(255, 61, 0, 0.06)',
+                            border: `1px solid ${isApproved15 ? 'var(--brand-neon)' : '#ff3d00'}`,
+                            borderRadius: '6px',
+                            padding: '8px',
+                            textAlign: 'center',
+                            fontSize: '0.72rem'
+                          }}>
+                            <div style={{ fontWeight: 'bold', color: isApproved15 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
+                              {isApproved15 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}
+                            </div>
+                            <span style={{ color: '#aaa', fontSize: '0.65rem' }}>Gestão: 1% a 3% da banca</span>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.72rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>Liga Tendência Over:</span>
+                              <strong style={{ color: isOverLeague ? 'var(--brand-neon)' : '#888' }}>{isOverLeague ? 'Sim' : 'Não'}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>xG Projetado &gt; 2.7:</span>
+                              <strong style={{ color: isHighGoalsAverage ? 'var(--brand-neon)' : '#ff3d00' }}>{totalExpectedGoals.toFixed(2)}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>Probabilidade Over 1.5:</span>
+                              <strong style={{ color: isHistoryOver15 ? 'var(--brand-neon)' : '#ff3d00' }}>{over15Prob}%</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>Odd Justa Estimada:</span>
+                              <strong style={{ color: isOddInInterval15 ? 'var(--brand-neon)' : '#ffea00' }}>@{fairOddOver15.toFixed(2)}</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* CARD 2: OVER 2.5 */}
+                        <div style={{ background: '#121217', borderRadius: '12px', border: '1px solid #1E1E24', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #1E1E24', paddingBottom: '6px' }}>
+                            📈 Método Over 2.5 Gols
+                          </span>
+
+                          <div style={{
+                            background: isApproved25 ? 'rgba(204, 255, 0, 0.06)' : 'rgba(255, 61, 0, 0.06)',
+                            border: `1px solid ${isApproved25 ? 'var(--brand-neon)' : '#ff3d00'}`,
+                            borderRadius: '6px',
+                            padding: '8px',
+                            textAlign: 'center',
+                            fontSize: '0.72rem'
+                          }}>
+                            <div style={{ fontWeight: 'bold', color: isApproved25 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
+                              {isApproved25 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}
+                            </div>
+                            <span style={{ color: '#aaa', fontSize: '0.65rem' }}>Gestão: 1% a 3% da banca</span>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.72rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>Liga Tendência Over:</span>
+                              <strong style={{ color: isOverLeague ? 'var(--brand-neon)' : '#888' }}>{isOverLeague ? 'Sim' : 'Não'}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>xG Projetado &gt; 2.7:</span>
+                              <strong style={{ color: isHighGoalsAverage ? 'var(--brand-neon)' : '#ff3d00' }}>{totalExpectedGoals.toFixed(2)}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>Probabilidade Over 2.5:</span>
+                              <strong style={{ color: isHistoryOver25 ? 'var(--brand-neon)' : '#ff3d00' }}>{over25Prob}%</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>Odd Justa Estimada:</span>
+                              <strong style={{ color: isOddInInterval25 ? 'var(--brand-neon)' : '#ffea00' }}>@{fairOddOver25.toFixed(2)}</strong>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              </div>
+
               <style>{`
                 @media (max-width: 768px) {
-                  .under-methods-grid {
+                  .under-methods-grid, .over-methods-grid {
                     grid-template-columns: 1fr !important;
                     gap: 12px !important;
                   }

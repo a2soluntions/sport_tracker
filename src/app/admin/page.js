@@ -4380,7 +4380,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
           </div>
 
           {/* GRID SUPERIOR: CONFIGS, HISTÓRICO E PREVIEW - 4 COLUNAS */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.1fr 0.9fr', gap: '12px', alignItems: 'stretch' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.1fr 0.9fr', gap: '12px', alignItems: 'start' }}>
             
             {/* COLUNA 1: ⚡ ROBÔ DE SINAIS VIP & ENVIO DE CARDS */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -4498,53 +4498,33 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                     ))}
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    <label style={{ fontSize: '0.72rem', color: '#aaa', fontWeight: 'bold' }}>Imagem do Card / Modelo Automático</label>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.onloadend = () => setCardImageUrl(reader.result);
-                              reader.readAsDataURL(file);
-                            }
-                          }}
-                          style={{ flex: 1, fontSize: '0.72rem', color: '#aaa', cursor: 'pointer' }}
-                        />
-                        {cardImageUrl && (
-                          <img
-                            src={cardImageUrl}
-                            alt="Miniatura Alerta"
-                            onClick={() => setActiveImagePopup(cardImageUrl)}
-                            style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #333', cursor: 'pointer', flexShrink: 0 }}
-                            title="Clique para ver imagem inteira"
-                          />
-                        )}
-                      </div>
-                      <input
-                        type="text"
-                        value={cardImageUrl}
-                        onChange={(e) => setCardImageUrl(e.target.value)}
-                        placeholder="Ou cole a URL da Imagem..."
-                        style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 8px', fontSize: '0.72rem', outline: 'none' }}
-                      />
-                    </div>
-                  </div>
-
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.72rem', color: '#aaa', fontWeight: 'bold' }}>Legenda do Card / Template +EV Automático</label>
-                    <textarea
-                      value={customMessage}
-                      onChange={(e) => setCustomMessage(e.target.value)}
-                      placeholder="Legenda Markdown ou Modelo Automático (Ex: {header}\n🏆 <b>{campeonato}</b>\n⚔️ <b>{confronto}</b>...)"
-                      rows={6}
-                      style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '8px', fontSize: '0.75rem', fontFamily: 'monospace', resize: 'vertical', outline: 'none' }}
-                    />
+                    <label style={{ fontSize: '0.72rem', color: '#aaa', fontWeight: 'bold' }}>Imagem do Card / Modelo Automático</label>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <input
+                        ref={fileInputRef}
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            const reader = new FileReader();
+                            reader.onloadend = () => setCardImageUrl(reader.result);
+                            reader.readAsDataURL(file);
+                          }
+                        }}
+                        style={{ flex: 1, fontSize: '0.72rem', color: '#aaa', cursor: 'pointer' }}
+                      />
+                      {cardImageUrl && (
+                        <img
+                          src={cardImageUrl}
+                          alt="Miniatura Alerta"
+                          onClick={() => setActiveImagePopup(cardImageUrl)}
+                          style={{ width: '36px', height: '36px', objectFit: 'cover', borderRadius: '4px', border: '1px solid #333', cursor: 'pointer', flexShrink: 0 }}
+                          title="Clique para ver imagem inteira"
+                        />
+                      )}
+                    </div>
                   </div>
 
                   {/* Botão de Link Opcional */}
@@ -4580,6 +4560,17 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                       <option value="free">Canal Livre (Geral)</option>
                       <option value="radar_ev">Marketing: Radar EV</option>
                     </select>
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    <label style={{ fontSize: '0.72rem', color: '#aaa', fontWeight: 'bold' }}>Legenda do Card / Template +EV Automático</label>
+                    <textarea
+                      value={customMessage}
+                      onChange={(e) => setCustomMessage(e.target.value)}
+                      placeholder="Legenda Markdown ou Modelo Automático (Ex: {header}\n🏆 <b>{campeonato}</b>\n⚔️ <b>{confronto}</b>...)"
+                      rows={6}
+                      style={{ width: '100%', background: '#0a0a0f', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '8px', fontSize: '0.75rem', fontFamily: 'monospace', resize: 'vertical', outline: 'none' }}
+                    />
                   </div>
 
                   <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
@@ -4745,13 +4736,6 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                         />
                       )}
                     </div>
-                    <input
-                      type="text"
-                      value={palpitesImageUrl}
-                      onChange={(e) => setPalpitesImageUrl(e.target.value)}
-                      placeholder="Ou cole a URL da Imagem..."
-                      style={{ width: '100%', background: '#050508', border: '1px solid #222', borderRadius: '4px', color: '#fff', padding: '6px 8px', fontSize: '0.72rem', outline: 'none' }}
-                    />
                   </div>
                   <textarea
                     value={palpitesTemplate}

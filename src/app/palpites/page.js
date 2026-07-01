@@ -3615,18 +3615,18 @@ export default function PalpitesPage() {
                     <label style={{ display: 'block', fontSize: '0.72rem', color: '#888', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>
                       Nomes das Equipes
                     </label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', width: '100%', boxSizing: 'border-box' }}>
                       <input 
                         type="text" 
                         value={game.home} 
                         disabled 
-                        style={{ background: '#13131A', border: '1px solid #222', padding: '10px 14px', borderRadius: '8px', color: '#fff', fontSize: '0.88rem' }}
+                        style={{ background: '#13131A', border: '1px solid #222', padding: '10px 14px', borderRadius: '8px', color: '#fff', fontSize: '0.88rem', width: '100%', boxSizing: 'border-box' }}
                       />
                       <input 
                         type="text" 
                         value={game.away} 
                         disabled 
-                        style={{ background: '#13131A', border: '1px solid #222', padding: '10px 14px', borderRadius: '8px', color: '#fff', fontSize: '0.88rem' }}
+                        style={{ background: '#13131A', border: '1px solid #222', padding: '10px 14px', borderRadius: '8px', color: '#fff', fontSize: '0.88rem', width: '100%', boxSizing: 'border-box' }}
                       />
                     </div>
                   </div>
@@ -3636,7 +3636,7 @@ export default function PalpitesPage() {
                     <label style={{ display: 'block', fontSize: '0.72rem', color: '#888', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>
                       Apostar em Quem?
                     </label>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', width: '100%', boxSizing: 'border-box' }}>
                       <button
                         onClick={() => setCalcBetOnHome(true)}
                         style={{
@@ -3647,12 +3647,15 @@ export default function PalpitesPage() {
                           color: calcBetOnHome ? 'var(--brand-neon)' : '#ccc',
                           fontWeight: 'bold',
                           cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
+                          display: 'block',
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
                           fontSize: '0.85rem'
                         }}
+                        title={game.home}
                       >
                         🏠 {game.home}
                       </button>
@@ -3666,12 +3669,15 @@ export default function PalpitesPage() {
                           color: !calcBetOnHome ? 'var(--brand-neon)' : '#ccc',
                           fontWeight: 'bold',
                           cursor: 'pointer',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '6px',
+                          display: 'block',
+                          width: '100%',
+                          boxSizing: 'border-box',
+                          whiteSpace: 'nowrap',
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
                           fontSize: '0.85rem'
                         }}
+                        title={game.away}
                       >
                         🚌 {game.away}
                       </button>
@@ -3683,7 +3689,7 @@ export default function PalpitesPage() {
                     <label style={{ display: 'block', fontSize: '0.72rem', color: '#888', textTransform: 'uppercase', fontWeight: 'bold', marginBottom: '8px' }}>
                       Placar Final do Jogo (Simulado)
                     </label>
-                    <div style={{ background: '#13131A', border: '1px solid #222', borderRadius: '8px', padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
+                    <div style={{ background: '#13131A', border: '1px solid #222', borderRadius: '8px', padding: '12px', display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center' }}>
                       
                       <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
                         {/* Mandante */}
@@ -3721,44 +3727,6 @@ export default function PalpitesPage() {
                             +
                           </button>
                         </div>
-                      </div>
-
-                      {/* Presets Rápidos */}
-                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', justifyContent: 'center', marginTop: '6px' }}>
-                        {[
-                          { h: 0, a: 0, label: '0 × 0' },
-                          { h: 1, a: 0, label: '1 × 0' },
-                          { h: 2, a: 0, label: '2 × 0' },
-                          { h: 2, a: 1, label: '2 × 1' },
-                          { h: 1, a: 1, label: '1 × 1' },
-                          { h: 0, a: 1, label: '0 × 1' },
-                          { h: 0, a: 2, label: '0 × 2' },
-                          { h: 1, a: 2, label: '1 × 2' },
-                          { h: 3, a: 0, label: '3 × 0' }
-                        ].map((preset, idx) => {
-                          const isSelected = calcHomeScore === preset.h && calcAwayScore === preset.a;
-                          return (
-                            <button
-                              key={idx}
-                              onClick={() => {
-                                setCalcHomeScore(preset.h);
-                                setCalcAwayScore(preset.a);
-                              }}
-                              style={{
-                                background: isSelected ? 'transparent' : '#222',
-                                border: isSelected ? '1px solid var(--brand-neon)' : '1px solid transparent',
-                                color: isSelected ? 'var(--brand-neon)' : '#aaa',
-                                fontSize: '0.68rem',
-                                padding: '4px 8px',
-                                borderRadius: '4px',
-                                cursor: 'pointer',
-                                fontWeight: isSelected ? 'bold' : 'normal'
-                              }}
-                            >
-                              {preset.label}
-                            </button>
-                          );
-                        })}
                       </div>
                     </div>
                   </div>

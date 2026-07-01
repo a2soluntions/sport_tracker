@@ -3565,9 +3565,12 @@ export default function PalpitesPage() {
           >
             <div 
               onClick={(e) => e.stopPropagation()}
+              className="handicap-modal-content custom-scrollbar"
               style={{
                 width: '95%',
                 maxWidth: '900px',
+                maxHeight: '90vh',
+                overflowY: 'auto',
                 background: '#0B0B0F',
                 border: '1px solid #1E1E24',
                 borderRadius: '16px',
@@ -3602,7 +3605,7 @@ export default function PalpitesPage() {
                 🧮 Simulador de Handicap Asiático
               </h2>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '32px' }}>
+              <div className="handicap-sim-grid" style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: '32px' }}>
                 
                 {/* LADO ESQUERDO: CONFIGURAÇÃO DA SIMULAÇÃO */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
@@ -3978,6 +3981,19 @@ export default function PalpitesPage() {
                   Fechar Simulador
                 </button>
               </div>
+
+              <style>{`
+                @media (max-width: 768px) {
+                  .handicap-sim-grid {
+                    grid-template-columns: 1fr !important;
+                    gap: 20px !important;
+                  }
+                  .handicap-modal-content {
+                    padding: 16px !important;
+                    gap: 16px !important;
+                  }
+                }
+              `}</style>
 
             </div>
           </div>

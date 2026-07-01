@@ -4385,11 +4385,14 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
             {/* COLUNA 1: ⚡ ROBÔ DE SINAIS VIP & ENVIO DE CARDS */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               
-              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #222', paddingBottom: '8px' }}>
+              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '620px' }}>
+                <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #222', paddingBottom: '8px', flexShrink: 0 }}>
                   <Clock size={16} color="var(--brand-neon)" />
                   ⚡ Robô de Sinais VIP & Envio de Cards
                 </h3>
+                
+                {/* Container de Rolagem Interna */}
+                <div style={{ flexGrow: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px' }} className="custom-scrollbar">
                 
                 {/* LIGA / DESLIGA BOT EV */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0a0a0f', padding: '8px 12px', borderRadius: '6px', border: '1px solid #1a1a24' }}>
@@ -4597,14 +4600,18 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                 </div>
               </div>
             </div>
+          </div>
 
             {/* COLUNA 2: ⏱️ ROBÔ DE PALPITES & ENVIO DE TIPS */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '14px', height: '100%' }}>
-                <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #222', paddingBottom: '8px' }}>
+              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '620px' }}>
+                <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid #222', paddingBottom: '8px', flexShrink: 0 }}>
                   <Clock size={16} color="#00d2ff" />
                   ⏱️ Robô de Palpites & Envio de Tips
                 </h3>
+                
+                {/* Container de Rolagem Interna */}
+                <div style={{ flexGrow: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '12px', paddingRight: '4px' }} className="custom-scrollbar">
 
                 {/* LIGA / DESLIGA BOT PALPITES */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#0a0a0f', padding: '8px 12px', borderRadius: '6px', border: '1px solid #1a1a24' }}>
@@ -4767,10 +4774,11 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                 </div>
               </div>
             </div>
+          </div>
 
             {/* COLUNA 3: HISTÓRICO ÚNICO E AGENDADOS */}
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
+              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '620px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '8px' }}>
                   <div style={{ display: 'flex', gap: '12px' }}>
                     <button
@@ -4821,7 +4829,6 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                 <div 
                   className="custom-scrollbar"
                   style={{
-                    height: '150px',
                     flexGrow: 1,
                     overflowY: 'auto',
                     display: 'flex',
@@ -4883,8 +4890,8 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
 
             {/* COLUNA 4: PRÉVIA DA MENSAGEM (TELEGRAM - FORMATO 9:16) */}
             <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '100%' }}>
-                <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="glass-panel" style={{ padding: '16px', display: 'flex', flexDirection: 'column', gap: '10px', height: '620px' }}>
+                <h3 style={{ margin: 0, fontSize: '0.9rem', color: '#fff', display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                   👁️ Prévia da Mensagem (Telegram)
                 </h3>
 
@@ -4912,7 +4919,8 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                   ))}
                 </div>
                 
-                {(() => {
+                <div style={{ flexGrow: 1, overflowY: 'auto', paddingRight: '4px' }} className="custom-scrollbar">
+                  {(() => {
                   let imgToShow = '';
                   let rawText = '';
                   let formatType = 'markdown'; // 'markdown' | 'html'
@@ -5051,6 +5059,7 @@ _Gestão de banca é o segredo do longo prazo!_ 🛡️`);
                     </div>
                   );
                 })()}
+                </div>
               </div>
             </div>
 

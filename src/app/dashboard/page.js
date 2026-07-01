@@ -767,18 +767,8 @@ export default function ResponsiveDashboard() {
                         </h3>
                       </div>
                       <p style={{ color: '#aaa', fontSize: '0.85rem', marginTop: '6px', lineHeight: '1.5', maxWidth: '650px' }}>
-                        Nosso robô está monitorando a <strong style={{ color: '#fff' }}>Betano</strong>, <strong style={{ color: '#fff' }}>Betfair</strong> e <strong style={{ color: 'var(--brand-neon)' }}>Betsporte</strong> neste exato momento. Nenhuma assimetria matemática de valor foi detectada nas últimas 12 horas.
+                        Nosso robô está monitorando o mercado e buscando oportunidades de valor neste exato momento. Nenhuma assimetria matemática foi detectada nas últimas 12 horas.
                       </p>
-                    </div>
-                  </div>
-
-                  {/* Badges de Status do Motor */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', zIndex: 1, alignItems: 'flex-end' }}>
-                    <div style={{ background: 'rgba(204, 255, 0, 0.05)', color: 'var(--brand-neon)', border: '1px solid rgba(204, 255, 0, 0.15)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', fontFamily: 'monospace' }}>
-                      SCANNING_FEED: BETANO, BETFAIR, BETSPORTE
-                    </div>
-                    <div style={{ background: 'rgba(0, 210, 255, 0.05)', color: '#00d2ff', border: '1px solid rgba(0, 210, 255, 0.15)', padding: '6px 12px', borderRadius: '6px', fontSize: '0.75rem', fontWeight: 'bold', fontFamily: 'monospace' }}>
-                      ENGINE_STATUS: 100% OPERATIONAL
                     </div>
                   </div>
                 </div>

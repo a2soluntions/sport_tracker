@@ -208,10 +208,29 @@ async function handleDispatch(request) {
                 }
                 dispatchedPalpites = true;
               }
+            } else {
+              // No games found or API error returned 0 fixtures. Release the lock so it can retry later.
+              lastRuns.palpites[todayDateStr] = (lastRuns.palpites[todayDateStr] || []).filter(h => h !== scheduledHour);
+              await client.from('saas_settings').upsert({
+                key: 'telegram_last_dispatches',
+                value: lastRuns,
+                updated_at: new Date().toISOString()
+              });
+              console.log(`[Auto-Dispatch] Lock released for hour: ${scheduledHour} (0 games found)`);
             }
-
           } catch (err) {
             console.error('[Auto-Dispatch] Error fetching/sending palpites:', err);
+            // On hard exception, also release the lock so it can be retried
+            try {
+              lastRuns.palpites[todayDateStr] = (lastRuns.palpites[todayDateStr] || []).filter(h => h !== scheduledHour);
+              await client.from('saas_settings').upsert({
+                key: 'telegram_last_dispatches',
+                value: lastRuns,
+                updated_at: new Date().toISOString()
+              });
+            } catch (e) {
+              console.error('[Auto-Dispatch] Failed to release lock on error:', e);
+            }
           }
         }
       }

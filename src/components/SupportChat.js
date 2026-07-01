@@ -177,7 +177,7 @@ export default function SupportChat() {
 
       {/* Janela do Chat Aberto */}
       {isOpen && (
-        <div style={{
+        <div className="support-chat-window" style={{
           position: 'fixed',
           bottom: '20px',
           right: '20px',
@@ -251,10 +251,10 @@ export default function SupportChat() {
               </button>
               <button 
                 onClick={() => setIsOpen(false)}
-                style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', fontSize: '1.2rem', padding: '4px' }}
+                style={{ background: 'transparent', border: 'none', color: '#888', cursor: 'pointer', padding: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 title="Fechar"
               >
-                <X size={18} />
+                <X size={20} />
               </button>
             </div>
           </div>
@@ -471,6 +471,18 @@ export default function SupportChat() {
               <Send size={14} />
             </button>
           </div>
+          <style>{`
+            @media (max-width: 768px) {
+              .support-chat-window {
+                width: 100vw !important;
+                height: 100dvh !important;
+                bottom: 0 !important;
+                right: 0 !important;
+                border-radius: 0 !important;
+                z-index: 999999 !important;
+              }
+            }
+          `}</style>
         </div>
       )}
     </>

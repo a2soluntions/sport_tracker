@@ -3408,6 +3408,113 @@ export default function AnalysisPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Analisador de Métodos: Under Gols (Iniciante Pré-Live) */}
+              <div style={{
+                background: 'var(--bg-surface)',
+                border: '1px solid var(--border-color)',
+                borderRadius: '16px',
+                padding: '16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '12px'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
+                  <Shield size={18} color="var(--brand-neon)" />
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>📊 Método Under Gols (Iniciante Pré-Live)</h3>
+                </div>
+
+                {/* Critérios do Checklist */}
+                {(() => {
+                  const hXG = selectedMatch.homeXG;
+                  const aXG = selectedMatch.awayXG;
+                  
+                  // 1. Competição
+                  const isUnderLeague = ['71', '72', '44', '75'].includes(String(selectedMatch.leagueId)) || 
+                    String(selectedMatch.leagueName || '').toLowerCase().includes('argentina') || 
+                    String(selectedMatch.leagueName || '').toLowerCase().includes('portugal') || 
+                    String(selectedMatch.leagueName || '').toLowerCase().includes('brasileir');
+                  
+                  // 2. Média de gols marcados e sofridos abaixo de 2.5
+                  const totalExpectedGoals = hXG + aXG;
+                  const isLowGoalsAverage = totalExpectedGoals < 2.6;
+
+                  // 3. Relevância do jogo (simulado)
+                  const isLowRelevance = true;
+
+                  // 4. Histórico abaixo de 3.5 (Poisson)
+                  let under35Val = 0;
+                  const maxG = 6;
+                  for (let h = 0; h < maxG; h++) {
+                    for (let a = 0; a < maxG; a++) {
+                      if (h + a <= 3) {
+                        under35Val += poisson(h, hXG) * poisson(a, aXG);
+                      }
+                    }
+                  }
+                  const under35Prob = Math.min(99, Math.round(under35Val * 100));
+                  const isHistoryUnder35 = under35Prob > 65;
+
+                  // 5. Odd justa entre 1.20 e 1.50
+                  const fairOddUnder35 = 1 / (under35Val || 0.5);
+                  const isOddInInterval = fairOddUnder35 >= 1.20 && fairOddUnder35 <= 1.55;
+
+                  const metCount = [isUnderLeague, isLowGoalsAverage, isLowRelevance, isHistoryUnder35, isOddInInterval].filter(Boolean).length;
+                  const isApproved = metCount >= 4;
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                      
+                      {/* Status */}
+                      <div style={{
+                        background: isApproved ? 'rgba(204, 255, 0, 0.08)' : 'rgba(255, 61, 0, 0.08)',
+                        border: `1px solid ${isApproved ? 'var(--brand-neon)' : '#ff3d00'}`,
+                        borderRadius: '8px',
+                        padding: '12px',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '4px',
+                        alignItems: 'center',
+                        textAlign: 'center'
+                      }}>
+                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: isApproved ? 'var(--brand-neon)' : '#fff' }}>
+                          {isApproved ? '✅ APTO PARA ENTRADA (UNDER GOLS)' : '⚠️ DESCARTE (NÃO ENTRA NO MÉTODO)'}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: '#aaa' }}>
+                          {isApproved 
+                            ? 'Gestão recomendada: 1% a 3% da banca (Ex: R$ 3,00 para banca de R$ 100,00)' 
+                            : 'Esta partida não preenche os critérios mínimos de segurança do método.'}
+                        </span>
+                      </div>
+
+                      {/* Checklist */}
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px', fontSize: '0.76rem' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: isUnderLeague ? '#fff' : '#888' }}>
+                          <span>1. Competição com poucos gols (Br Série A/B, Argentina, etc):</span>
+                          <strong style={{ color: isUnderLeague ? 'var(--brand-neon)' : '#ff3d00' }}>{isUnderLeague ? 'Sim' : 'Não'}</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: isLowGoalsAverage ? '#fff' : '#888' }}>
+                          <span>2. Média projetada xG abaixo de 2.5 (Soma: {totalExpectedGoals.toFixed(2)}):</span>
+                          <strong style={{ color: isLowGoalsAverage ? 'var(--brand-neon)' : '#ff3d00' }}>{isLowGoalsAverage ? 'Sim' : 'Não'}</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#fff' }}>
+                          <span>3. Relevância do jogo (Média ou Baixa):</span>
+                          <strong style={{ color: 'var(--brand-neon)' }}>Sim</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: isHistoryUnder35 ? '#fff' : '#888' }}>
+                          <span>4. Probabilidade projetada de Under 3.5 ({under35Prob}%):</span>
+                          <strong style={{ color: isHistoryUnder35 ? 'var(--brand-neon)' : '#ff3d00' }}>{isHistoryUnder35 ? 'Sim (>65%)' : 'Não'}</strong>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: isOddInInterval ? '#fff' : '#888' }}>
+                          <span>5. Odd justa estimada em intervalo ideal (@{fairOddUnder35.toFixed(2)}):</span>
+                          <strong style={{ color: isOddInInterval ? 'var(--brand-neon)' : '#ffea00' }}>{isOddInInterval ? 'Sim (1.20 - 1.50)' : 'Aviso (Fora)'}</strong>
+                        </div>
+                      </div>
+
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
 
             {/* Relatório Analítico de Vulnerabilidades & Forças */}

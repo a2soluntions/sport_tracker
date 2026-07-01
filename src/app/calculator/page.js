@@ -3409,7 +3409,7 @@ export default function AnalysisPage() {
                 </div>
               </div>
 
-              {/* Analisador de Métodos: Under Gols (Iniciante Pré-Live) */}
+              {/* Analisador de Métodos: Under Gols */}
               <div style={{
                 background: 'var(--bg-surface)',
                 border: '1px solid var(--border-color)',
@@ -3417,104 +3417,163 @@ export default function AnalysisPage() {
                 padding: '16px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '12px'
+                gap: '16px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
                   <Shield size={18} color="var(--brand-neon)" />
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>📊 Método Under Gols (Iniciante Pré-Live)</h3>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>📊 Analisador de Métodos Under</h3>
                 </div>
 
-                {/* Critérios do Checklist */}
-                {(() => {
-                  const hXG = selectedMatch.homeXG;
-                  const aXG = selectedMatch.awayXG;
-                  
-                  // 1. Competição
-                  const isUnderLeague = ['71', '72', '44', '75'].includes(String(selectedMatch.leagueId)) || 
-                    String(selectedMatch.leagueName || '').toLowerCase().includes('argentina') || 
-                    String(selectedMatch.leagueName || '').toLowerCase().includes('portugal') || 
-                    String(selectedMatch.leagueName || '').toLowerCase().includes('brasileir');
-                  
-                  // 2. Média de gols marcados e sofridos abaixo de 2.5
-                  const totalExpectedGoals = hXG + aXG;
-                  const isLowGoalsAverage = totalExpectedGoals < 2.6;
+                <div className="under-methods-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                  {(() => {
+                    const hXG = selectedMatch.homeXG;
+                    const aXG = selectedMatch.awayXG;
+                    
+                    // 1. Competição
+                    const isUnderLeague = ['71', '72', '44', '75'].includes(String(selectedMatch.leagueId)) || 
+                      String(selectedMatch.leagueName || '').toLowerCase().includes('argentina') || 
+                      String(selectedMatch.leagueName || '').toLowerCase().includes('portugal') || 
+                      String(selectedMatch.leagueName || '').toLowerCase().includes('brasileir');
+                    
+                    // 2. Média de gols marcados e sofridos abaixo de 2.5
+                    const totalExpectedGoals = hXG + aXG;
+                    const isLowGoalsAverage = totalExpectedGoals < 2.6;
 
-                  // 3. Relevância do jogo (simulado)
-                  const isLowRelevance = true;
+                    // 3. Relevância do jogo
+                    const isLowRelevance = true;
 
-                  // 4. Histórico abaixo de 3.5 (Poisson)
-                  let under35Val = 0;
-                  const maxG = 6;
-                  for (let h = 0; h < maxG; h++) {
-                    for (let a = 0; a < maxG; a++) {
-                      if (h + a <= 3) {
-                        under35Val += poisson(h, hXG) * poisson(a, aXG);
+                    // 4. Histórico abaixo de 2.5 (Poisson)
+                    let under25Val = 0;
+                    const maxG = 6;
+                    for (let h = 0; h < maxG; h++) {
+                      for (let a = 0; a < maxG; a++) {
+                        if (h + a <= 2) {
+                          under25Val += poisson(h, hXG) * poisson(a, aXG);
+                        }
                       }
                     }
-                  }
-                  const under35Prob = Math.min(99, Math.round(under35Val * 100));
-                  const isHistoryUnder35 = under35Prob > 65;
+                    const under25Prob = Math.min(99, Math.round(under25Val * 100));
+                    const isHistoryUnder25 = under25Prob > 55;
 
-                  // 5. Odd justa entre 1.20 e 1.50
-                  const fairOddUnder35 = 1 / (under35Val || 0.5);
-                  const isOddInInterval = fairOddUnder35 >= 1.20 && fairOddUnder35 <= 1.55;
+                    // 5. Odd justa estimada
+                    const fairOddUnder25 = 1 / (under25Val || 0.4);
+                    const isOddInInterval25 = fairOddUnder25 >= 1.40 && fairOddUnder25 <= 1.95;
 
-                  const metCount = [isUnderLeague, isLowGoalsAverage, isLowRelevance, isHistoryUnder35, isOddInInterval].filter(Boolean).length;
-                  const isApproved = metCount >= 4;
+                    const metCount25 = [isUnderLeague, isLowGoalsAverage, isLowRelevance, isHistoryUnder25, isOddInInterval25].filter(Boolean).length;
+                    const isApproved25 = metCount25 >= 4;
 
-                  return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                      
-                      {/* Status */}
-                      <div style={{
-                        background: isApproved ? 'rgba(204, 255, 0, 0.08)' : 'rgba(255, 61, 0, 0.08)',
-                        border: `1px solid ${isApproved ? 'var(--brand-neon)' : '#ff3d00'}`,
-                        borderRadius: '8px',
-                        padding: '12px',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '4px',
-                        alignItems: 'center',
-                        textAlign: 'center'
-                      }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: 'bold', color: isApproved ? 'var(--brand-neon)' : '#fff' }}>
-                          {isApproved ? '✅ APTO PARA ENTRADA (UNDER GOLS)' : '⚠️ DESCARTE (NÃO ENTRA NO MÉTODO)'}
-                        </span>
-                        <span style={{ fontSize: '0.72rem', color: '#aaa' }}>
-                          {isApproved 
-                            ? 'Gestão recomendada: 1% a 3% da banca (Ex: R$ 3,00 para banca de R$ 100,00)' 
-                            : 'Esta partida não preenche os critérios mínimos de segurança do método.'}
-                        </span>
-                      </div>
+                    // Para Under 3.5
+                    let under35Val = 0;
+                    for (let h = 0; h < maxG; h++) {
+                      for (let a = 0; a < maxG; a++) {
+                        if (h + a <= 3) {
+                          under35Val += poisson(h, hXG) * poisson(a, aXG);
+                        }
+                      }
+                    }
+                    const under35Prob = Math.min(99, Math.round(under35Val * 100));
+                    const isHistoryUnder35 = under35Prob > 65;
+                    const fairOddUnder35 = 1 / (under35Val || 0.5);
+                    const isOddInInterval35 = fairOddUnder35 >= 1.20 && fairOddUnder35 <= 1.55;
 
-                      {/* Checklist */}
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px', fontSize: '0.76rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: isUnderLeague ? '#fff' : '#888' }}>
-                          <span>1. Competição com poucos gols (Br Série A/B, Argentina, etc):</span>
-                          <strong style={{ color: isUnderLeague ? 'var(--brand-neon)' : '#ff3d00' }}>{isUnderLeague ? 'Sim' : 'Não'}</strong>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: isLowGoalsAverage ? '#fff' : '#888' }}>
-                          <span>2. Média projetada xG abaixo de 2.5 (Soma: {totalExpectedGoals.toFixed(2)}):</span>
-                          <strong style={{ color: isLowGoalsAverage ? 'var(--brand-neon)' : '#ff3d00' }}>{isLowGoalsAverage ? 'Sim' : 'Não'}</strong>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: '#fff' }}>
-                          <span>3. Relevância do jogo (Média ou Baixa):</span>
-                          <strong style={{ color: 'var(--brand-neon)' }}>Sim</strong>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: isHistoryUnder35 ? '#fff' : '#888' }}>
-                          <span>4. Probabilidade projetada de Under 3.5 ({under35Prob}%):</span>
-                          <strong style={{ color: isHistoryUnder35 ? 'var(--brand-neon)' : '#ff3d00' }}>{isHistoryUnder35 ? 'Sim (>65%)' : 'Não'}</strong>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', color: isOddInInterval ? '#fff' : '#888' }}>
-                          <span>5. Odd justa estimada em intervalo ideal (@{fairOddUnder35.toFixed(2)}):</span>
-                          <strong style={{ color: isOddInInterval ? 'var(--brand-neon)' : '#ffea00' }}>{isOddInInterval ? 'Sim (1.20 - 1.50)' : 'Aviso (Fora)'}</strong>
-                        </div>
-                      </div>
+                    const metCount35 = [isUnderLeague, isLowGoalsAverage, isLowRelevance, isHistoryUnder35, isOddInInterval35].filter(Boolean).length;
+                    const isApproved35 = metCount35 >= 4;
 
-                    </div>
-                  );
-                })()}
+                    return (
+                      <>
+                        {/* CARD 1: UNDER 2.5 */}
+                        <div style={{ background: '#121217', borderRadius: '12px', border: '1px solid #1E1E24', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #1E1E24', paddingBottom: '6px' }}>
+                            📉 Método Under 2.5 Gols
+                          </span>
+
+                          <div style={{
+                            background: isApproved25 ? 'rgba(204, 255, 0, 0.06)' : 'rgba(255, 61, 0, 0.06)',
+                            border: `1px solid ${isApproved25 ? 'var(--brand-neon)' : '#ff3d00'}`,
+                            borderRadius: '6px',
+                            padding: '8px',
+                            textAlign: 'center',
+                            fontSize: '0.72rem'
+                          }}>
+                            <div style={{ fontWeight: 'bold', color: isApproved25 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
+                              {isApproved25 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}
+                            </div>
+                            <span style={{ color: '#aaa', fontSize: '0.65rem' }}>Gestão: 1% a 3% da banca</span>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.72rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>Competição Estável Under:</span>
+                              <strong style={{ color: isUnderLeague ? 'var(--brand-neon)' : '#ff3d00' }}>{isUnderLeague ? 'Sim' : 'Não'}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>xG Projetado &lt; 2.5:</span>
+                              <strong style={{ color: isLowGoalsAverage ? 'var(--brand-neon)' : '#ff3d00' }}>{isLowGoalsAverage ? 'Sim' : 'Não'}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>Probabilidade Under 2.5:</span>
+                              <strong style={{ color: isHistoryUnder25 ? 'var(--brand-neon)' : '#ff3d00' }}>{under25Prob}%</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>Odd Justa Estimada:</span>
+                              <strong style={{ color: isOddInInterval25 ? 'var(--brand-neon)' : '#ffea00' }}>@{fairOddUnder25.toFixed(2)}</strong>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* CARD 2: UNDER 3.5 */}
+                        <div style={{ background: '#121217', borderRadius: '12px', border: '1px solid #1E1E24', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #1E1E24', paddingBottom: '6px' }}>
+                            📉 Método Under 3.5 Gols
+                          </span>
+
+                          <div style={{
+                            background: isApproved35 ? 'rgba(204, 255, 0, 0.06)' : 'rgba(255, 61, 0, 0.06)',
+                            border: `1px solid ${isApproved35 ? 'var(--brand-neon)' : '#ff3d00'}`,
+                            borderRadius: '6px',
+                            padding: '8px',
+                            textAlign: 'center',
+                            fontSize: '0.72rem'
+                          }}>
+                            <div style={{ fontWeight: 'bold', color: isApproved35 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
+                              {isApproved35 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}
+                            </div>
+                            <span style={{ color: '#aaa', fontSize: '0.65rem' }}>Gestão: 1% a 3% da banca</span>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.72rem' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>Competição Estável Under:</span>
+                              <strong style={{ color: isUnderLeague ? 'var(--brand-neon)' : '#ff3d00' }}>{isUnderLeague ? 'Sim' : 'Não'}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>xG Projetado &lt; 2.5:</span>
+                              <strong style={{ color: isLowGoalsAverage ? 'var(--brand-neon)' : '#ff3d00' }}>{isLowGoalsAverage ? 'Sim' : 'Não'}</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>Probabilidade Under 3.5:</span>
+                              <strong style={{ color: isHistoryUnder35 ? 'var(--brand-neon)' : '#ff3d00' }}>{under35Prob}%</strong>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                              <span style={{ color: '#aaa' }}>Odd Justa Estimada:</span>
+                              <strong style={{ color: isOddInInterval35 ? 'var(--brand-neon)' : '#ffea00' }}>@{fairOddUnder35.toFixed(2)}</strong>
+                            </div>
+                          </div>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
               </div>
+
+              <style>{`
+                @media (max-width: 768px) {
+                  .under-methods-grid {
+                    grid-template-columns: 1fr !important;
+                    gap: 12px !important;
+                  }
+                }
+              `}</style>
             </div>
 
             {/* Relatório Analítico de Vulnerabilidades & Forças */}

@@ -501,7 +501,7 @@ export async function GET(request) {
           const ALLOWED_LEAGUE_IDS = [1, 71, 72, 75, 13, 12, 39, 140, 135, 78, 3, 848, 44, 667, 94];
           matches = (data.response || []).filter(m => {
             if (!m.fixture || !m.league) return false;
-            if (['CANC', 'PST', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short)) return false;
+            if (['CANC', 'ABD', 'AWD', 'WO'].includes(m.fixture.status.short)) return false;
             const lid = m.league.id;
             if (lid && ALLOWED_LEAGUE_IDS.includes(Number(lid))) return true;
             

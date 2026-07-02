@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { useAuth } from '../../context/AuthContext';
 import { 
   Calculator, Trophy, Zap, Activity, Info, BarChart2, Star, Shield, 
-  HelpCircle, ArrowRight, Sparkles, TrendingUp, RefreshCw, Calendar, 
+  HelpCircle, ArrowRight, Sparkles, TrendingUp, TrendingDown, RefreshCw, Calendar, 
   Users, ChevronLeft, ChevronRight, AlertCircle, AlertTriangle, Clock
 } from 'lucide-react';
 
@@ -3423,8 +3423,8 @@ export default function AnalysisPage() {
                 gap: '16px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
-                  <Shield size={18} color="var(--brand-neon)" />
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>📊 Analisador de Métodos Under</h3>
+                  <TrendingDown size={18} color="var(--brand-neon)" />
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>Analisador de Métodos Under</h3>
                 </div>
 
                 <div className="under-methods-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'stretch' }}>
@@ -3580,7 +3580,7 @@ export default function AnalysisPage() {
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
                   <TrendingUp size={18} color="var(--brand-neon)" />
-                  <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>📊 Analisador de Métodos Over</h3>
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>Analisador de Métodos Over</h3>
                 </div>
 
                 <div className="over-methods-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'stretch' }}>

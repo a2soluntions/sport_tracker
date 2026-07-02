@@ -3409,8 +3409,11 @@ export default function AnalysisPage() {
                 </div>
               </div>
 
-              {/* Analisador de Métodos: Under Gols */}
-              <div style={{
+              {/* Wrapper Grid para alinhar Under e Over lado a lado na parte superior */}
+              <div className="methods-wrapper-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'start' }}>
+
+                {/* Analisador de Métodos: Under Gols */}
+                <div style={{
                 background: 'var(--bg-surface)',
                 border: '1px solid var(--border-color)',
                 borderRadius: '16px',
@@ -3731,7 +3734,14 @@ export default function AnalysisPage() {
                 </div>
               </div>
 
+              </div>
+
               <style>{`
+                @media (max-width: 992px) {
+                  .methods-wrapper-grid {
+                    grid-template-columns: 1fr !important;
+                  }
+                }
                 @media (max-width: 768px) {
                   .under-methods-grid, .over-methods-grid {
                     grid-template-columns: 1fr !important;

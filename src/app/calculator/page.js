@@ -3491,7 +3491,13 @@ export default function AnalysisPage() {
                               padding: '8px',
                               textAlign: 'center',
                               fontSize: '0.72rem',
-                              marginBottom: '12px'
+                              marginBottom: '12px',
+                              height: '56px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              boxSizing: 'border-box'
                             }}>
                               <div style={{ fontWeight: 'bold', color: isApproved25 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
                                 {isApproved25 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}
@@ -3534,7 +3540,13 @@ export default function AnalysisPage() {
                               padding: '8px',
                               textAlign: 'center',
                               fontSize: '0.72rem',
-                              marginBottom: '12px'
+                              marginBottom: '12px',
+                              height: '56px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              boxSizing: 'border-box'
                             }}>
                               <div style={{ fontWeight: 'bold', color: isApproved35 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
                                 {isApproved35 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}
@@ -3656,7 +3668,13 @@ export default function AnalysisPage() {
                               padding: '8px',
                               textAlign: 'center',
                               fontSize: '0.72rem',
-                              marginBottom: '12px'
+                              marginBottom: '12px',
+                              height: '56px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              boxSizing: 'border-box'
                             }}>
                               <div style={{ fontWeight: 'bold', color: isApproved15 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
                                 {isApproved15 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}
@@ -3699,7 +3717,13 @@ export default function AnalysisPage() {
                               padding: '8px',
                               textAlign: 'center',
                               fontSize: '0.72rem',
-                              marginBottom: '12px'
+                              marginBottom: '12px',
+                              height: '56px',
+                              display: 'flex',
+                              flexDirection: 'column',
+                              justifyContent: 'center',
+                              alignItems: 'center',
+                              boxSizing: 'border-box'
                             }}>
                               <div style={{ fontWeight: 'bold', color: isApproved25 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
                                 {isApproved25 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}

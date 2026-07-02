@@ -3576,8 +3576,7 @@ export default function AnalysisPage() {
                 padding: '16px',
                 display: 'flex',
                 flexDirection: 'column',
-                gap: '16px',
-                marginTop: '16px'
+                gap: '16px'
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid rgba(255,255,255,0.05)', paddingBottom: '12px' }}>
                   <TrendingUp size={18} color="var(--brand-neon)" />

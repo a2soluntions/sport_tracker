@@ -3424,7 +3424,7 @@ export default function AnalysisPage() {
                   <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>📊 Analisador de Métodos Under</h3>
                 </div>
 
-                <div className="under-methods-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="under-methods-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'stretch' }}>
                   {(() => {
                     const hXG = selectedMatch.homeXG;
                     const aXG = selectedMatch.awayXG;
@@ -3459,8 +3459,8 @@ export default function AnalysisPage() {
                     const fairOddUnder25 = 1 / (under25Val || 0.4);
                     const isOddInInterval25 = fairOddUnder25 >= 1.40 && fairOddUnder25 <= 1.95;
 
-                    const metCount25 = [isUnderLeague, isLowGoalsAverage, isLowRelevance, isHistoryUnder25, isOddInInterval25].filter(Boolean).length;
-                    const isApproved25 = metCount25 >= 4;
+                    // Viável se probabilidade for decente e xG estiver coerente
+                    const isApproved25 = under25Prob >= 55 && totalExpectedGoals < 2.7;
 
                     // Para Under 3.5
                     let under35Val = 0;
@@ -3476,35 +3476,38 @@ export default function AnalysisPage() {
                     const fairOddUnder35 = 1 / (under35Val || 0.5);
                     const isOddInInterval35 = fairOddUnder35 >= 1.20 && fairOddUnder35 <= 1.55;
 
-                    const metCount35 = [isUnderLeague, isLowGoalsAverage, isLowRelevance, isHistoryUnder35, isOddInInterval35].filter(Boolean).length;
-                    const isApproved35 = metCount35 >= 4;
+                    // Viável se probabilidade de Under 3.5 for boa
+                    const isApproved35 = under35Prob >= 65 && totalExpectedGoals < 3.2;
 
                     return (
                       <>
                         {/* CARD 1: UNDER 2.5 */}
-                        <div style={{ background: '#121217', borderRadius: '12px', border: '1px solid #1E1E24', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #1E1E24', paddingBottom: '6px' }}>
-                            📉 Método Under 2.5 Gols
-                          </span>
+                        <div style={{ background: '#121217', borderRadius: '12px', border: '1px solid #1E1E24', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px', justifyContent: 'space-between', height: '100%' }}>
+                          <div>
+                            <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #1E1E24', paddingBottom: '6px', marginBottom: '10px' }}>
+                              📉 Método Under 2.5 Gols
+                            </span>
 
-                          <div style={{
-                            background: isApproved25 ? 'rgba(204, 255, 0, 0.06)' : 'rgba(255, 61, 0, 0.06)',
-                            border: `1px solid ${isApproved25 ? 'var(--brand-neon)' : '#ff3d00'}`,
-                            borderRadius: '6px',
-                            padding: '8px',
-                            textAlign: 'center',
-                            fontSize: '0.72rem'
-                          }}>
-                            <div style={{ fontWeight: 'bold', color: isApproved25 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
-                              {isApproved25 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}
+                            <div style={{
+                              background: isApproved25 ? 'rgba(204, 255, 0, 0.06)' : 'rgba(255, 61, 0, 0.06)',
+                              border: `1px solid ${isApproved25 ? 'var(--brand-neon)' : '#ff3d00'}`,
+                              borderRadius: '6px',
+                              padding: '8px',
+                              textAlign: 'center',
+                              fontSize: '0.72rem',
+                              marginBottom: '12px'
+                            }}>
+                              <div style={{ fontWeight: 'bold', color: isApproved25 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
+                                {isApproved25 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}
+                              </div>
+                              <span style={{ color: '#aaa', fontSize: '0.65rem' }}>Gestão: 1% a 3% da banca</span>
                             </div>
-                            <span style={{ color: '#aaa', fontSize: '0.65rem' }}>Gestão: 1% a 3% da banca</span>
                           </div>
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.72rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span style={{ color: '#aaa' }}>Competição Estável Under:</span>
-                              <strong style={{ color: isUnderLeague ? 'var(--brand-neon)' : '#ff3d00' }}>{isUnderLeague ? 'Sim' : 'Não'}</strong>
+                              <strong style={{ color: isUnderLeague ? 'var(--brand-neon)' : '#888' }}>{isUnderLeague ? 'Sim' : 'Não'}</strong>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span style={{ color: '#aaa' }}>xG Projetado &lt; 2.5:</span>
@@ -3522,29 +3525,32 @@ export default function AnalysisPage() {
                         </div>
 
                         {/* CARD 2: UNDER 3.5 */}
-                        <div style={{ background: '#121217', borderRadius: '12px', border: '1px solid #1E1E24', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #1E1E24', paddingBottom: '6px' }}>
-                            📉 Método Under 3.5 Gols
-                          </span>
+                        <div style={{ background: '#121217', borderRadius: '12px', border: '1px solid #1E1E24', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px', justifyContent: 'space-between', height: '100%' }}>
+                          <div>
+                            <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #1E1E24', paddingBottom: '6px', marginBottom: '10px' }}>
+                              📉 Método Under 3.5 Gols
+                            </span>
 
-                          <div style={{
-                            background: isApproved35 ? 'rgba(204, 255, 0, 0.06)' : 'rgba(255, 61, 0, 0.06)',
-                            border: `1px solid ${isApproved35 ? 'var(--brand-neon)' : '#ff3d00'}`,
-                            borderRadius: '6px',
-                            padding: '8px',
-                            textAlign: 'center',
-                            fontSize: '0.72rem'
-                          }}>
-                            <div style={{ fontWeight: 'bold', color: isApproved35 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
-                              {isApproved35 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}
+                            <div style={{
+                              background: isApproved35 ? 'rgba(204, 255, 0, 0.06)' : 'rgba(255, 61, 0, 0.06)',
+                              border: `1px solid ${isApproved35 ? 'var(--brand-neon)' : '#ff3d00'}`,
+                              borderRadius: '6px',
+                              padding: '8px',
+                              textAlign: 'center',
+                              fontSize: '0.72rem',
+                              marginBottom: '12px'
+                            }}>
+                              <div style={{ fontWeight: 'bold', color: isApproved35 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
+                                {isApproved35 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}
+                              </div>
+                              <span style={{ color: '#aaa', fontSize: '0.65rem' }}>Gestão: 1% a 3% da banca</span>
                             </div>
-                            <span style={{ color: '#aaa', fontSize: '0.65rem' }}>Gestão: 1% a 3% da banca</span>
                           </div>
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.72rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span style={{ color: '#aaa' }}>Competição Estável Under:</span>
-                              <strong style={{ color: isUnderLeague ? 'var(--brand-neon)' : '#ff3d00' }}>{isUnderLeague ? 'Sim' : 'Não'}</strong>
+                              <strong style={{ color: isUnderLeague ? 'var(--brand-neon)' : '#888' }}>{isUnderLeague ? 'Sim' : 'Não'}</strong>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span style={{ color: '#aaa' }}>xG Projetado &lt; 2.5:</span>
@@ -3582,7 +3588,7 @@ export default function AnalysisPage() {
                   <h3 style={{ fontSize: '0.95rem', fontWeight: 'bold', color: '#fff', margin: 0 }}>📊 Analisador de Métodos Over</h3>
                 </div>
 
-                <div className="over-methods-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                <div className="over-methods-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', alignItems: 'stretch' }}>
                   {(() => {
                     const hXG = selectedMatch.homeXG;
                     const aXG = selectedMatch.awayXG;
@@ -3597,7 +3603,7 @@ export default function AnalysisPage() {
                     
                     // 2. Média projetada xG alta (Soma > 2.7)
                     const totalExpectedGoals = hXG + aXG;
-                    const isHighGoalsAverage = totalExpectedGoals >= 2.7;
+                    const isHighGoalsAverage = totalExpectedGoals >= 2.0;
 
                     // 3. Relevância do jogo
                     const isHighRelevance = true;
@@ -3619,8 +3625,8 @@ export default function AnalysisPage() {
                     const fairOddOver15 = 1 / ((1 - under15Val) || 0.8);
                     const isOddInInterval15 = fairOddOver15 >= 1.20 && fairOddOver15 <= 1.55;
 
-                    const metCount15 = [isOverLeague, isHighGoalsAverage, isHighRelevance, isHistoryOver15, isOddInInterval15].filter(Boolean).length;
-                    const isApproved15 = metCount15 >= 3;
+                    // Aprovado se a chance matemática for alta (>70%)
+                    const isApproved15 = over15Prob >= 70 && totalExpectedGoals >= 2.0;
 
                     // Para Over 2.5 (Soma >= 3)
                     let under25Val = 0;
@@ -3636,29 +3642,32 @@ export default function AnalysisPage() {
                     const fairOddOver25 = 1 / ((1 - under25Val) || 0.5);
                     const isOddInInterval25 = fairOddOver25 >= 1.50 && fairOddOver25 <= 2.10;
 
-                    const metCount25 = [isOverLeague, isHighGoalsAverage, isHighRelevance, isHistoryOver25, isOddInInterval25].filter(Boolean).length;
-                    const isApproved25 = metCount25 >= 3;
+                    // Aprovado se probabilidade for decente e xG compatível
+                    const isApproved25 = over25Prob >= 50 && totalExpectedGoals >= 2.5;
 
                     return (
                       <>
                         {/* CARD 1: OVER 1.5 */}
-                        <div style={{ background: '#121217', borderRadius: '12px', border: '1px solid #1E1E24', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #1E1E24', paddingBottom: '6px' }}>
-                            📈 Método Over 1.5 Gols
-                          </span>
+                        <div style={{ background: '#121217', borderRadius: '12px', border: '1px solid #1E1E24', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px', justifyContent: 'space-between', height: '100%' }}>
+                          <div>
+                            <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #1E1E24', paddingBottom: '6px', marginBottom: '10px' }}>
+                              📈 Método Over 1.5 Gols
+                            </span>
 
-                          <div style={{
-                            background: isApproved15 ? 'rgba(204, 255, 0, 0.06)' : 'rgba(255, 61, 0, 0.06)',
-                            border: `1px solid ${isApproved15 ? 'var(--brand-neon)' : '#ff3d00'}`,
-                            borderRadius: '6px',
-                            padding: '8px',
-                            textAlign: 'center',
-                            fontSize: '0.72rem'
-                          }}>
-                            <div style={{ fontWeight: 'bold', color: isApproved15 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
-                              {isApproved15 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}
+                            <div style={{
+                              background: isApproved15 ? 'rgba(204, 255, 0, 0.06)' : 'rgba(255, 61, 0, 0.06)',
+                              border: `1px solid ${isApproved15 ? 'var(--brand-neon)' : '#ff3d00'}`,
+                              borderRadius: '6px',
+                              padding: '8px',
+                              textAlign: 'center',
+                              fontSize: '0.72rem',
+                              marginBottom: '12px'
+                            }}>
+                              <div style={{ fontWeight: 'bold', color: isApproved15 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
+                                {isApproved15 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}
+                              </div>
+                              <span style={{ color: '#aaa', fontSize: '0.65rem' }}>Gestão: 1% a 3% da banca</span>
                             </div>
-                            <span style={{ color: '#aaa', fontSize: '0.65rem' }}>Gestão: 1% a 3% da banca</span>
                           </div>
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.72rem' }}>
@@ -3667,7 +3676,7 @@ export default function AnalysisPage() {
                               <strong style={{ color: isOverLeague ? 'var(--brand-neon)' : '#888' }}>{isOverLeague ? 'Sim' : 'Não'}</strong>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ color: '#aaa' }}>xG Projetado &gt; 2.7:</span>
+                              <span style={{ color: '#aaa' }}>xG Projetado Total:</span>
                               <strong style={{ color: isHighGoalsAverage ? 'var(--brand-neon)' : '#ff3d00' }}>{totalExpectedGoals.toFixed(2)}</strong>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
@@ -3682,23 +3691,26 @@ export default function AnalysisPage() {
                         </div>
 
                         {/* CARD 2: OVER 2.5 */}
-                        <div style={{ background: '#121217', borderRadius: '12px', border: '1px solid #1E1E24', padding: '14px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          <span style={{ fontSize: '0.8rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #1E1E24', paddingBottom: '6px' }}>
-                            📈 Método Over 2.5 Gols
-                          </span>
+                        <div style={{ background: '#121217', borderRadius: '12px', border: '1px solid #1E1E24', padding: '14px', display: 'flex', flexDirection: 'column', gap: '12px', justifyContent: 'space-between', height: '100%' }}>
+                          <div>
+                            <span style={{ display: 'block', fontSize: '0.8rem', fontWeight: 'bold', color: '#fff', borderBottom: '1px solid #1E1E24', paddingBottom: '6px', marginBottom: '10px' }}>
+                              📈 Método Over 2.5 Gols
+                            </span>
 
-                          <div style={{
-                            background: isApproved25 ? 'rgba(204, 255, 0, 0.06)' : 'rgba(255, 61, 0, 0.06)',
-                            border: `1px solid ${isApproved25 ? 'var(--brand-neon)' : '#ff3d00'}`,
-                            borderRadius: '6px',
-                            padding: '8px',
-                            textAlign: 'center',
-                            fontSize: '0.72rem'
-                          }}>
-                            <div style={{ fontWeight: 'bold', color: isApproved25 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
-                              {isApproved25 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}
+                            <div style={{
+                              background: isApproved25 ? 'rgba(204, 255, 0, 0.06)' : 'rgba(255, 61, 0, 0.06)',
+                              border: `1px solid ${isApproved25 ? 'var(--brand-neon)' : '#ff3d00'}`,
+                              borderRadius: '6px',
+                              padding: '8px',
+                              textAlign: 'center',
+                              fontSize: '0.72rem',
+                              marginBottom: '12px'
+                            }}>
+                              <div style={{ fontWeight: 'bold', color: isApproved25 ? 'var(--brand-neon)' : '#fff', marginBottom: '2px' }}>
+                                {isApproved25 ? '✅ APTO PARA ENTRADA' : '⚠️ DESCARTE'}
+                              </div>
+                              <span style={{ color: '#aaa', fontSize: '0.65rem' }}>Gestão: 1% a 3% da banca</span>
                             </div>
-                            <span style={{ color: '#aaa', fontSize: '0.65rem' }}>Gestão: 1% a 3% da banca</span>
                           </div>
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.72rem' }}>
@@ -3707,8 +3719,8 @@ export default function AnalysisPage() {
                               <strong style={{ color: isOverLeague ? 'var(--brand-neon)' : '#888' }}>{isOverLeague ? 'Sim' : 'Não'}</strong>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ color: '#aaa' }}>xG Projetado &gt; 2.7:</span>
-                              <strong style={{ color: isHighGoalsAverage ? 'var(--brand-neon)' : '#ff3d00' }}>{totalExpectedGoals.toFixed(2)}</strong>
+                              <span style={{ color: '#aaa' }}>xG Projetado Total:</span>
+                              <strong style={{ color: isApproved25 ? 'var(--brand-neon)' : '#ff3d00' }}>{totalExpectedGoals.toFixed(2)}</strong>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span style={{ color: '#aaa' }}>Probabilidade Over 2.5:</span>

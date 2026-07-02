@@ -3453,13 +3453,6 @@ export default function AnalysisPage() {
                       }
                     }
                     const under25Prob = Math.min(99, Math.round(under25Val * 100));
-                    const isHistoryUnder25 = under25Prob > 55;
-
-                    // 5. Odd justa estimada
-                    const fairOddUnder25 = 1 / (under25Val || 0.4);
-                    const isOddInInterval25 = fairOddUnder25 >= 1.40 && fairOddUnder25 <= 1.95;
-
-                    // Viável se probabilidade for decente e xG estiver coerente
                     const isApproved25 = under25Prob >= 55 && totalExpectedGoals < 2.7;
 
                     // Para Under 3.5
@@ -3506,8 +3499,8 @@ export default function AnalysisPage() {
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.72rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ color: '#aaa' }}>Competição Estável Under:</span>
-                              <strong style={{ color: isUnderLeague ? 'var(--brand-neon)' : '#888' }}>{isUnderLeague ? 'Sim' : 'Não'}</strong>
+                              <span style={{ color: '#aaa' }}>Liga Tendência Under:</span>
+                              <strong style={{ color: isUnderLeague ? 'var(--brand-neon)' : '#ff3d00' }}>{isUnderLeague ? 'Sim' : 'Não'}</strong>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span style={{ color: '#aaa' }}>xG Projetado &lt; 2.5:</span>
@@ -3515,11 +3508,11 @@ export default function AnalysisPage() {
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span style={{ color: '#aaa' }}>Probabilidade Under 2.5:</span>
-                              <strong style={{ color: isHistoryUnder25 ? 'var(--brand-neon)' : '#ff3d00' }}>{under25Prob}%</strong>
+                              <strong style={{ color: isApproved25 ? 'var(--brand-neon)' : '#ff3d00' }}>{under25Prob}%</strong>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span style={{ color: '#aaa' }}>Odd Justa Estimada:</span>
-                              <strong style={{ color: isOddInInterval25 ? 'var(--brand-neon)' : '#ffea00' }}>@{fairOddUnder25.toFixed(2)}</strong>
+                              <strong style={{ color: '#ffea00' }}>@{ (1 / (under25Val || 0.4)).toFixed(2)}</strong>
                             </div>
                           </div>
                         </div>
@@ -3549,8 +3542,8 @@ export default function AnalysisPage() {
 
                           <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '0.72rem' }}>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                              <span style={{ color: '#aaa' }}>Competição Estável Under:</span>
-                              <strong style={{ color: isUnderLeague ? 'var(--brand-neon)' : '#888' }}>{isUnderLeague ? 'Sim' : 'Não'}</strong>
+                              <span style={{ color: '#aaa' }}>Liga Tendência Under:</span>
+                              <strong style={{ color: isUnderLeague ? 'var(--brand-neon)' : '#ff3d00' }}>{isUnderLeague ? 'Sim' : 'Não'}</strong>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                               <span style={{ color: '#aaa' }}>xG Projetado &lt; 2.5:</span>
@@ -3603,7 +3596,7 @@ export default function AnalysisPage() {
                     
                     // 2. Média projetada xG alta (Soma > 2.7)
                     const totalExpectedGoals = hXG + aXG;
-                    const isHighGoalsAverage = totalExpectedGoals >= 2.0;
+                    const isHighGoalsAverage = totalExpectedGoals >= 1.8;
 
                     // 3. Relevância do jogo
                     const isHighRelevance = true;
@@ -3619,14 +3612,14 @@ export default function AnalysisPage() {
                       }
                     }
                     const over15Prob = Math.min(99, Math.round((1 - under15Val) * 100));
-                    const isHistoryOver15 = over15Prob > 75;
+                    const isHistoryOver15 = over15Prob >= 60;
 
                     // Odd justa Over 1.5
                     const fairOddOver15 = 1 / ((1 - under15Val) || 0.8);
                     const isOddInInterval15 = fairOddOver15 >= 1.20 && fairOddOver15 <= 1.55;
 
-                    // Aprovado se a chance matemática for alta (>70%)
-                    const isApproved15 = over15Prob >= 70 && totalExpectedGoals >= 2.0;
+                    // Aprovado se a chance matemática for alta (>=60%) e média xG combinada >= 1.8
+                    const isApproved15 = over15Prob >= 60 && totalExpectedGoals >= 1.8;
 
                     // Para Over 2.5 (Soma >= 3)
                     let under25Val = 0;
@@ -3638,12 +3631,12 @@ export default function AnalysisPage() {
                       }
                     }
                     const over25Prob = Math.min(99, Math.round((1 - under25Val) * 100));
-                    const isHistoryOver25 = over25Prob > 55;
+                    const isHistoryOver25 = over25Prob >= 45;
                     const fairOddOver25 = 1 / ((1 - under25Val) || 0.5);
                     const isOddInInterval25 = fairOddOver25 >= 1.50 && fairOddOver25 <= 2.10;
 
-                    // Aprovado se probabilidade for decente e xG compatível
-                    const isApproved25 = over25Prob >= 50 && totalExpectedGoals >= 2.5;
+                    // Aprovado se probabilidade for decente e xG compatível (>=2.30 xG)
+                    const isApproved25 = over25Prob >= 45 && totalExpectedGoals >= 2.3;
 
                     return (
                       <>
